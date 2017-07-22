@@ -1,124 +1,59 @@
 package com.mackenziehigh.loader;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import com.mackenziehigh.sexpr.Sexpr;
 
 /**
- * Main Program.
+ * An instance of this interface manages the modules, message queues,
+ * and message processors throughout the lifetime of the application.
  */
 public interface Controller
 {
+    /**
+     * This is the user-defined name of this controller.
+     *
+     * @return the name.
+     */
+    public String name ();
 
     /**
-     * These are the main threads.
+     * This value uniquely identifies this controller in time and space.
      *
-     * @return the main threads.
+     * @return the unique-ID of this controller.
      */
-    public ImmutableSet<Thread> threads ();
+    public UniqueID uniqueID ();
+
+    /**
+     * These are all of the processors controlled by this object.
+     *
+     * @return a map that maps the name of a processor to the processor.
+     */
+    public ImmutableMap<String, MessageProcessor> processors ();
+
+    /**
+     * These are all of the message-queues controlled by this object.
+     *
+     * @return a map that maps the name of a queue to the queue.
+     */
+    public ImmutableMap<String, MessageQueue> queues ();
 
     /**
      * These are the modules controlled by this object.
      *
-     * @return all of the modules herein.
+     * @return a map that maps the name of a module to the module.
      */
-    public ImmutableMap<String, Module> modules ();
+    public ImmutableMap<String, AbstractModule> modules ();
 
     /**
-     * This method retrieves the number of milliseconds
-     * since the creation of this object.
+     * These are the user-defined settings in the configuration file(s).
      *
-     * @return the uptime of the controller.
+     * @return the user-defined settings.
      */
-    public long uptime ();
-
-    /**
-     * This method retrieves the number of messages
-     * that have been sent through this controller.
-     *
-     * @return the total number of sent messages.
-     */
-    public long messageCount ();
-
-    /**
-     * This method retrieves the number of messages that
-     * are currently enqueued awaiting processing.
-     *
-     * @return the total number of back-logged messages.
-     */
-    public long queueSize ();
-
-    /**
-     * This method retrieves the maximum number of messages
-     * that can be enqueued at one time awaiting processing.
-     *
-     * @return the maximum queue size.
-     */
-    public long maximumQueueSize ();
-
-    /**
-     * This method adds a message-handler.
-     *
-     * @param topic identifies the queue from which the handler will receive messages.
-     * @param handler is the new message-handler.
-     * @throws IllegalStateException if normal shutdown has begun.
-     */
-    public void register (TopicKey topic,
-                          Consumer<Object> handler);
-
-    /**
-     * This method adds a message-handler.
-     *
-     * @param topic identifies the queue from which the handler will receive messages.
-     * @param handler is the new message-handler.
-     * @throws IllegalStateException if normal shutdown has begun.
-     */
-    public void register (TopicKey topic,
-                          BiConsumer<TopicKey, Object> handler);
-
-    /**
-     * This method asynchronously sends a message to all message-handlers
-     * that are listening on the given topic queue.
-     *
-     * <p>
-     * This method simply enqueues the message and then returns immediately.
-     * In other words, this method will never block.
-     * </p>
-     *
-     * <p>
-     * If normal shutdown has already begun,
-     * then this method returns false.
-     * </p>
-     *
-     * <p>
-     * If the queueSize() has reached the maximumQueueSize(),
-     * then this method will return false.
-     * </p>
-     *
-     * @param topic identifies the queue to send the message to.
-     * @param message is the message to add to the queue.
-     * @return true, iff the message was successfully enqueued.
-     */
-    public boolean send (TopicKey topic,
-                         Object message);
-
-    /**
-     * When this controller shuts down, the given object will be closed.
-     *
-     * <p>
-     * The close() operation will be performed after every module is stopped.
-     * </p>
-     *
-     * @param <T> is the type of the input.
-     * @param closeable is the object to close, when this controller shuts down.
-     * @return the input.
-     */
-    public <T extends AutoCloseable> T autoclose (T closeable);
+    public ImmutableMap<String, Sexpr> settings ();
 
     /**
      * Unloads all of the modules that are currently loaded
-     * and then shuts down the program.
+     * and then forcibly shuts down the program.
      */
     public void shutdown ();
 }
