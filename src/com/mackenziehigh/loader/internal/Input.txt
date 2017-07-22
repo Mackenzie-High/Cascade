@@ -1,0 +1,34 @@
+
+(include 'http//lib1.config')
+(include 'http//lib2.config' require MD5 '1323123123')
+(include 'http//lib2.config' require SHA1 '568123123')
+
+(import 'DB' = 'com.mackenziehigh.db.MainModule')
+
+(direct processor PortProcessor
+    (log PortLog)
+    (log PortAlternateLog)
+    (q AgentToRecorder)
+    (q AgentToStats))
+
+(spawning processor StarboardLog
+    (log DatabaseInserterLog)
+    (thread name = 'Database Inserter')
+    (thread max count = 9)
+    (thread min count = 1)
+    (thread priority = 3)
+    (forward overflow to OverflowQueue)
+    (q 'Incoming DB Messages')
+    (q 'Outgoing SQl Statements'))
+
+(module Database : DB
+    (log DatabaseLog)
+    (XXX))
+
+(set program.name = 'AMQP Agent')
+
+
+
+
+
+
