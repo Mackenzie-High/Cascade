@@ -104,8 +104,12 @@ public interface MessageQueue
      * over the behavioral details.
      * </p>
      *
+     * <p>
+     * The message cannot be null.
+     * </p>
+     *
      * @param message is the message to add to the queue.
      * @return true, iff the message was successfully enqueued.
      */
-    public boolean send (Object message);
+    public boolean send (Message message);
 }

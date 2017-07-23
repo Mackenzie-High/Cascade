@@ -2,23 +2,23 @@ package com.mackenziehigh.loader.modules.common;
 
 import com.mackenziehigh.loader.ConfigObject;
 import com.mackenziehigh.loader.ConfigSchema;
-import com.mackenziehigh.loader.Controller;
-import com.mackenziehigh.loader.Module;
-import com.mackenziehigh.loader.TopicKey;
+import com.mackenziehigh.loader.QueueKey;
 import java.util.ArrayList;
+import com.mackenziehigh.loader.Controller;
+import com.mackenziehigh.loader.AbstractModule;
 
 /**
  * An instance of this class receives a message from a single topic
  * and then forwards it to zero-or-more other topics.
  */
 public final class Fanout
-        implements Module
+        implements AbstractModule
 {
     private final ConfigSchema schema = new ConfigSchema();
 
     private Controller controller;
 
-    private final ArrayList<TopicKey> outputs = new ArrayList<>();
+    private final ArrayList<QueueKey> outputs = new ArrayList<>();
 
     public Fanout ()
     {
@@ -40,13 +40,13 @@ public final class Fanout
 
     private void setInput (final ConfigObject value)
     {
-        final TopicKey topic = TopicKey.get(value.asString().get());
+        final QueueKey topic = QueueKey.get(value.asString().get());
         controller.register(topic, message -> forward(message));
     }
 
     private void addOutput (final ConfigObject value)
     {
-        final TopicKey topic = TopicKey.get(value.asString().get());
+        final QueueKey topic = QueueKey.get(value.asString().get());
         outputs.add(topic);
     }
 
@@ -54,7 +54,7 @@ public final class Fanout
     {
         for (int i = 0; i < outputs.size(); i++)
         {
-            final TopicKey topic = outputs.get(i);
+            final QueueKey topic = outputs.get(i);
             controller.send(topic, message);
         }
     }

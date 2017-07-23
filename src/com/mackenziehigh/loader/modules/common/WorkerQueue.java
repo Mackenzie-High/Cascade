@@ -2,14 +2,14 @@ package com.mackenziehigh.loader.modules.common;
 
 import com.mackenziehigh.loader.ConfigObject;
 import com.mackenziehigh.loader.ConfigSchema;
-import com.mackenziehigh.loader.Controller;
-import com.mackenziehigh.loader.Module;
-import com.mackenziehigh.loader.TopicKey;
+import com.mackenziehigh.loader.QueueKey;
 import com.mackenziehigh.loader.util.Final;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
+import com.mackenziehigh.loader.Controller;
+import com.mackenziehigh.loader.AbstractModule;
 
 /**
  * An instance of this class receives work from a topic
@@ -23,7 +23,7 @@ import java.util.stream.IntStream;
  * </p>
  */
 public final class WorkerQueue
-        implements Module
+        implements AbstractModule
 {
     /**
      * This schema describes the module configuration.
@@ -122,7 +122,7 @@ public final class WorkerQueue
          * for messages coming from the input topic.
          */
         final String key = value.asString().get();
-        final TopicKey topic = TopicKey.get(key);
+        final QueueKey topic = QueueKey.get(key);
         controller.get().get().register(topic, message -> receive(message));
     }
 

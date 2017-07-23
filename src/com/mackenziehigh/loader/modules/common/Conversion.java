@@ -1,8 +1,6 @@
 package com.mackenziehigh.loader.modules.common;
 
-import com.mackenziehigh.loader.ConfigObject;
-import com.mackenziehigh.loader.Controller;
-import com.mackenziehigh.loader.Module;
+import com.mackenziehigh.loader.AbstractModule;
 
 /**
  * An instance of this class performs a predefined object
@@ -10,20 +8,7 @@ import com.mackenziehigh.loader.Module;
  * and then forwards the message (M) to another topic (Y).
  */
 public final class Conversion
-        implements Module
+        implements AbstractModule
 {
-    @Override
-    public boolean start ()
-    {
-        return true;
-    }
-
-    @Override
-    public boolean setup (Controller controller,
-                          String name,
-                          ConfigObject configuration)
-    {
-        return true;
-    }
 
 }

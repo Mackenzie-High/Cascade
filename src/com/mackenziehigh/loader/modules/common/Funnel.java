@@ -2,9 +2,9 @@ package com.mackenziehigh.loader.modules.common;
 
 import com.mackenziehigh.loader.ConfigObject;
 import com.mackenziehigh.loader.ConfigSchema;
+import com.mackenziehigh.loader.QueueKey;
 import com.mackenziehigh.loader.Controller;
-import com.mackenziehigh.loader.Module;
-import com.mackenziehigh.loader.TopicKey;
+import com.mackenziehigh.loader.AbstractModule;
 
 /**
  * An instance of this class receives messages from a set of topics
@@ -13,13 +13,13 @@ import com.mackenziehigh.loader.TopicKey;
  * In effect, this funnels the messages into a single topic.
  */
 public final class Funnel
-        implements Module
+        implements AbstractModule
 {
     private final ConfigSchema schema = new ConfigSchema();
 
     private Controller controller;
 
-    private TopicKey output;
+    private QueueKey output;
 
     public Funnel ()
     {
@@ -40,12 +40,12 @@ public final class Funnel
 
     private void addInput (final ConfigObject value)
     {
-        final TopicKey topic = TopicKey.get(value.asString().get());
+        final QueueKey topic = QueueKey.get(value.asString().get());
         controller.register(topic, message -> controller.send(output, message));
     }
 
     private void setOutput (final ConfigObject value)
     {
-        output = TopicKey.get(value.asString().get());
+        output = QueueKey.get(value.asString().get());
     }
 }

@@ -2,7 +2,7 @@ package com.mackenziehigh.loader.modules.common;
 
 import com.mackenziehigh.loader.ConfigObject;
 import com.mackenziehigh.loader.Controller;
-import com.mackenziehigh.loader.Module;
+import com.mackenziehigh.loader.AbstractModule;
 
 /**
  * An instance of this class forwards a message from one
@@ -12,7 +12,7 @@ import com.mackenziehigh.loader.Module;
  * Thereafter, the tally will be sent via yet another topic.
  */
 public final class Counter
-        implements Module
+        implements AbstractModule
 {
     public Counter ()
     {
@@ -21,13 +21,13 @@ public final class Counter
     @Override
     public void stop ()
     {
-        Module.super.stop();
+        AbstractModule.super.stop();
     }
 
     @Override
     public boolean start ()
     {
-        return Module.super.start();
+        return AbstractModule.super.start();
     }
 
     @Override
@@ -35,7 +35,7 @@ public final class Counter
                           String name,
                           ConfigObject configuration)
     {
-        return Module.super.setup(controller, name, configuration);
+        return AbstractModule.super.setup(controller, name, configuration);
     }
 
 }

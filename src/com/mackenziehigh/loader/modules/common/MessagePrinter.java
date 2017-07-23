@@ -1,10 +1,10 @@
 package com.mackenziehigh.loader.modules.common;
 
 import com.mackenziehigh.loader.ConfigObject;
-import com.mackenziehigh.loader.Controller;
-import com.mackenziehigh.loader.Module;
-import com.mackenziehigh.loader.TopicKey;
+import com.mackenziehigh.loader.QueueKey;
 import java.util.List;
+import com.mackenziehigh.loader.Controller;
+import com.mackenziehigh.loader.AbstractModule;
 
 /**
  * An instance of this class is a module that subscribes
@@ -12,7 +12,7 @@ import java.util.List;
  * of the messages that are received there from.
  */
 public final class MessagePrinter
-        implements Module
+        implements AbstractModule
 {
     private Controller controller;
 
@@ -23,7 +23,7 @@ public final class MessagePrinter
     {
         this.controller = controller;
         final List<ConfigObject> topics = configuration.asMap().get().get("topics").asList().get();
-        topics.forEach(x -> controller.register(TopicKey.get(x.asString().get()), MessagePrinter::print));
+        topics.forEach(x -> controller.register(QueueKey.get(x.asString().get()), MessagePrinter::print));
         return true;
     }
 

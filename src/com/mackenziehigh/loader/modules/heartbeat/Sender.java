@@ -1,19 +1,19 @@
 package com.mackenziehigh.loader.modules.heartbeat;
 
 import com.mackenziehigh.loader.ConfigObject;
-import com.mackenziehigh.loader.Controller;
-import com.mackenziehigh.loader.Module;
-import com.mackenziehigh.loader.TopicKey;
+import com.mackenziehigh.loader.QueueKey;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
+import com.mackenziehigh.loader.Controller;
+import com.mackenziehigh.loader.AbstractModule;
 
 /**
  * An instance of this class periodically sends
  * a message to a user-defined topic.
  */
 public final class Sender
-        implements Module
+        implements AbstractModule
 {
     private Controller controller;
 
@@ -39,7 +39,7 @@ public final class Sender
             @Override
             public void run ()
             {
-                controller.send(TopicKey.get(topic), name + ":" + System.currentTimeMillis());
+                controller.send(QueueKey.get(topic), name + ":" + System.currentTimeMillis());
             }
         };
 
