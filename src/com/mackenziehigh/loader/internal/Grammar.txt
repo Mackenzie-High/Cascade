@@ -8,12 +8,14 @@ line = echo
      / include_SHA512
      / include_unsafe
      / import
-     / processor
+     / dedicated_processor
+     / direct_processor
+     / spawning_processor
      / module
      / set
      ;
 
-echo = [ "echo" , $ATOM * ];
+echo = [ "echo" , $ATOM ];
 
 include_MD5 = [ "include" , $ATOM , "require" , "MD5" , $ATOM ];
 
@@ -26,11 +28,6 @@ include_SHA512 = [ "include" , $ATOM , "require" , "SHA512" , $ATOM ];
 include_unsafe = [ "include" , $ATOM ];
 
 import = [ "import" , $ATOM , "=" , $ATOM ];
-
-processor = dedicated_processor
-          / direct_processor
-          / spawning_processor
-          ;
 
 direct_processor = [ "direct" , "processor" , processor_name , direct_option * ];
 
