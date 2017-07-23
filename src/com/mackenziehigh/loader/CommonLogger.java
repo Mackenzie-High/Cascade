@@ -53,7 +53,9 @@ public final class CommonLogger
 
     private final AtomicLong messageCounter = new AtomicLong();
 
-    private final AbstractModule module;
+    private final String sourceName;
+
+    private final UniqueID sourceID;
 
     private final MessageQueue queue;
 
@@ -61,23 +63,18 @@ public final class CommonLogger
      * Constructor.
      *
      * @param queue is where log-messages will be sent.
+     * @param sourceName is the name of the entity that contains this logger.
+     * @param sourceID is the unique-ID of the entity that contains this logger.
      */
-    public CommonLogger (final MessageQueue queue)
-    {
-        this(null, queue);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param module contains this logger.
-     * @param queue is where log-messages will be sent.
-     */
-    public CommonLogger (final AbstractModule module,
-                         final MessageQueue queue)
+    public CommonLogger (final MessageQueue queue,
+                         final String sourceName,
+                         final UniqueID sourceID)
     {
         Preconditions.checkNotNull(queue, "queue");
-        this.module = module;
+        Preconditions.checkNotNull(sourceName, "sourceName");
+        Preconditions.checkNotNull(sourceID, "sourceID");
+        this.sourceName = sourceName;
+        this.sourceID = sourceID;
         this.queue = queue;
     }
 
@@ -125,39 +122,15 @@ public final class CommonLogger
             }
 
             @Override
-            public String controllerName ()
+            public String sourceName ()
             {
-                return queue().processor().controller().name();
+                return sourceName;
             }
 
             @Override
-            public UniqueID controllerID ()
+            public UniqueID sourceID ()
             {
-                return queue().processor().controller().uniqueID();
-            }
-
-            @Override
-            public String processorName ()
-            {
-                return queue().processor().name();
-            }
-
-            @Override
-            public UniqueID processorID ()
-            {
-                return queue().processor().uniqueID();
-            }
-
-            @Override
-            public String moduleName ()
-            {
-                return module == null ? null : module.name();
-            }
-
-            @Override
-            public UniqueID moduleID ()
-            {
-                return module == null ? null : module.uniqueID();
+                return sourceID;
             }
 
             @Override
@@ -183,6 +156,13 @@ public final class CommonLogger
             {
                 return null;
             }
+
+            @Override
+            public String toString ()
+            {
+                return String.valueOf(content);
+            }
+
         };
 
         queue().send(message);

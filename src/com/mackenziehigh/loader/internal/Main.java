@@ -29,11 +29,7 @@ public final class Main
         loader.load(new URL(path));
         final Optional<SList> config = loader.result();
 
-        if (config.isPresent())
-        {
-            System.out.println(config.get());
-        }
-        else
+        if (config.isPresent() == false)
         {
             System.out.println(loader.errorMessage());
             System.exit(1);
@@ -49,8 +45,12 @@ public final class Main
         /**
          * Step: Hand off control to the controller.
          */
-        final int exitCode = controller.run();
-        System.exit(exitCode);
+        controller.run();
+
+        /**
+         * Force all threads to stop.
+         */
+        System.exit(0);
     }
 
     private static void help ()

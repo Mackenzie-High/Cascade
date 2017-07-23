@@ -31,9 +31,7 @@ import = [ "import" , $ATOM , "=" , $ATOM ];
 
 direct_processor = [ "direct" , "processor" , processor_name , direct_option * ];
 
-    direct_option = queue
-                  / log
-                  ;
+    direct_option = queue;
 
 spawning_processor = [ "spawning" , "processor" , processor_name , spawning_option * ];
 
@@ -44,7 +42,6 @@ spawning_processor = [ "spawning" , "processor" , processor_name , spawning_opti
                     / spawning_capacity
                     / spawning_overflow
                     / queue
-                    / log
                     ;
 
     spawning_thread_max = [ "thread" , "max" , "count" , '=' , $INT ];
@@ -67,7 +64,6 @@ dedicated_processor = [ "dedicated" , "processor" , processor_name , dedicated_o
                      / dedicated_capacity
                      / dedicated_overflow
                      / queue
-                     / log
                      ;
 
     dedicated_thread_count = [ "thread" , "count" , '=' , $INT ];
@@ -86,19 +82,11 @@ module = [ "module" , module_name , ":" , module_class , module_option * ];
 
     module_class = $ATOM;
 
-    module_option = module_log / custom_option;
-
-    module_log = [ "log" , $ATOM ];
-
-    custom_option = $ANY;
+    module_option = $ANY;
 
 set = [ "set" , $ATOM , "=" , $ANY ];
 
 processor_name = $ATOM;
-
-log = [ "log" , log_name * ];
-
-    log_name = $ATOM;
 
 queue = [ "q" , queue_name * ];
 

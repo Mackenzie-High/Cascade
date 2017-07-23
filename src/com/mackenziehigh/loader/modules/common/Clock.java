@@ -19,20 +19,19 @@ public final class Clock
     @Override
     public void setup ()
     {
-        System.out.println("Setup");
     }
 
     @Override
     public void start ()
     {
-        System.out.println("Start");
 
         final AtomicInteger i = new AtomicInteger();
 
         final Runnable sender = () ->
         {
             final Message message = new SimpleMessage(this, i.incrementAndGet());
-            controller().queues().get("Clock").send(message);
+            //controller().queues().get("default").send(message);
+            logger().info(message.uniqueID().toString());
         };
 
         Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.run(), 0, 1, TimeUnit.SECONDS);

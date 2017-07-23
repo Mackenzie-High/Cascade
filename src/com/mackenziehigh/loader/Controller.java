@@ -24,6 +24,13 @@ public interface Controller
     public UniqueID uniqueID ();
 
     /**
+     * This is the queue that log-messages are sent to.
+     *
+     * @return the log-queue.
+     */
+    public MessageQueue globalLogQueue ();
+
+    /**
      * These are all of the processors controlled by this object.
      *
      * @return a map that maps the name of a processor to the processor.

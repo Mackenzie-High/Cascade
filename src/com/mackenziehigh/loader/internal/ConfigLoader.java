@@ -231,10 +231,10 @@ final class ConfigLoader
         }
         catch (IOException | RuntimeException ex)
         {
-            errorMessage.append(Throwables.getRootCause(ex).getMessage());
+            errorMessage.append(Throwables.getRootCause(ex).getMessage()).append('\n');
             final List<URL> reversed = new ArrayList<>(backtrace);
             Collections.reverse(reversed);
-            reversed.forEach(x -> errorMessage.append("BackTrace: ").append(x));
+            reversed.forEach(x -> errorMessage.append("BackTrace: ").append(x).append('\n'));
             return false;
         }
     }

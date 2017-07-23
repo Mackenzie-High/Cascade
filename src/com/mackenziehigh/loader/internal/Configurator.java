@@ -2,6 +2,8 @@ package com.mackenziehigh.loader.internal;
 
 import com.google.common.base.Verify;
 import com.mackenziehigh.loader.AbstractModule;
+import com.mackenziehigh.loader.CommonLogger;
+import com.mackenziehigh.loader.UniqueID;
 import com.mackenziehigh.sexpr.SAtom;
 import com.mackenziehigh.sexpr.SList;
 import com.mackenziehigh.sexpr.Sexpr;
@@ -29,7 +31,7 @@ final class Configurator
 
     private AbstractModule module;
 
-    private final List<Sexpr> customOptions = new LinkedList<>();
+    private final List<Sexpr> moduleOptions = new LinkedList<>();
 
     @Pass ("ECHO_PASS")
     @Before ("echo")
@@ -49,18 +51,36 @@ final class Configurator
 
     @Pass ("CREATE_PROCESSORS_PASS")
     @Before ("direct_processor")
-    public void visit_direct_processor (final SList node)
+    public void visit_direct_processor_before (final SList node)
     {
         processor = new DirectProcessor();
         processor.controller = controller;
     }
 
     @Pass ("CREATE_PROCESSORS_PASS")
+    @After ("direct_processor")
+    public void visit_direct_processor_after (final SList node)
+    {
+        final String sourceName = processor.name;
+        final UniqueID sourceID = processor.uniqueID;
+        processor.logger = new CommonLogger(controller.globalLogQueue(), sourceName, sourceID);
+    }
+
+    @Pass ("CREATE_PROCESSORS_PASS")
     @Before ("spawning_processor")
-    public void visit_spawning_processor (final SList node)
+    public void visit_spawning_processor_before (final SList node)
     {
         processor = new SpawningProcessor();
         processor.controller = controller;
+    }
+
+    @Pass ("CREATE_PROCESSORS_PASS")
+    @After ("spawning_processor")
+    public void visit_spawning_processor_after (final SList node)
+    {
+        final String sourceName = processor.name;
+        final UniqueID sourceID = processor.uniqueID;
+        processor.logger = new CommonLogger(controller.globalLogQueue(), sourceName, sourceID);
     }
 
     @Pass ("CREATE_PROCESSORS_PASS")
@@ -107,15 +127,26 @@ final class Configurator
     @Before ("spawning_overflow")
     public void visit_spawning_overflow (final SList node)
     {
-
+        final SpawningProcessor p = (SpawningProcessor) processor;
+        final String name = node.get(3).toAtom().content();
+        p.overflowQueue = new LazyQueueRef(controller, name);
     }
 
     @Pass ("CREATE_PROCESSORS_PASS")
     @Before ("dedicated_processor")
-    public void visit_dedicated_processor (final SList node)
+    public void visit_dedicated_processor_before (final SList node)
     {
         processor = new DedicatedProcessor();
         processor.controller = controller;
+    }
+
+    @Pass ("CREATE_PROCESSORS_PASS")
+    @After ("dedicated_processor")
+    public void visit_dedicated_processor_after (final SList node)
+    {
+        final String sourceName = processor.name;
+        final UniqueID sourceID = processor.uniqueID;
+        processor.logger = new CommonLogger(controller.globalLogQueue(), sourceName, sourceID);
     }
 
     @Pass ("CREATE_PROCESSORS_PASS")
@@ -155,14 +186,16 @@ final class Configurator
     @Before ("dedicated_overflow")
     public void visit_dedicated_overflow (final SList node)
     {
-
+        final DedicatedProcessor p = (DedicatedProcessor) processor;
+        final String name = node.get(3).toAtom().content();
+        p.overflowQueue = new LazyQueueRef(controller, name);
     }
 
     @Pass ("CREATE_MODULES_PASS")
     @Before ("module")
     public void visit_module_before (final SList node)
     {
-        customOptions.clear();
+        moduleOptions.clear();
 
         final String name = node.get(1).toAtom().content();
         final String type = node.get(3).toAtom().content();
@@ -186,15 +219,19 @@ final class Configurator
     @After ("module")
     public void visit_module_after (final SList node)
     {
-        final SList configuration = SList.copyOf(customOptions);
+        final SList configuration = SList.copyOf(moduleOptions);
         module.assignConfiguration(configuration);
+        final String sourceName = module.name();
+        final UniqueID sourceID = module.uniqueID();
+        final CommonLogger logger = new CommonLogger(controller.globalLogQueue(), sourceName, sourceID);
+        module.assignLogger(logger);
     }
 
     @Pass ("CREATE_MODULES_PASS")
-    @Before ("custom_option")
+    @Before ("module_option")
     public void visit_custom_option (final Sexpr node)
     {
-        customOptions.add(node);
+        moduleOptions.add(node);
     }
 
     @Pass ("CREATE_SETTINGS_PASS")
@@ -215,13 +252,6 @@ final class Configurator
     }
 
     @Pass ("CREATE_PROCESSORS_PASS")
-    @Before ("log")
-    public void visit_log (final SList node)
-    {
-
-    }
-
-    @Pass ("CREATE_PROCESSORS_PASS")
     @Before ("queue")
     public void visit_queue (final SList node)
     {
@@ -237,7 +267,6 @@ final class Configurator
          */
         final SexprSchema grammar = SexprSchema.fromResource("/com/mackenziehigh/loader/internal/Grammar.txt")
                 .pass("ECHO_PASS")
-                .pass("CREATE_QUEUES_PASS")
                 .pass("CREATE_PROCESSORS_PASS")
                 .pass("CREATE_MODULES_PASS")
                 .pass("CREATE_SETTINGS_PASS")

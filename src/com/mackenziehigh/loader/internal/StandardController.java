@@ -2,6 +2,7 @@ package com.mackenziehigh.loader.internal;
 
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.mackenziehigh.loader.AbstractModule;
+import com.mackenziehigh.loader.CommonLogger;
 import com.mackenziehigh.loader.Controller;
 import com.mackenziehigh.loader.MessageProcessor;
 import com.mackenziehigh.loader.MessageQueue;
@@ -41,6 +42,21 @@ final class StandardController
 
     private final AtomicBoolean stop = new AtomicBoolean();
 
+    private final DirectProcessor globalLogProcessor = new DirectProcessor();
+
+    private final MessageQueue globalLogQueue;
+
+    public StandardController ()
+    {
+        this.globalLogProcessor.name = "global.log.processor";
+        this.globalLogProcessor.controller = this;
+        this.globalLogProcessor.declareQueue("global.log");
+        this.globalLogQueue = globalLogProcessor.messageQueues.get("global.log");
+        this.globalLogProcessor.logger = new CommonLogger(globalLogQueue, "global.log.processor", globalLogProcessor.uniqueID());
+        this.processors.put("global.log.processor", globalLogProcessor);
+        this.queues.put("global.log", globalLogQueue);
+    }
+
     @Override
     public String name ()
     {
@@ -51,6 +67,12 @@ final class StandardController
     public UniqueID uniqueID ()
     {
         return uniqueID;
+    }
+
+    @Override
+    public MessageQueue globalLogQueue ()
+    {
+        return globalLogQueue;
     }
 
     @Override
@@ -83,7 +105,7 @@ final class StandardController
         stop.set(true);
     }
 
-    public int run ()
+    public void run ()
     {
         /**
          * Step: Start the message-processors.
@@ -94,9 +116,9 @@ final class StandardController
             {
                 ((AbstractProcessor) p).start();
             }
-            catch (Exception ex)
+            catch (Throwable ex)
             {
-                // TODO
+                ex.printStackTrace(System.out);
             }
         }
 
@@ -109,9 +131,9 @@ final class StandardController
             {
                 ((AbstractModule) m).setup();
             }
-            catch (Exception ex)
+            catch (Throwable ex)
             {
-                // TODO
+                ex.printStackTrace(System.out);
             }
         }
 
@@ -124,13 +146,13 @@ final class StandardController
             {
                 ((AbstractModule) m).start();
             }
-            catch (Exception ex)
+            catch (Throwable ex)
             {
-                // TODO
+                ex.printStackTrace(System.out);
             }
         }
 
-        queues.get("Clock").bind(x ->
+        queues.get("global.log").bind(x ->
         {
             System.out.println("X = " + x.content());
         });
@@ -143,7 +165,49 @@ final class StandardController
             Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
         }
 
-        // TODO: Shutdown Logic
-        return 0; // TODO
+        /**
+         * Step: Stop the message-processors.
+         */
+        for (MessageProcessor p : processors.values())
+        {
+            try
+            {
+                ((AbstractProcessor) p).stop();
+            }
+            catch (Throwable ex)
+            {
+                ex.printStackTrace(System.out);
+            }
+        }
+
+        /**
+         * Step: Stop the modules.
+         */
+        for (AbstractModule m : modules.values())
+        {
+            try
+            {
+                ((AbstractModule) m).stop();
+            }
+            catch (Throwable ex)
+            {
+                ex.printStackTrace(System.out);
+            }
+        }
+
+        /**
+         * Step: Cleanup the modules.
+         */
+        for (AbstractModule m : modules.values())
+        {
+            try
+            {
+                ((AbstractModule) m).destroy();
+            }
+            catch (Throwable ex)
+            {
+                ex.printStackTrace(System.out);
+            }
+        }
     }
 }

@@ -8,46 +8,18 @@ import java.time.Instant;
 public interface Message
 {
     /**
-     * This is the user-defined name of the controller that created this message.
+     * This is the user-defined name of the source that created this message.
      *
-     * @return the name of the controller, or null, if unavailable.
+     * @return the name of the source.
      */
-    public String controllerName ();
+    public String sourceName ();
 
     /**
-     * This is the unique-ID of the controller that created this message.
+     * This is the unique-ID of the source that created this message.
      *
-     * @return the unique-ID of the controller, or null, if unavailable.
+     * @return the unique-ID of the source.
      */
-    public UniqueID controllerID ();
-
-    /**
-     * This is the user-defined name of the processor that created this message.
-     *
-     * @return the name of the processor, or null, if unavailable.
-     */
-    public String processorName ();
-
-    /**
-     * This is the unique-ID of the processor that created this message.
-     *
-     * @return the unique-ID of the processor, or null, if unavailable.
-     */
-    public UniqueID processorID ();
-
-    /**
-     * This is the user-defined name of the module that created this message.
-     *
-     * @return the name of the module, or null, if unavailable.
-     */
-    public String moduleName ();
-
-    /**
-     * This is the unique-ID of the module that created this message.
-     *
-     * @return the unique-ID of the module, or null, if unavailable.
-     */
-    public UniqueID moduleID ();
+    public UniqueID sourceID ();
 
     /**
      * This method retrieves the unique-ID of this message.

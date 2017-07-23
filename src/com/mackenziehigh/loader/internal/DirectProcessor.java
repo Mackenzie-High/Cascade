@@ -93,7 +93,7 @@ final class DirectProcessor
                     }
                     catch (Throwable ex)
                     {
-                        // TODO.
+                        logger.error(ex);
                     }
                 }
 
@@ -107,6 +107,12 @@ final class DirectProcessor
 
     @Override
     public void start ()
+    {
+        // Pass
+    }
+
+    @Override
+    public void stop ()
     {
         // Pass
     }

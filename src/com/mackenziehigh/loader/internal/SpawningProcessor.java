@@ -15,6 +15,8 @@ final class SpawningProcessor
 
     public int capacity;
 
+    public LazyQueueRef overflowQueue;
+
     @Override
     public void declareQueue (final String name)
     {
@@ -23,6 +25,12 @@ final class SpawningProcessor
 
     @Override
     public void start ()
+    {
+
+    }
+
+    @Override
+    public void stop ()
     {
 
     }

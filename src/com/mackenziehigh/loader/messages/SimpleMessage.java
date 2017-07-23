@@ -45,37 +45,13 @@ public final class SimpleMessage
     }
 
     @Override
-    public String controllerName ()
-    {
-        return module.controller().name();
-    }
-
-    @Override
-    public UniqueID controllerID ()
-    {
-        return module.controller().uniqueID();
-    }
-
-    @Override
-    public String processorName ()
-    {
-        return null;
-    }
-
-    @Override
-    public UniqueID processorID ()
-    {
-        return null;
-    }
-
-    @Override
-    public String moduleName ()
+    public String sourceName ()
     {
         return module.name();
     }
 
     @Override
-    public UniqueID moduleID ()
+    public UniqueID sourceID ()
     {
         return module.uniqueID();
     }
@@ -83,7 +59,7 @@ public final class SimpleMessage
     @Override
     public UniqueID uniqueID ()
     {
-        return correlationID;
+        return uniqueID;
     }
 
     @Override

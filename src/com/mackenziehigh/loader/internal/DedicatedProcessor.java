@@ -26,7 +26,7 @@ final class DedicatedProcessor
 
     public BiArrayBlockingQueue<MessageQueue, Message> messages;
 
-    public MessageQueue overflowQueue = null;
+    public LazyQueueRef overflowQueue;
 
     @Override
     public void declareQueue (final String name)
@@ -98,7 +98,7 @@ final class DedicatedProcessor
 
                 if (overflow && overflowQueue != null)
                 {
-                    return overflowQueue.send(message);
+                    return overflowQueue.get().send(message);
                 }
                 else if (overflow)
                 {
@@ -136,6 +136,12 @@ final class DedicatedProcessor
         }
     }
 
+    @Override
+    public void stop ()
+    {
+        // TODO
+    }
+
     private void runloop ()
     {
         while (true)
@@ -146,7 +152,7 @@ final class DedicatedProcessor
             }
             catch (Throwable ex)
             {
-                // TODO
+                logger.error(ex);
             }
         }
     }
@@ -163,7 +169,7 @@ final class DedicatedProcessor
             }
             catch (Throwable ex)
             {
-                // TODO.
+                logger.error(ex);
             }
         }
     }

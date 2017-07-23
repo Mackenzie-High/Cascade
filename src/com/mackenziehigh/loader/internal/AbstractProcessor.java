@@ -1,5 +1,6 @@
 package com.mackenziehigh.loader.internal;
 
+import com.mackenziehigh.loader.CommonLogger;
 import com.mackenziehigh.loader.Controller;
 import com.mackenziehigh.loader.MessageProcessor;
 import com.mackenziehigh.loader.MessageQueue;
@@ -21,7 +22,11 @@ abstract class AbstractProcessor
 
     public abstract void start ();
 
+    public abstract void stop ();
+
     public StandardController controller;
+
+    public CommonLogger logger;
 
     public String name = "";
 
