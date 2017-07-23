@@ -13,6 +13,9 @@ public final class Main
     public static void main (String[] args)
             throws IOException
     {
+        args = new String[1];
+        args[0] = "file:///home/mackenzie/Input.cfg";
+
         if (args.length != 1)
         {
             help();

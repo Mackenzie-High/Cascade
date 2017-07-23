@@ -1,5 +1,6 @@
 package com.mackenziehigh.loader.internal;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import com.mackenziehigh.loader.AbstractModule;
 import com.mackenziehigh.loader.Controller;
 import com.mackenziehigh.loader.MessageProcessor;
@@ -9,6 +10,7 @@ import com.mackenziehigh.sexpr.Sexpr;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -83,6 +85,65 @@ final class StandardController
 
     public int run ()
     {
-        return 0;
+        /**
+         * Step: Start the message-processors.
+         */
+        for (MessageProcessor p : processors.values())
+        {
+            try
+            {
+                ((AbstractProcessor) p).start();
+            }
+            catch (Exception ex)
+            {
+                // TODO
+            }
+        }
+
+        /**
+         * Step: Setup the modules.
+         */
+        for (AbstractModule m : modules.values())
+        {
+            try
+            {
+                ((AbstractModule) m).setup();
+            }
+            catch (Exception ex)
+            {
+                // TODO
+            }
+        }
+
+        /**
+         * Step: Start the modules.
+         */
+        for (AbstractModule m : modules.values())
+        {
+            try
+            {
+                ((AbstractModule) m).start();
+            }
+            catch (Exception ex)
+            {
+                // TODO
+            }
+        }
+
+        queues.get("Clock").bind(x ->
+        {
+            System.out.println("X = " + x.content());
+        });
+
+        /**
+         * Wait for the shutdown signal.
+         */
+        while (stop.get() == false)
+        {
+            Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+        }
+
+        // TODO: Shutdown Logic
+        return 0; // TODO
     }
 }

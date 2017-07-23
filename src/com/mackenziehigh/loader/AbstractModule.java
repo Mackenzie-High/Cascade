@@ -16,7 +16,7 @@ public abstract class AbstractModule
 
     private CommonLogger logger;
 
-    private UniqueID uniqueID;
+    private UniqueID uniqueID = UniqueID.random();
 
     /**
      * This method is invoked by the controller on-load.
@@ -76,22 +76,6 @@ public abstract class AbstractModule
         Preconditions.checkNotNull(logger, "logger");
         Preconditions.checkState(this.logger == null, "Already Initialized");
         this.logger = logger;
-    }
-
-    /**
-     * This method is invoked by the controller on-load.
-     *
-     * <p>
-     * This method will only be invoked once.
-     * </p>
-     *
-     * @param uniqueID is the value for uniqueID().
-     */
-    public final void assignUniqueID (final UniqueID uniqueID)
-    {
-        Preconditions.checkNotNull(uniqueID, "uniqueID");
-        Preconditions.checkState(this.uniqueID == null, "Already Initialized");
-        this.uniqueID = uniqueID;
     }
 
     /**

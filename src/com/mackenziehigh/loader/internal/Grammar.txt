@@ -41,7 +41,7 @@ spawning_processor = [ "spawning" , "processor" , processor_name , spawning_opti
                     / spawning_thread_min
                     / spawning_thread_name
                     / spawning_thread_priority
-                    / spawning_queue_size
+                    / spawning_capacity
                     / spawning_overflow
                     / queue
                     / log
@@ -55,7 +55,7 @@ spawning_processor = [ "spawning" , "processor" , processor_name , spawning_opti
 
     spawning_thread_priority = [ "thread" , "priority" , '=' , $INT ];
 
-    spawning_queue_size = [ "queue" , "size" , '=' , $INT ];
+    spawning_capacity = [ "capacity" , '=' , $INT ];
 
     spawning_overflow = [ "forward" , "overflow" , "to" , $ATOM ];
 
@@ -64,7 +64,7 @@ dedicated_processor = [ "dedicated" , "processor" , processor_name , dedicated_o
     dedicated_option = dedicated_thread_count
                      / dedicated_thread_name
                      / dedicated_thread_priority
-                     / dedicated_queue_size
+                     / dedicated_capacity
                      / dedicated_overflow
                      / queue
                      / log
@@ -76,7 +76,7 @@ dedicated_processor = [ "dedicated" , "processor" , processor_name , dedicated_o
 
     dedicated_thread_priority = [ "thread" , "priority" , '=' , $INT ];
 
-    dedicated_queue_size = [ "queue" , "size" , '=' , $INT ];
+    dedicated_capacity = [ "capacity" , '=' , $INT ];
 
     dedicated_overflow = [ "forward" , "overflow" , "to" , $ATOM ];
 
@@ -86,7 +86,9 @@ module = [ "module" , module_name , ":" , module_class , module_option * ];
 
     module_class = $ATOM;
 
-    module_option = log / custom_option;
+    module_option = module_log / custom_option;
+
+    module_log = [ "log" , $ATOM ];
 
     custom_option = $ANY;
 

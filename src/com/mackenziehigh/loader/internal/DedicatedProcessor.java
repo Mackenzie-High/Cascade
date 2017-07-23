@@ -6,8 +6,8 @@ import com.mackenziehigh.loader.MessageHandler;
 import com.mackenziehigh.loader.MessageProcessor;
 import com.mackenziehigh.loader.MessageQueue;
 import com.mackenziehigh.loader.UniqueID;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
@@ -18,21 +18,15 @@ import java.util.concurrent.TimeUnit;
 final class DedicatedProcessor
         extends AbstractProcessor
 {
-    public int threadCount;
-
     public String threadName;
 
-    public int threadPriority;
+    public int threadCount;
 
-    public ArrayBlockingQueue<Message> messages;
+    public int threadPriority = Thread.NORM_PRIORITY;
+
+    public BiArrayBlockingQueue<MessageQueue, Message> messages;
 
     public MessageQueue overflowQueue = null;
-
-    @Override
-    public void declareLog (final String name)
-    {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
 
     @Override
     public void declareQueue (final String name)
@@ -42,6 +36,8 @@ final class DedicatedProcessor
         final UniqueID queueID = UniqueID.random();
 
         final List<MessageHandler> handlers = new CopyOnWriteArrayList<>();
+
+        final List<MessageHandler> unmodifiableHandlers = Collections.unmodifiableList(handlers);
 
         final MessageQueue queue = new MessageQueue()
         {
@@ -82,6 +78,12 @@ final class DedicatedProcessor
             }
 
             @Override
+            public List<MessageHandler> handlers ()
+            {
+                return unmodifiableHandlers;
+            }
+
+            @Override
             public MessageQueue bind (final MessageHandler action)
             {
                 Preconditions.checkNotNull(action, "action");
@@ -104,12 +106,20 @@ final class DedicatedProcessor
                 }
                 else
                 {
-                    return messages.add(message);
+                    try
+                    {
+                        messages.put(this, message);
+                        return true;
+                    }
+                    catch (InterruptedException ex)
+                    {
+                        return false;
+                    }
                 }
             }
         };
 
-        super.queues.put(name, queue);
+        super.messageQueues.put(name, queue);
         super.controller.queues.put(name, queue);
     }
 
@@ -132,12 +142,7 @@ final class DedicatedProcessor
         {
             try
             {
-                final Message message = messages.poll(1000, TimeUnit.SECONDS);
-
-                if (message != null)
-                {
-
-                }
+                messages.poll(1000, TimeUnit.SECONDS, (x, y) -> onReceive(x, y));
             }
             catch (Throwable ex)
             {
@@ -146,4 +151,20 @@ final class DedicatedProcessor
         }
     }
 
+    private void onReceive (final MessageQueue source,
+                            final Message message)
+    {
+        final int size = source.handlers().size();
+        for (int i = 0; i < size; i++)
+        {
+            try
+            {
+                source.handlers().get(i).accept(message);
+            }
+            catch (Throwable ex)
+            {
+                // TODO.
+            }
+        }
+    }
 }

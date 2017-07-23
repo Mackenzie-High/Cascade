@@ -5,21 +5,25 @@ package com.mackenziehigh.loader.internal;
 final class SpawningProcessor
         extends AbstractProcessor
 {
-    @Override
-    public void declareLog (final String name)
-    {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+    public String threadName;
+
+    public int threadMax;
+
+    public int threadMin;
+
+    public int threadPriority;
+
+    public int capacity;
 
     @Override
     public void declareQueue (final String name)
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+
     }
 
     @Override
     public void start ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+
     }
 }

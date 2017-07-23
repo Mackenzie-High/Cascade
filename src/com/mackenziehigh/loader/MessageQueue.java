@@ -1,5 +1,7 @@
 package com.mackenziehigh.loader;
 
+import java.util.List;
+
 /**
  * An instance of this class stores messages that
  * are awaiting processing by a message-processor.
@@ -27,6 +29,15 @@ public interface MessageQueue
      * @return the unique-ID of this queue.
      */
     public UniqueID uniqueID ();
+
+    /**
+     * These are the message-handlers that will be executed
+     * by a message-processor whenever the processor receives
+     * messages from this queue.
+     *
+     * @return the attached message-handlers.
+     */
+    public List<MessageHandler> handlers ();
 
     /**
      * This method retrieves the number of messages that

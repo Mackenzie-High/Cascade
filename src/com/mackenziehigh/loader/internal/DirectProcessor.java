@@ -6,6 +6,7 @@ import com.mackenziehigh.loader.MessageHandler;
 import com.mackenziehigh.loader.MessageProcessor;
 import com.mackenziehigh.loader.MessageQueue;
 import com.mackenziehigh.loader.UniqueID;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -16,11 +17,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 final class DirectProcessor
         extends AbstractProcessor
 {
-    @Override
-    public void declareLog (final String name)
-    {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
 
     @Override
     public void declareQueue (final String name)
@@ -30,6 +26,8 @@ final class DirectProcessor
         final UniqueID queueID = UniqueID.random();
 
         final List<MessageHandler> handlers = new CopyOnWriteArrayList<>();
+
+        final List<MessageHandler> unmodifiableHandlers = Collections.unmodifiableList(handlers);
 
         final MessageQueue queue = new MessageQueue()
         {
@@ -70,6 +68,12 @@ final class DirectProcessor
             }
 
             @Override
+            public List<MessageHandler> handlers ()
+            {
+                return unmodifiableHandlers;
+            }
+
+            @Override
             public MessageQueue bind (final MessageHandler action)
             {
                 Preconditions.checkNotNull(action, "action");
@@ -97,7 +101,7 @@ final class DirectProcessor
             }
         };
 
-        super.queues.put(name, queue);
+        super.messageQueues.put(name, queue);
         super.controller.queues.put(name, queue);
     }
 
