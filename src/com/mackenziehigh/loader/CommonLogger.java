@@ -1,7 +1,6 @@
 package com.mackenziehigh.loader;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -58,8 +57,6 @@ public final class CommonLogger
 
     private final MessageQueue queue;
 
-    private final ImmutableMap<String, String> tags;
-
     /**
      * Constructor.
      *
@@ -79,66 +76,9 @@ public final class CommonLogger
     public CommonLogger (final AbstractModule module,
                          final MessageQueue queue)
     {
-        this(module, queue, ImmutableMap.of());
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param module contains this logger.
-     * @param queue is where log-messages will be sent.
-     * @param tags are applied to this logger and its messages.
-     */
-    private CommonLogger (final AbstractModule module,
-                          final MessageQueue queue,
-                          final ImmutableMap<String, String> tags)
-    {
         Preconditions.checkNotNull(queue, "queue");
         this.module = module;
         this.queue = queue;
-        this.tags = tags;
-    }
-
-    /**
-     * This method adds a tag to this logger.
-     *
-     * @param tag is the key-part of the tag to add.
-     * @return a modified copy of this logger.
-     */
-    public CommonLogger tag (final String tag)
-    {
-        return tag(tag, "");
-    }
-
-    /**
-     * This method adds a tag to this logger.
-     *
-     * <p>
-     * This is a linear-time operation,
-     * because the tag-map must be copied.
-     * </p>
-     *
-     * @param key is the key-part of the tag to add.
-     * @param value is the value-part of the tag to add.
-     * @return a modified copy of this logger.
-     */
-    public CommonLogger tag (final String key,
-                             final String value)
-    {
-        final ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-        builder.putAll(tags);
-        builder.put(key, value);
-        return new CommonLogger(module, queue, builder.build());
-    }
-
-    /**
-     * These are the tags applied to this logger.
-     *
-     * @return the tags, if any.
-     */
-    public ImmutableMap<String, String> tags ()
-    {
-        return tags;
     }
 
     /**

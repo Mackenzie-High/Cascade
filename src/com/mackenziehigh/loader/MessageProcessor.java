@@ -1,6 +1,6 @@
 package com.mackenziehigh.loader;
 
-import com.google.common.collect.ImmutableMap;
+import java.util.Map;
 
 /**
  * An instance of this class performs processing of messages
@@ -35,5 +35,5 @@ public interface MessageProcessor
      *
      * @return a map that maps the name of a queue to the queue itself.
      */
-    public ImmutableMap<String, MessageQueue> queues ();
+    public Map<String, MessageQueue> queues ();
 }

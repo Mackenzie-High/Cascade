@@ -1,7 +1,7 @@
 package com.mackenziehigh.loader;
 
-import com.google.common.collect.ImmutableMap;
 import com.mackenziehigh.sexpr.Sexpr;
+import java.util.Map;
 
 /**
  * An instance of this interface manages the modules, message queues,
@@ -28,28 +28,28 @@ public interface Controller
      *
      * @return a map that maps the name of a processor to the processor.
      */
-    public ImmutableMap<String, MessageProcessor> processors ();
+    public Map<String, MessageProcessor> processors ();
 
     /**
      * These are all of the message-queues controlled by this object.
      *
      * @return a map that maps the name of a queue to the queue.
      */
-    public ImmutableMap<String, MessageQueue> queues ();
+    public Map<String, MessageQueue> queues ();
 
     /**
      * These are the modules controlled by this object.
      *
      * @return a map that maps the name of a module to the module.
      */
-    public ImmutableMap<String, AbstractModule> modules ();
+    public Map<String, AbstractModule> modules ();
 
     /**
      * These are the user-defined settings in the configuration file(s).
      *
      * @return the user-defined settings.
      */
-    public ImmutableMap<String, Sexpr> settings ();
+    public Map<String, Sexpr> settings ();
 
     /**
      * Unloads all of the modules that are currently loaded
