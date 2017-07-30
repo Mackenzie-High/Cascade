@@ -1,0 +1,21 @@
+
+
+root = [ monitor * ];
+
+monitor = [ "monitor" , format  ? , queue  ];
+
+queue = $ATOM;
+
+format = [ specifier * ];
+
+specifier = "queueName"
+          / "sourceName"
+          / "sourceID"
+          / "sequenceNumber"
+          / "uniqueID"
+          / "correlationID"
+          / "creationTime"
+          / "creationTimeMillis"
+          / "referenceTimeNano"
+          / "content"
+          ;

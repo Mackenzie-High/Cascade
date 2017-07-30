@@ -66,7 +66,7 @@ final class ConfigLoader
     public ConfigLoader ()
             throws IOException
     {
-        this.grammar = SexprSchema.fromResource("/com/mackenziehigh/loader/internal/Grammar.txt")
+        this.grammar = SexprSchema.fromResource("/com/mackenziehigh/cascade/internal/Grammar.txt")
                 .setFailureHandler(x -> reportParsingFailure(x))
                 .pass("DEFAULT_PASS")
                 .defineViaAnnotations(this)

@@ -1,0 +1,11 @@
+
+root = [ mapping * ];
+
+mapping = [ "forward" , source , "to" , destination ];
+
+source = $ATOM;
+
+destination = $ATOM;
+
+
+

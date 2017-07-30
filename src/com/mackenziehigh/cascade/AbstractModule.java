@@ -139,8 +139,11 @@ public abstract class AbstractModule
      * <p>
      * This method will only be invoked once.
      * </p>
+     *
+     * @throws java.lang.Throwable if something goes wrong.
      */
     public void setup ()
+            throws Throwable
     {
         // Pass.
     }
@@ -162,8 +165,11 @@ public abstract class AbstractModule
      * <p>
      * This method will only be invoked once.
      * </p>
+     *
+     * @throws java.lang.Throwable if something goes wrong.
      */
     public void start ()
+            throws Throwable
     {
         // Pass.
     }
@@ -182,8 +188,11 @@ public abstract class AbstractModule
      * <p>
      * This method will only be invoked once.
      * </p>
+     *
+     * @throws java.lang.Throwable if something goes wrong.
      */
     public void stop ()
+            throws Throwable
     {
         // Pass.
     }
@@ -208,8 +217,11 @@ public abstract class AbstractModule
      * <p>
      * This method will only be invoked once.
      * </p>
+     *
+     * @throws java.lang.Throwable if something goes wrong.
      */
     public void destroy ()
+            throws Throwable
     {
         // Pass.
     }

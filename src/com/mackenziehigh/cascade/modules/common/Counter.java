@@ -1,7 +1,5 @@
 package com.mackenziehigh.cascade.modules.common;
 
-import com.mackenziehigh.loader.ConfigObject;
-import com.mackenziehigh.cascade.Controller;
 import com.mackenziehigh.cascade.AbstractModule;
 
 /**
@@ -12,30 +10,7 @@ import com.mackenziehigh.cascade.AbstractModule;
  * Thereafter, the tally will be sent via yet another topic.
  */
 public final class Counter
-        implements AbstractModule
+        extends AbstractModule
 {
-    public Counter ()
-    {
-    }
-
-    @Override
-    public void stop ()
-    {
-        AbstractModule.super.stop();
-    }
-
-    @Override
-    public boolean start ()
-    {
-        return AbstractModule.super.start();
-    }
-
-    @Override
-    public boolean setup (Controller controller,
-                          String name,
-                          ConfigObject configuration)
-    {
-        return AbstractModule.super.setup(controller, name, configuration);
-    }
 
 }

@@ -1,16 +1,16 @@
 package com.mackenziehigh.cascade.modules.common;
 
+import com.mackenziehigh.cascade.AbstractModule;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import com.mackenziehigh.cascade.AbstractModule;
 
 /**
  *
  * @author mackenzie
  */
 public final class SharedObjects
-        implements AbstractModule
+        extends AbstractModule
 {
     private final Map<String, Object> map = new ConcurrentHashMap<>();
 

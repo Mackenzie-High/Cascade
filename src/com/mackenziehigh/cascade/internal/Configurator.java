@@ -4,6 +4,9 @@ import com.google.common.base.Verify;
 import com.mackenziehigh.cascade.AbstractModule;
 import com.mackenziehigh.cascade.CommonLogger;
 import com.mackenziehigh.cascade.UniqueID;
+import com.mackenziehigh.cascade.modules.common.Clock;
+import com.mackenziehigh.cascade.modules.common.Forwarder;
+import com.mackenziehigh.cascade.modules.common.Printer;
 import com.mackenziehigh.sexpr.SAtom;
 import com.mackenziehigh.sexpr.SList;
 import com.mackenziehigh.sexpr.Sexpr;
@@ -23,9 +26,17 @@ import java.util.Map;
  */
 final class Configurator
 {
+
     private final StandardController controller = new StandardController();
 
     private final Map<String, String> imports = new HashMap<>();
+
+
+    {
+        imports.put("Clock", Clock.class.getName());
+        imports.put("Printer", Printer.class.getName());
+        imports.put("Forwarder", Forwarder.class.getName());
+    }
 
     private AbstractProcessor processor;
 
@@ -265,7 +276,7 @@ final class Configurator
         /**
          * Load the schema.
          */
-        final SexprSchema grammar = SexprSchema.fromResource("/com/mackenziehigh/loader/internal/Grammar.txt")
+        final SexprSchema grammar = SexprSchema.fromResource("/com/mackenziehigh/cascade/internal/Grammar.txt")
                 .pass("ECHO_PASS")
                 .pass("CREATE_PROCESSORS_PASS")
                 .pass("CREATE_MODULES_PASS")

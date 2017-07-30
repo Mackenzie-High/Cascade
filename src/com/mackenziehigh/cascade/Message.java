@@ -174,6 +174,19 @@ public final class Message
         return content;
     }
 
+    @Override
+    public String toString ()
+    {
+        return "Message: sourceName = " + sourceName
+               + ", sourceID = " + sourceID
+               + ", sequenceNumber = " + sequenceNumber
+               + ", uniqueID = " + uniqueID
+               + ", correlationID = " + correlationID
+               + ", creationTimeMillis = " + creationTimeMillis
+               + ", referenceTimeNano = " + referenceTimeNano
+               + ", content = " + content;
+    }
+
     /**
      * This method creates a a new message.
      *
