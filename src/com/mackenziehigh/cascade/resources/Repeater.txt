@@ -1,0 +1,11 @@
+
+root = [ configuration ];
+
+configuration = [ "send" , count , "copies" , "of" , source , "to" , destination ];
+
+count = $INT;
+
+source = $ATOM;
+
+destination = $ATOM;
+

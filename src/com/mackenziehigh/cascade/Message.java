@@ -177,11 +177,12 @@ public final class Message
     @Override
     public String toString ()
     {
-        return "Message: sourceName = " + sourceName
+        return "Message: sourceName = '" + sourceName + "'"
                + ", sourceID = " + sourceID
                + ", sequenceNumber = " + sequenceNumber
                + ", uniqueID = " + uniqueID
                + ", correlationID = " + correlationID
+               + ", creationTimeMillis = '" + creationTime() + "'"
                + ", creationTimeMillis = " + creationTimeMillis
                + ", referenceTimeNano = " + referenceTimeNano
                + ", content = " + content;

@@ -1,0 +1,16 @@
+
+root = [ mapping * ];
+
+mapping = set / get / query / clear / initial;
+
+initial = [ "initial" , "=" , $ANY ];
+
+set = [ "set" , "via" , queue ];
+
+get = [ "get" , "via" , queue , "=>" , queue];
+
+clear = [ "clear" , "via" , queue ];
+
+query = [ "set" , "via" , queue , "=>" , queue ];
+
+queue = $ATOM;
