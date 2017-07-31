@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import com.mackenziehigh.cascade.AbstractModule;
 import com.mackenziehigh.cascade.CommonLogger;
 import com.mackenziehigh.cascade.Controller;
+import com.mackenziehigh.cascade.MessageProcessor;
 import com.mackenziehigh.cascade.MessageQueue;
 import com.mackenziehigh.cascade.UniqueID;
 import com.mackenziehigh.sexpr.Sexpr;
@@ -12,7 +13,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import com.mackenziehigh.cascade.MessageProcessor;
 
 /**
  * Standard implementation of Controller.
@@ -129,7 +129,7 @@ final class StandardController
         {
             try
             {
-                ((AbstractModule) m).setup();
+                m.setup();
             }
             catch (Throwable ex)
             {
@@ -144,18 +144,13 @@ final class StandardController
         {
             try
             {
-                ((AbstractModule) m).start();
+                m.start();
             }
             catch (Throwable ex)
             {
                 ex.printStackTrace(System.out);
             }
         }
-
-        queues.get("global.log").bind(x ->
-        {
-            System.out.println("X = " + x.content());
-        });
 
         /**
          * Wait for the shutdown signal.
@@ -187,7 +182,7 @@ final class StandardController
         {
             try
             {
-                ((AbstractModule) m).stop();
+                m.stop();
             }
             catch (Throwable ex)
             {
@@ -202,7 +197,7 @@ final class StandardController
         {
             try
             {
-                ((AbstractModule) m).destroy();
+                m.destroy();
             }
             catch (Throwable ex)
             {

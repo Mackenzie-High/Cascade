@@ -27,7 +27,7 @@ public final class Clock
 
     private final UniqueID sourceID = UniqueID.random();
 
-    private final AtomicLong sequenceNumber = new AtomicLong();
+    private final AtomicLong sequenceNumber = new AtomicLong(-1);
 
     private final Table<Long, Long, Runnable> tasks = HashBasedTable.create();
 

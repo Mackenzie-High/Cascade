@@ -23,6 +23,13 @@ import com.mackenziehigh.sexpr.SexprSchema;
  * An instance of this module can be used to implement fanouts.
  * A fanout is an (1 -> N) mapping from a single queue to multiple queues.
  * </p>
+ *
+ * <p>
+ * An instance of this module can be used to implement a duplicator.
+ * A duplicator receives (1) message from a queue and then sends (N) copies to another queue.
+ * In order to implement a duplicator, simply repeat a mapping in he configuration.
+ * Here 'copy' means another reference to the same message object, not a deep copy.
+ * </p>
  */
 public final class Forwarder
         extends AbstractModule

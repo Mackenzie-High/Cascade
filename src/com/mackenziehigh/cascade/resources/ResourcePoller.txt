@@ -1,0 +1,16 @@
+
+root = [ mapping * ];
+
+mapping = [ "send" , source , "as" , type , "to" , destination , "when" , clock , "ticks" ];
+
+source = $ATOM;
+
+destination = $ATOM;
+
+type = "bytes" / "sexpr";
+
+clock = $ATOM;
+
+
+
+

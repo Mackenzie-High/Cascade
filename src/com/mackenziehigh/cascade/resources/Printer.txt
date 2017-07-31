@@ -18,4 +18,5 @@ specifier = "queueName"
           / "creationTimeMillis"
           / "referenceTimeNano"
           / "content"
+          / "tabular"
           ;

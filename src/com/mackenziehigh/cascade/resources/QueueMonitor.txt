@@ -1,0 +1,14 @@
+
+root = [ mapping * ];
+
+mapping = [ "send" , "status" , "of" , source , "to" , destination , "when" , clock , "ticks" ];
+
+source = $ATOM;
+
+destination = $ATOM;
+
+clock = $ATOM;
+
+
+
+

@@ -3,13 +3,13 @@ package com.mackenziehigh.cascade.internal;
 import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.Message;
 import com.mackenziehigh.cascade.MessageHandler;
+import com.mackenziehigh.cascade.MessageProcessor;
 import com.mackenziehigh.cascade.MessageQueue;
 import com.mackenziehigh.cascade.UniqueID;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
-import com.mackenziehigh.cascade.MessageProcessor;
 
 /**
  *

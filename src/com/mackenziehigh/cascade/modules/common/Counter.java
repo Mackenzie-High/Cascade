@@ -4,13 +4,17 @@ import com.mackenziehigh.cascade.AbstractModule;
 
 /**
  * An instance of this class forwards a message from one
- * topic to another topic, while tallying the messages.
- * The tally will be stored internally, until a message
- * is received from a specially designated topic.
- * Thereafter, the tally will be sent via yet another topic.
+ * topic to another topic, sending the tally of messages
+ * to another queue immediately.
  */
 public final class Counter
         extends AbstractModule
 {
+    @Override
+    public void setup ()
+            throws Throwable
+    {
+        super.setup();
+    }
 
 }

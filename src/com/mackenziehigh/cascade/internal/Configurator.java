@@ -7,6 +7,7 @@ import com.mackenziehigh.cascade.UniqueID;
 import com.mackenziehigh.cascade.modules.common.Clock;
 import com.mackenziehigh.cascade.modules.common.Forwarder;
 import com.mackenziehigh.cascade.modules.common.Printer;
+import com.mackenziehigh.cascade.modules.common.ResourcePoller;
 import com.mackenziehigh.sexpr.SAtom;
 import com.mackenziehigh.sexpr.SList;
 import com.mackenziehigh.sexpr.Sexpr;
@@ -36,6 +37,7 @@ final class Configurator
         imports.put("Clock", Clock.class.getName());
         imports.put("Printer", Printer.class.getName());
         imports.put("Forwarder", Forwarder.class.getName());
+        imports.put("ResourcePoller", ResourcePoller.class.getName());
     }
 
     private AbstractProcessor processor;
@@ -66,6 +68,7 @@ final class Configurator
     {
         processor = new DirectProcessor();
         processor.controller = controller;
+        processor.name = node.get(2).toAtom().content();
     }
 
     @Pass ("CREATE_PROCESSORS_PASS")
@@ -83,6 +86,7 @@ final class Configurator
     {
         processor = new SpawningProcessor();
         processor.controller = controller;
+        processor.name = node.get(2).toAtom().content();
     }
 
     @Pass ("CREATE_PROCESSORS_PASS")
@@ -149,6 +153,7 @@ final class Configurator
     {
         processor = new DedicatedProcessor();
         processor.controller = controller;
+        processor.name = node.get(2).toAtom().content();
     }
 
     @Pass ("CREATE_PROCESSORS_PASS")
