@@ -82,7 +82,7 @@ final class DynamicAllocator
     {
         checkPtr(ptr);
 
-        final MemoryBlock block = freeBlocks.poll();
+        final MemoryBlock block = blocks.get(ptr);
 
         synchronized (block)
         {
@@ -176,6 +176,7 @@ final class DynamicAllocator
 
         synchronized (block)
         {
+            Preconditions.checkArgument(block.data.length <= data.length, "block.size > data.length");
             System.arraycopy(block.data, 0, data, 0, block.data.length);
             size = block.data.length;
         }

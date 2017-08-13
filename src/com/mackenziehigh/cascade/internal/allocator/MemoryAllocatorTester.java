@@ -97,11 +97,11 @@ public final class MemoryAllocatorTester
 
     public static void main (String[] args)
     {
-        final MemoryAllocator allocator = new DynamicAllocator(20000);
+        final MemoryAllocator allocator = new MultiBlockAllocator(80_000, 32);
         final int pcount = 10;
         final int ccount = 10;
-        final int dsize = 100000;
-        final int stopAt = 1000 * 1000;
+        final int dsize = 512;
+        final int stopAt = 100 * 1000;
 
         final MemoryAllocatorTester tester = new MemoryAllocatorTester(pcount, ccount, allocator, dsize, stopAt);
         tester.start();

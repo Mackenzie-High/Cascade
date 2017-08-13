@@ -90,7 +90,7 @@ final class SingleBlockAllocator
     {
         checkPtr(ptr);
 
-        final MemoryBlock block = freeBlocks.poll();
+        final MemoryBlock block = blocks.get(ptr);
 
         synchronized (block)
         {
@@ -186,6 +186,7 @@ final class SingleBlockAllocator
 
         synchronized (block)
         {
+            Preconditions.checkArgument(block.size <= data.length, "block.size > data.length");
             System.arraycopy(block.data, 0, data, 0, block.size);
             size = block.size;
         }

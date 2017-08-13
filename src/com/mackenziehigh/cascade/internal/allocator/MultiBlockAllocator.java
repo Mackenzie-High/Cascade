@@ -9,6 +9,8 @@ import java.util.stream.IntStream;
 /**
  * An instance of this class is a MemoryAllocator that
  * allocates memory using linked fixed-size blocks.
+ *
+ * TODO: Allow dynamic addition of new blocks???
  */
 final class MultiBlockAllocator
         implements MemoryAllocator
@@ -39,6 +41,8 @@ final class MultiBlockAllocator
 
     }
 
+    private final int blockCount;
+
     private final int blockSize;
 
     private final AtomicReferenceArray<MemoryBlock> blocks;
@@ -54,6 +58,7 @@ final class MultiBlockAllocator
     public MultiBlockAllocator (final int blockCount,
                                 final int blockSize)
     {
+        this.blockCount = blockCount;
         this.blockSize = blockSize;
         this.blocks = new AtomicReferenceArray<>(blockCount);
         this.freeBlocks = new ArrayBlockingQueue<>(blockCount);
@@ -68,22 +73,42 @@ final class MultiBlockAllocator
     public int malloc (final int capacity)
     {
         Preconditions.checkArgument(capacity >= 0, "capacity < 0");
-        Preconditions.checkArgument(capacity <= blockSize, "capacity > blockSize");
+        Preconditions.checkArgument(capacity <= blockCount * blockSize, "capacity > blockCount * blockSize");
 
-        final MemoryBlock block = freeBlocks.poll();
+        final int requiredBlockCount = (capacity / blockSize) + (capacity % blockSize == 0 ? 0 : 1);
 
-        if (block == null)
+        MemoryBlock head = null;
+
+        for (int i = 0; i < Math.max(1, requiredBlockCount); i++)
         {
-            throw new InsufficientMemoryException(this, capacity);
+            final MemoryBlock block = freeBlocks.poll();
+
+            if (block == null)
+            {
+                free(head);
+                throw new InsufficientMemoryException(this, capacity);
+            }
+
+            synchronized (block)
+            {
+                block.referenceCount = 0;
+                block.size = 0;
+                block.capacity = 0;
+                block.next = head == null ? -1 : head.ptr;
+                head = block;
+            }
         }
 
-        synchronized (block)
+        assert head != null;
+
+        synchronized (head)
         {
-            ++block.referenceCount;
-            block.size = 0;
+            head.referenceCount = 1;
+            head.size = 0;
+            head.capacity = capacity;
         }
 
-        return block.ptr;
+        return head.ptr;
     }
 
     /**
@@ -94,7 +119,7 @@ final class MultiBlockAllocator
     {
         checkPtr(ptr);
 
-        final MemoryBlock block = freeBlocks.poll();
+        final MemoryBlock block = blocks.get(ptr);
 
         synchronized (block)
         {
@@ -118,6 +143,26 @@ final class MultiBlockAllocator
 
             if (block.referenceCount <= 0)
             {
+                free(block);
+            }
+        }
+    }
+
+    private void free (final MemoryBlock head)
+    {
+        MemoryBlock p = head;
+
+        synchronized (head)
+        {
+            while (p != null)
+            {
+                final MemoryBlock block = p;
+                final int next = p.next;
+                p.capacity = 0;
+                p.referenceCount = 0;
+                p.size = 0;
+                p.next = -1;
+                p = next >= 0 ? blocks.get(next) : null;
                 freeBlocks.add(block);
             }
         }
@@ -160,17 +205,28 @@ final class MultiBlockAllocator
         Preconditions.checkArgument(offset >= 0, "offset < 0");
         Preconditions.checkArgument(length >= 0, "length < 0");
         Preconditions.checkArgument(offset + length <= data.length, "offset + length > data.length");
-        Preconditions.checkArgument(length <= blockSize, "length > blockSize");
 
-        final MemoryBlock block = blocks.get(ptr);
+        int writtenThusFar = 0;
 
-        synchronized (block)
+        final MemoryBlock head = blocks.get(ptr);
+        MemoryBlock p = head;
+
+        synchronized (head)
         {
-            block.size = length;
+            Preconditions.checkArgument(length <= head.capacity, "length > head.capacity");
 
-            for (int i = 0; i < length; i++)
+            head.size = length;
+
+            while (p != null)
             {
-                block.data[i] = data[offset + i];
+                int i = 0;
+
+                while (writtenThusFar < length && i < blockSize)
+                {
+                    p.data[i++] = data[writtenThusFar++];
+                }
+
+                p = p.next >= 0 ? blocks.get(p.next) : null;
             }
         }
 
@@ -186,17 +242,31 @@ final class MultiBlockAllocator
     {
         checkPtr(ptr);
 
-        int size;
+        int readThusFar = 0;
 
-        final MemoryBlock block = blocks.get(ptr);
+        final MemoryBlock head = blocks.get(ptr);
+        MemoryBlock p = head;
 
-        synchronized (block)
+        synchronized (head)
         {
-            System.arraycopy(block.data, 0, data, 0, block.size);
-            size = block.size;
+            final int size = head.size;
+
+            Preconditions.checkArgument(size <= data.length, "size > data.length");
+
+            while (p != null)
+            {
+                int i = 0;
+
+                while (readThusFar < size && i < blockSize)
+                {
+                    data[readThusFar++] = p.data[i++];
+                }
+
+                p = p.next >= 0 ? blocks.get(p.next) : null;
+            }
         }
 
-        return size;
+        return readThusFar;
     }
 
     private void checkPtr (final int ptr)
@@ -205,5 +275,16 @@ final class MultiBlockAllocator
         {
             throw new InvalidPointerException(this, ptr);
         }
+    }
+
+    public static void main (String[] args)
+    {
+        final MemoryAllocator ax = new MultiBlockAllocator(5, 2);
+        final int ptr = ax.malloc(6);
+        ax.set(ptr, "Emma".getBytes());
+        final byte[] out = new byte[10];
+        ax.get(ptr, out);
+        System.out.println("X = " + new String(out));
+        ax.decrement(ptr);
     }
 }
