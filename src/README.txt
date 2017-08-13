@@ -133,18 +133,18 @@ Modules - Data Generator:
 + Fibonacci
 + Sequence
 
-
+---------------------------------------------------------------------------
 
 (import Sexpr : com.mackenziehigh.Sexpr)
 
-(defnode FileStore : com.mackenziehigh.FileStore
+(define node FileStore : com.mackenziehigh.FileStore
     (inQ : q Sexpr)
     (bufferSize : int)
     (outQ : q String))
 
 (dedicated powerhouse P1)
 
-(region macro Recorder (X Y Z)
+(define region Recorder (X Y Z)
     (vertix input : Sexpr)
     (vertix output : DataMessage :- P1)
     (node FS : FileStore
