@@ -89,24 +89,18 @@ final class MultiBlockAllocator
                 throw new InsufficientMemoryException(this, capacity);
             }
 
-            synchronized (block)
-            {
-                block.referenceCount = 0;
-                block.size = 0;
-                block.capacity = 0;
-                block.next = head == null ? -1 : head.ptr;
-                head = block;
-            }
+            block.referenceCount = 0;
+            block.size = 0;
+            block.capacity = 0;
+            block.next = head == null ? -1 : head.ptr;
+            head = block;
         }
 
         assert head != null;
 
-        synchronized (head)
-        {
-            head.referenceCount = 1;
-            head.size = 0;
-            head.capacity = capacity;
-        }
+        head.referenceCount = 1;
+        head.size = 0;
+        head.capacity = capacity;
 
         return head.ptr;
     }
@@ -152,19 +146,16 @@ final class MultiBlockAllocator
     {
         MemoryBlock p = head;
 
-        synchronized (head)
+        while (p != null)
         {
-            while (p != null)
-            {
-                final MemoryBlock block = p;
-                final int next = p.next;
-                p.capacity = 0;
-                p.referenceCount = 0;
-                p.size = 0;
-                p.next = -1;
-                p = next >= 0 ? blocks.get(next) : null;
-                freeBlocks.add(block);
-            }
+            final MemoryBlock block = p;
+            final int next = p.next;
+            p.capacity = 0;
+            p.referenceCount = 0;
+            p.size = 0;
+            p.next = -1;
+            p = next >= 0 ? blocks.get(next) : null;
+            freeBlocks.add(block);
         }
     }
 

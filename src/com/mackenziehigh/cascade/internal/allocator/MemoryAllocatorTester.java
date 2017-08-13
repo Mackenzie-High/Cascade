@@ -97,8 +97,9 @@ public final class MemoryAllocatorTester
 
     public static void main (String[] args)
     {
-        final MemoryAllocator allocator = new MultiBlockAllocator(80_000, 32);
-        final int pcount = 10;
+        //final MemoryAllocator allocator = new MultiBlockAllocator(80_000, 32);
+        final MemoryAllocator allocator = new DynamicAllocator(80_000);
+        final int pcount = 1;
         final int ccount = 10;
         final int dsize = 512;
         final int stopAt = 100 * 1000;
