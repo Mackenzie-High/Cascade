@@ -70,12 +70,14 @@ final class MultiBlockAllocator
      * {@inheritDoc}
      */
     @Override
-    public int malloc (final int capacity)
+    public long malloc (final byte[] data,
+                        final int offset,
+                        final int length)
     {
-        Preconditions.checkArgument(capacity >= 0, "capacity < 0");
-        Preconditions.checkArgument(capacity <= blockCount * blockSize, "capacity > blockCount * blockSize");
+        Preconditions.checkArgument(length >= 0, "length < 0");
+        Preconditions.checkArgument(length <= blockCount * blockSize, "length > blockCount * blockSize");
 
-        final int requiredBlockCount = (capacity / blockSize) + (capacity % blockSize == 0 ? 0 : 1);
+        final int requiredBlockCount = (length / blockSize) + (length % blockSize == 0 ? 0 : 1);
 
         MemoryBlock head = null;
 
@@ -86,7 +88,7 @@ final class MultiBlockAllocator
             if (block == null)
             {
                 free(head);
-                throw new InsufficientMemoryException(this, capacity);
+                throw new InsufficientMemoryException(this, length);
             }
 
             block.referenceCount = 0;
@@ -100,20 +102,59 @@ final class MultiBlockAllocator
 
         head.referenceCount = 1;
         head.size = 0;
-        head.capacity = capacity;
+        head.capacity = length;
+
+        set(head.ptr, data, offset, length);
 
         return head.ptr;
+    }
+
+    private boolean set (final long ptr,
+                         final byte[] data,
+                         final int offset,
+                         final int length)
+    {
+        final int idx = checkPtr(ptr);
+        Preconditions.checkArgument(offset >= 0, "offset < 0");
+        Preconditions.checkArgument(length >= 0, "length < 0");
+        Preconditions.checkArgument(offset + length <= data.length, "offset + length > data.length");
+
+        int writtenThusFar = 0;
+
+        final MemoryBlock head = blocks.get(idx);
+        MemoryBlock p = head;
+
+        synchronized (head)
+        {
+            Preconditions.checkArgument(length <= head.capacity, "length > head.capacity");
+
+            head.size = length;
+
+            while (p != null)
+            {
+                int i = 0;
+
+                while (writtenThusFar < length && i < blockSize)
+                {
+                    p.data[i++] = data[writtenThusFar++];
+                }
+
+                p = p.next >= 0 ? blocks.get(p.next) : null;
+            }
+        }
+
+        return true;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void increment (final int ptr)
+    public void increment (final long ptr)
     {
-        checkPtr(ptr);
+        final int idx = checkPtr(ptr);
 
-        final MemoryBlock block = blocks.get(ptr);
+        final MemoryBlock block = blocks.get(idx);
 
         synchronized (block)
         {
@@ -125,11 +166,11 @@ final class MultiBlockAllocator
      * {@inheritDoc}
      */
     @Override
-    public void decrement (final int ptr)
+    public void decrement (final long ptr)
     {
-        checkPtr(ptr);
+        final int idx = checkPtr(ptr);
 
-        final MemoryBlock block = blocks.get(ptr);
+        final MemoryBlock block = blocks.get(idx);
 
         synchronized (block)
         {
@@ -163,22 +204,10 @@ final class MultiBlockAllocator
      * {@inheritDoc}
      */
     @Override
-    public int capacityOf (final int ptr)
+    public int sizeOf (final long ptr)
     {
-        checkPtr(ptr);
-        final MemoryBlock block = blocks.get(ptr);
-        final int size = block.capacity;
-        return size;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public int sizeOf (final int ptr)
-    {
-        checkPtr(ptr);
-        final MemoryBlock block = blocks.get(ptr);
+        final int idx = checkPtr(ptr);
+        final MemoryBlock block = blocks.get(idx);
         final int size = block.size;
         return size;
     }
@@ -187,55 +216,14 @@ final class MultiBlockAllocator
      * {@inheritDoc}
      */
     @Override
-    public boolean set (final int ptr,
-                        final byte[] data,
-                        final int offset,
-                        final int length)
-    {
-        checkPtr(ptr);
-        Preconditions.checkArgument(offset >= 0, "offset < 0");
-        Preconditions.checkArgument(length >= 0, "length < 0");
-        Preconditions.checkArgument(offset + length <= data.length, "offset + length > data.length");
-
-        int writtenThusFar = 0;
-
-        final MemoryBlock head = blocks.get(ptr);
-        MemoryBlock p = head;
-
-        synchronized (head)
-        {
-            Preconditions.checkArgument(length <= head.capacity, "length > head.capacity");
-
-            head.size = length;
-
-            while (p != null)
-            {
-                int i = 0;
-
-                while (writtenThusFar < length && i < blockSize)
-                {
-                    p.data[i++] = data[writtenThusFar++];
-                }
-
-                p = p.next >= 0 ? blocks.get(p.next) : null;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public int get (final int ptr,
+    public int get (final long ptr,
                     final byte[] data)
     {
-        checkPtr(ptr);
+        final int idx = checkPtr(ptr);
 
         int readThusFar = 0;
 
-        final MemoryBlock head = blocks.get(ptr);
+        final MemoryBlock head = blocks.get(idx);
         MemoryBlock p = head;
 
         synchronized (head)
@@ -260,19 +248,22 @@ final class MultiBlockAllocator
         return readThusFar;
     }
 
-    private void checkPtr (final int ptr)
+    private int checkPtr (final long ptr)
     {
-        if (ptr < 0 || ptr >= blocks.length() || blocks.get(ptr).referenceCount <= 0)
+        final int idx = (int) (0x00000000FFFFFFFFL & ptr);
+
+        if (ptr < 0 || ptr >= blocks.length() || blocks.get(idx).referenceCount <= 0)
         {
-            throw new InvalidPointerException(this, ptr);
+            throw new InvalidPointerException(this, idx);
         }
+
+        return idx;
     }
 
     public static void main (String[] args)
     {
         final MemoryAllocator ax = new MultiBlockAllocator(5, 2);
-        final int ptr = ax.malloc(6);
-        ax.set(ptr, "Emma".getBytes());
+        final long ptr = ax.malloc("Emma".getBytes(), 0, 4);
         final byte[] out = new byte[10];
         ax.get(ptr, out);
         System.out.println("X = " + new String(out));

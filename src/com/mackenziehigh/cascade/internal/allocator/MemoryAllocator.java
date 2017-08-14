@@ -17,11 +17,15 @@ public interface MemoryAllocator
      * of memory will be one upon return of this method.
      * </p>
      *
-     * @param size is the number of bytes to allocate.
+     * @param data contains the bytes to assign to the memory block.
+     * @param offset is the offset within the given array.
+     * @param length is the number of bytes to read from the given array.
      * @return a pointer to the allocated memory,
      * or a negative number, if an error occurs.
      */
-    public int malloc (int size);
+    public long malloc (byte[] data,
+                        int offset,
+                        int length);
 
     /**
      * This method increments reference-counter associated
@@ -29,7 +33,7 @@ public interface MemoryAllocator
      *
      * @param ptr identifies a block of memory.
      */
-    public void increment (int ptr);
+    public void increment (long ptr);
 
     /**
      * This method decrements reference-counter associated
@@ -42,15 +46,7 @@ public interface MemoryAllocator
      *
      * @param ptr identifies a block of memory.
      */
-    public void decrement (int ptr);
-
-    /**
-     * This method retrieves the length of a block of memory.
-     *
-     * @param ptr identifies a block of memory.
-     * @return the number of bytes in the block of memory.
-     */
-    public int capacityOf (int ptr);
+    public void decrement (long ptr);
 
     /**
      * This method retrieves the length of data in a block of memory.
@@ -58,43 +54,7 @@ public interface MemoryAllocator
      * @param ptr identifies a block of memory.
      * @return the length of the data stored in a block of memory.
      */
-    public int sizeOf (int ptr);
-
-    /**
-     * This method sets the bytes contained inside of a memory block.
-     *
-     * <p>
-     * Equivalent: <code>write(ptr, data, 0, data.length)</code>
-     * </p>
-     *
-     * @param ptr identifies a block of memory.
-     * @param data contains the bytes to assign to the memory block.
-     * @return true, iff the assignment was successful.
-     */
-    public default boolean set (final int ptr,
-                                final byte[] data)
-    {
-        return set(ptr, data, 0, data.length);
-    }
-
-    /**
-     * This method sets the bytes contained inside of a memory block.
-     *
-     * <p>
-     * This method will return false, if the given array contains
-     * more bytes than can be fit within the block of memory.
-     * </p>
-     *
-     * @param ptr identifies a block of memory.
-     * @param data contains the bytes to assign to the memory block.
-     * @param offset is the offset within the given array.
-     * @param length is the number of bytes to read from the given array.
-     * @return true, iff the assignment was successful.
-     */
-    public boolean set (int ptr,
-                        byte[] data,
-                        int offset,
-                        int length);
+    public int sizeOf (long ptr);
 
     /**
      * This method retrieves the data contained within a block of memory.
@@ -104,7 +64,7 @@ public interface MemoryAllocator
      * @return the number of bytes read from the block of memory,
      * or a negative number, if something went wrong.
      */
-    public int get (int ptr,
+    public int get (long ptr,
                     byte[] data);
 
 }

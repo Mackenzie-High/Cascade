@@ -13,7 +13,7 @@ public final class StandardPipeline
     {
         public volatile MemoryAllocator allocator;
 
-        public volatile int ptr;
+        public volatile long ptr;
 
         //public volatile Vertix vertix;
     }
@@ -30,7 +30,7 @@ public final class StandardPipeline
     }
 
     public void add (final MemoryAllocator allocator,
-                     final int ptr)
+                     final long ptr)
             throws InterruptedException
     {
         final Message entry = freeQueue.take(); // TODO: Handle InterruptedException
@@ -40,11 +40,11 @@ public final class StandardPipeline
         fullQueue.add(entry);
     }
 
-    public int poll ()
+    public long poll ()
             throws InterruptedException
     {
         final Message entry = fullQueue.take();
-        final int ptr = entry.ptr;
+        final long ptr = entry.ptr;
         freeQueue.add(entry);
         return ptr;
     }

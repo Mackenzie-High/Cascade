@@ -35,8 +35,8 @@ public final class MemoryAllocatorTester
             final int limit = (((stopAtCount * consumerCount) / producerCount) + 1);
             for (int i = 0; i < limit; i++)
             {
-                final int ptr = allocator.malloc(dataSize * 2);
-                allocator.set(ptr, data);
+                final long ptr = allocator.malloc(data, 0, data.length);
+
                 try
                 {
                     pipeline.add(allocator, ptr);
@@ -58,7 +58,7 @@ public final class MemoryAllocatorTester
             {
                 try
                 {
-                    final int ptr = pipeline.poll();
+                    final long ptr = pipeline.poll();
                     allocator.get(ptr, buffer);
                     allocator.decrement(ptr);
                     ++counter;
@@ -102,7 +102,7 @@ public final class MemoryAllocatorTester
         final int pcount = 1;
         final int ccount = 10;
         final int dsize = 512;
-        final int stopAt = 100 * 1000;
+        final int stopAt = 1000;
 
         final MemoryAllocatorTester tester = new MemoryAllocatorTester(pcount, ccount, allocator, dsize, stopAt);
         tester.start();

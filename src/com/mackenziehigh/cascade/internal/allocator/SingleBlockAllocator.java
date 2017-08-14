@@ -18,7 +18,7 @@ final class SingleBlockAllocator
      */
     private static final class MemoryBlock
     {
-        public final int ptr;
+        public final long ptr;
 
         public volatile int referenceCount = 0;
 
@@ -26,7 +26,7 @@ final class SingleBlockAllocator
 
         public volatile int size = 0;
 
-        public MemoryBlock (final int ptr,
+        public MemoryBlock (final long ptr,
                             final int capacity)
         {
             this.ptr = ptr;
@@ -54,109 +54,47 @@ final class SingleBlockAllocator
         this.blocks = new AtomicReferenceArray<>(blockCount);
         this.freeBlocks = new ArrayBlockingQueue<>(blockCount);
         IntStream.range(0, blockCount).forEach(i -> freeBlocks.add(new MemoryBlock(i, blockSize)));
-        freeBlocks.forEach(x -> blocks.set(x.ptr, x));
+        freeBlocks.forEach(x -> blocks.set((int) x.ptr, x));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public int malloc (final int capacity)
+    public long malloc (final byte[] data,
+                        final int offset,
+                        final int length)
     {
-        Preconditions.checkArgument(capacity >= 0, "capacity < 0");
-        Preconditions.checkArgument(capacity <= blockSize, "capacity > blockSize");
+        Preconditions.checkArgument(length >= 0, "length < 0");
+        Preconditions.checkArgument(length <= blockSize, "length > blockSize");
 
         final MemoryBlock block = freeBlocks.poll();
 
         if (block == null)
         {
-            throw new InsufficientMemoryException(this, capacity);
+            throw new InsufficientMemoryException(this, length);
         }
 
-        synchronized (block)
-        {
-            ++block.referenceCount;
-            block.size = 0;
-        }
+        ++block.referenceCount;
+        block.size = 0;
+
+        set(block.ptr, data, offset, length);
 
         return block.ptr;
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void increment (final int ptr)
+    private boolean set (final long ptr,
+                         final byte[] data,
+                         final int offset,
+                         final int length)
     {
-        checkPtr(ptr);
-
-        final MemoryBlock block = blocks.get(ptr);
-
-        synchronized (block)
-        {
-            ++block.referenceCount;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void decrement (final int ptr)
-    {
-        checkPtr(ptr);
-
-        final MemoryBlock block = blocks.get(ptr);
-
-        synchronized (block)
-        {
-            --block.referenceCount;
-
-            if (block.referenceCount <= 0)
-            {
-                freeBlocks.add(block);
-            }
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public int capacityOf (final int ptr)
-    {
-        checkPtr(ptr);
-        return blockSize;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public int sizeOf (final int ptr)
-    {
-        checkPtr(ptr);
-        final MemoryBlock block = blocks.get(ptr);
-        final int size = block.size;
-        return size;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean set (final int ptr,
-                        final byte[] data,
-                        final int offset,
-                        final int length)
-    {
-        checkPtr(ptr);
+        final int idx = checkPtr(ptr);
         Preconditions.checkArgument(offset >= 0, "offset < 0");
         Preconditions.checkArgument(length >= 0, "length < 0");
         Preconditions.checkArgument(offset + length <= data.length, "offset + length > data.length");
         Preconditions.checkArgument(length <= blockSize, "length > blockSize");
 
-        final MemoryBlock block = blocks.get(ptr);
+        final MemoryBlock block = blocks.get(idx);
 
         synchronized (block)
         {
@@ -175,14 +113,63 @@ final class SingleBlockAllocator
      * {@inheritDoc}
      */
     @Override
-    public int get (final int ptr,
+    public void increment (final long ptr)
+    {
+        final int idx = checkPtr(ptr);
+
+        final MemoryBlock block = blocks.get(idx);
+
+        synchronized (block)
+        {
+            ++block.referenceCount;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void decrement (final long ptr)
+    {
+        final int idx = checkPtr(ptr);
+
+        final MemoryBlock block = blocks.get(idx);
+
+        synchronized (block)
+        {
+            --block.referenceCount;
+
+            if (block.referenceCount <= 0)
+            {
+                freeBlocks.add(block);
+            }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int sizeOf (final long ptr)
+    {
+        final int idx = checkPtr(ptr);
+        final MemoryBlock block = blocks.get(idx);
+        final int size = block.size;
+        return size;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int get (final long ptr,
                     final byte[] data)
     {
-        checkPtr(ptr);
+        final int idx = checkPtr(ptr);
 
         int size;
 
-        final MemoryBlock block = blocks.get(ptr);
+        final MemoryBlock block = blocks.get(idx);
 
         synchronized (block)
         {
@@ -194,11 +181,15 @@ final class SingleBlockAllocator
         return size;
     }
 
-    private void checkPtr (final int ptr)
+    private int checkPtr (final long ptr)
     {
-        if (ptr < 0 || ptr >= blocks.length() || blocks.get(ptr).referenceCount <= 0)
+        final int idx = (int) (0x00000000FFFFFFFFL & ptr);
+
+        if (ptr < 0 || ptr >= blocks.length() || blocks.get(idx).referenceCount <= 0)
         {
-            throw new InvalidPointerException(this, ptr);
+            throw new InvalidPointerException(this, idx);
         }
+
+        return idx;
     }
 }
