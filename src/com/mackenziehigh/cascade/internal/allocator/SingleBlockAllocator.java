@@ -1,9 +1,6 @@
 package com.mackenziehigh.cascade.internal.allocator;
 
 import com.google.common.base.Preconditions;
-import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.stream.IntStream;
 
 /**
@@ -13,33 +10,19 @@ import java.util.stream.IntStream;
 final class SingleBlockAllocator
         implements MemoryAllocator
 {
-    /**
-     * An instance of this class is a single block of memory.
-     */
-    private static final class MemoryBlock
-    {
-        public final long ptr;
+    private static final int HEADER_SIZE = 2;
 
-        public volatile int referenceCount = 0;
+    private static final int REFCOUNT_OFFSET = 0;
 
-        public final byte[] data;
+    private static final int SIZE_OFFSET = 1;
 
-        public volatile int size = 0;
-
-        public MemoryBlock (final long ptr,
-                            final int capacity)
-        {
-            this.ptr = ptr;
-            this.data = new byte[capacity];
-        }
-
-    }
+    private final int blockCount;
 
     private final int blockSize;
 
-    private final AtomicReferenceArray<MemoryBlock> blocks;
+    private final long[][] memory;
 
-    private final Queue<MemoryBlock> freeBlocks;
+    private final LongArrayBlockingQueue freeBlocks;
 
     /**
      * Sole Constructor.
@@ -50,11 +33,12 @@ final class SingleBlockAllocator
     public SingleBlockAllocator (final int blockCount,
                                  final int blockSize)
     {
+        this.blockCount = blockCount;
         this.blockSize = blockSize;
-        this.blocks = new AtomicReferenceArray<>(blockCount);
-        this.freeBlocks = new ArrayBlockingQueue<>(blockCount);
-        IntStream.range(0, blockCount).forEach(i -> freeBlocks.add(new MemoryBlock(i, blockSize)));
-        freeBlocks.forEach(x -> blocks.set((int) x.ptr, x));
+        final int elementsPerBlock = HEADER_SIZE + (blockSize / 4 + (blockSize % 4 == 0 ? 0 : 1));
+        this.memory = new long[blockCount][elementsPerBlock];
+        this.freeBlocks = new LongArrayBlockingQueue(blockCount);
+        IntStream.range(0, blockCount).forEach(i -> freeBlocks.offer(i));
     }
 
     /**
@@ -68,19 +52,18 @@ final class SingleBlockAllocator
         Preconditions.checkArgument(length >= 0, "length < 0");
         Preconditions.checkArgument(length <= blockSize, "length > blockSize");
 
-        final MemoryBlock block = freeBlocks.poll();
+        final int idx = (int) freeBlocks.poll(-1);
 
-        if (block == null)
+        if (idx < 0)
         {
             throw new InsufficientMemoryException(this, length);
         }
 
-        ++block.referenceCount;
-        block.size = 0;
+        memory[idx][REFCOUNT_OFFSET] = 1;
 
-        set(block.ptr, data, offset, length);
+        set(idx, data, offset, length);
 
-        return block.ptr;
+        return idx;
     }
 
     private boolean set (final long ptr,
@@ -94,18 +77,16 @@ final class SingleBlockAllocator
         Preconditions.checkArgument(offset + length <= data.length, "offset + length > data.length");
         Preconditions.checkArgument(length <= blockSize, "length > blockSize");
 
-        final MemoryBlock block = blocks.get(idx);
+        memory[idx][SIZE_OFFSET] = length;
 
-        synchronized (block)
-        {
-            block.size = length;
-
-            for (int i = 0; i < length; i++)
-            {
-                block.data[i] = data[offset + i];
-            }
-        }
-
+//        for (int i = 0; i < length; i++)
+//        {
+//            final int address = 2 + (i / 4);
+//            final long element = memory[idx][address];
+//            final int num = i % 4;
+//            final long value = (((long) data[i]) << (num * 8)) | (element & (~(0xFF << (num * 8))));
+//            memory[idx][address] = value;
+//        }
         return true;
     }
 
@@ -117,11 +98,9 @@ final class SingleBlockAllocator
     {
         final int idx = checkPtr(ptr);
 
-        final MemoryBlock block = blocks.get(idx);
-
-        synchronized (block)
+        synchronized (memory[idx])
         {
-            ++block.referenceCount;
+            ++memory[idx][REFCOUNT_OFFSET];
         }
     }
 
@@ -133,15 +112,11 @@ final class SingleBlockAllocator
     {
         final int idx = checkPtr(ptr);
 
-        final MemoryBlock block = blocks.get(idx);
-
-        synchronized (block)
+        synchronized (memory[idx])
         {
-            --block.referenceCount;
-
-            if (block.referenceCount <= 0)
+            if (--memory[idx][REFCOUNT_OFFSET] <= 0L)
             {
-                freeBlocks.add(block);
+                freeBlocks.offer(idx);
             }
         }
     }
@@ -153,8 +128,7 @@ final class SingleBlockAllocator
     public int sizeOf (final long ptr)
     {
         final int idx = checkPtr(ptr);
-        final MemoryBlock block = blocks.get(idx);
-        final int size = block.size;
+        final int size = (int) memory[idx][SIZE_OFFSET];
         return size;
     }
 
@@ -167,17 +141,18 @@ final class SingleBlockAllocator
     {
         final int idx = checkPtr(ptr);
 
-        int size;
+        final int size = sizeOf(ptr);
 
-        final MemoryBlock block = blocks.get(idx);
+        Preconditions.checkArgument(size <= data.length, "block.size > data.length");
 
-        synchronized (block)
-        {
-            Preconditions.checkArgument(block.size <= data.length, "block.size > data.length");
-            System.arraycopy(block.data, 0, data, 0, block.size);
-            size = block.size;
-        }
-
+//        for (int i = 0; i < size; i++)
+//        {
+//            final int address = HEADER_SIZE + (i / 4);
+//            final long element = memory[idx][address];
+//            final int num = i % 4;
+//            final byte value = ByteUtils.byteAt(element, num);
+//            data[i] = value;
+//        }
         return size;
     }
 
@@ -185,11 +160,21 @@ final class SingleBlockAllocator
     {
         final int idx = (int) (0x00000000FFFFFFFFL & ptr);
 
-        if (ptr < 0 || ptr >= blocks.length() || blocks.get(idx).referenceCount <= 0)
+        if (ptr < 0 || ptr >= memory.length || memory[idx][REFCOUNT_OFFSET] <= 0)
         {
             throw new InvalidPointerException(this, idx);
         }
 
         return idx;
+    }
+
+    public static void main (String[] args)
+    {
+        final MemoryAllocator ax = new SingleBlockAllocator(5, 10);
+        final long ptr = ax.malloc("Emma".getBytes(), 0, 4);
+        final byte[] out = new byte[10];
+        ax.get(ptr, out);
+        System.out.println("X = " + new String(out));
+        ax.decrement(ptr);
     }
 }

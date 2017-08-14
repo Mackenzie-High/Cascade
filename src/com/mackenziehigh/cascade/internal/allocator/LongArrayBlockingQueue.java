@@ -5,7 +5,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.LongConsumer;
 import java.util.stream.IntStream;
 
 /**
@@ -100,28 +99,23 @@ public final class LongArrayBlockingQueue
      * If the queue is empty, then this method will return false.
      * </p>
      *
-     * @param receiver will be passed the retrieved value, if any.
-     * @return true, if a value was successfully retrieved;
-     * otherwise, return false.
+     * @param defaultValue will be returned, if the timeout expires.
+     * @return the retrieved element (on success) or the default-value (on empty).
      */
-    public boolean poll (final LongConsumer receiver)
+    public long poll (final long defaultValue)
     {
-        Preconditions.checkNotNull(receiver, "receiver");
-
-        boolean retrieved = false;
-        long value;
+        long value = defaultValue;
 
         lock.lock();
         try
         {
             if (isEmpty())
             {
-                return false;
+                return defaultValue;
             }
             else
             {
                 value = remove();
-                retrieved = true;
             }
         }
         finally
@@ -129,12 +123,7 @@ public final class LongArrayBlockingQueue
             lock.unlock();
         }
 
-        if (retrieved)
-        {
-            receiver.accept(value);
-        }
-
-        return retrieved;
+        return value;
     }
 
     /**
@@ -146,24 +135,22 @@ public final class LongArrayBlockingQueue
      * an element becomes available or a thread interrupt occurs.
      * </p>
      *
-     * @param receiver will be passed the retrieved value, if any.
+     * @param defaultValue will be returned, if the timeout expires.
      * @param timeout is the maximum amount of time to wait.
      * @param unit is the units (seconds, milliseconds, etc) of timeout.
-     * @return true, if a value was successfully retrieved;
-     * otherwise, return false.
+     * @return the retrieved element (on success) or the default-value (on timeout).
      * @throws java.lang.InterruptedException if an interrupt occurs.
      */
-    public boolean poll (final LongConsumer receiver,
-                         final long timeout,
-                         final TimeUnit unit)
+    public long poll (final long defaultValue,
+                      final long timeout,
+                      final TimeUnit unit)
             throws InterruptedException
     {
-        Preconditions.checkNotNull(receiver, "receiver");
         Preconditions.checkNotNull(unit, "unit");
         Preconditions.checkArgument(timeout >= 0, "timeout < 0");
 
         boolean retrieved = false;
-        long value = 0;
+        long value = defaultValue;
 
         long nanos = unit.toNanos(timeout);
 
@@ -180,7 +167,7 @@ public final class LongArrayBlockingQueue
                 }
                 else if (nanos <= 0L)
                 {
-                    return false;
+                    return defaultValue;
                 }
 
                 nanos = notEmpty.awaitNanos(nanos);
@@ -191,12 +178,7 @@ public final class LongArrayBlockingQueue
             lock.unlock();
         }
 
-        if (retrieved)
-        {
-            receiver.accept(value);
-        }
-
-        return true;
+        return value;
     }
 
     private long remove ()
@@ -253,7 +235,8 @@ public final class LongArrayBlockingQueue
             {
                 try
                 {
-                    q.poll(x -> sum.set(x + sum.get()), 5, TimeUnit.SECONDS);
+                    final long value = q.poll(-17, 5, TimeUnit.SECONDS);
+                    sum.addAndGet(value);
                 }
                 catch (InterruptedException ex)
                 {
