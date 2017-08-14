@@ -2,9 +2,11 @@ package com.mackenziehigh.cascade.internal.allocator;
 
 import com.google.common.base.Preconditions;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongConsumer;
+import java.util.stream.IntStream;
 
 /**
  * This class provides a blocking-queue implementation that
@@ -14,8 +16,6 @@ import java.util.function.LongConsumer;
 public final class LongArrayBlockingQueue
 {
     private final ReentrantLock lock = new ReentrantLock();
-
-    private final Condition notFull = lock.newCondition();
 
     private final Condition notEmpty = lock.newCondition();
 
@@ -50,27 +50,6 @@ public final class LongArrayBlockingQueue
     {
         Preconditions.checkArgument(capacity >= 0, "capacity < 0");
         this.elements = new long[capacity];
-    }
-
-    /**
-     * Use this method to add an element to the queue,
-     * waiting until room is available if necessary.
-     *
-     * <p>
-     * If the queue is full, then this method will block until
-     * room becomes available or a thread interrupt occurs.
-     * </p>
-     *
-     * @param value is the element to add to the queue.
-     * @throws InterruptedException if this thread is interrupted.
-     */
-    public void put (final long value)
-            throws InterruptedException
-    {
-        while (offer(value) == false)
-        {
-            notFull.await();
-        }
     }
 
     /**
@@ -141,14 +120,8 @@ public final class LongArrayBlockingQueue
             }
             else
             {
-                value = elements[head];
-                --size;
-                ++head;
-                head = head >= capacity() ? 0 : head;
-                head = isEmpty() ? -1 : head;
-                tail = isEmpty() ? -1 : tail;
+                value = remove();
                 retrieved = true;
-                notFull.signal();
             }
         }
         finally
@@ -185,16 +158,56 @@ public final class LongArrayBlockingQueue
                          final TimeUnit unit)
             throws InterruptedException
     {
+        Preconditions.checkNotNull(receiver, "receiver");
+        Preconditions.checkNotNull(unit, "unit");
+        Preconditions.checkArgument(timeout >= 0, "timeout < 0");
 
-        if (poll(receiver))
+        boolean retrieved = false;
+        long value = 0;
+
+        long nanos = unit.toNanos(timeout);
+
+        lock.lockInterruptibly();
+        try
         {
-            return true;
+            while (retrieved == false)
+            {
+                if (isEmpty() == false)
+                {
+                    value = remove();
+                    retrieved = true;
+                    break;
+                }
+                else if (nanos <= 0L)
+                {
+                    return false;
+                }
+
+                nanos = notEmpty.awaitNanos(nanos);
+            }
         }
-        else
+        finally
         {
-            notEmpty.await(timeout, unit);
-            return poll(receiver);
+            lock.unlock();
         }
+
+        if (retrieved)
+        {
+            receiver.accept(value);
+        }
+
+        return true;
+    }
+
+    private long remove ()
+    {
+        final long value = elements[head];
+        --size;
+        ++head;
+        head = head >= capacity() ? 0 : head;
+        head = isEmpty() ? -1 : head;
+        tail = isEmpty() ? -1 : tail;
+        return value;
     }
 
     /**
@@ -207,6 +220,11 @@ public final class LongArrayBlockingQueue
         return size;
     }
 
+    /**
+     * This method determines whether the queue is empty.
+     *
+     * @return true, if the queue is empty.
+     */
     public boolean isEmpty ()
     {
         return size() == 0;
@@ -225,18 +243,32 @@ public final class LongArrayBlockingQueue
     public static void main (String[] args)
             throws InterruptedException
     {
-        final LongArrayBlockingQueue q = new LongArrayBlockingQueue(3);
+        final LongArrayBlockingQueue q = new LongArrayBlockingQueue(5000 * 1000);
 
-        q.offer(100);
-        q.offer(200);
-        q.offer(300);
+        final Runnable consumer = () ->
+        {
+            final AtomicLong sum = new AtomicLong();
 
-        q.poll(x -> System.out.println(x));
-        q.poll(x -> System.out.println(x));
-        q.poll(x -> System.out.println(x));
-        q.offer(400);
-        q.offer(500);
-        q.poll(x -> System.out.println(x));
-        q.poll(x -> System.out.println(x));
+            IntStream.range(0, 4000 * 1000).forEach(i ->
+            {
+                try
+                {
+                    q.poll(x -> sum.set(x + sum.get()), 5, TimeUnit.SECONDS);
+                }
+                catch (InterruptedException ex)
+                {
+                    ex.printStackTrace(System.out);
+                }
+            });
+
+            System.out.println(Thread.currentThread().getName() + " = " + sum);
+        };
+
+        final Runnable producer = () -> IntStream.range(0, 9000 * 1000).forEach(i -> q.offer(i));
+
+        new Thread(consumer).start();
+        new Thread(consumer).start();
+
+        new Thread(producer).start();
     }
 }
