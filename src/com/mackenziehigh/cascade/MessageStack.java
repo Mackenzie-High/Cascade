@@ -2,7 +2,7 @@ package com.mackenziehigh.cascade;
 
 import com.mackenziehigh.cascade.Message;
 import com.google.common.base.Preconditions;
-import com.mackenziehigh.cascade.aaa.internal.messages.DynamicAllocator;
+import com.mackenziehigh.cascade.internal.messages.DynamicAllocator;
 import java.util.LinkedList;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
