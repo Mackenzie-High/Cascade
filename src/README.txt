@@ -21,7 +21,7 @@ Modules:
 + ZeroMQ: Inter-Process-Communication
 + Expression: Evaluate Arithmetic/Comparison/Logical expressions based on lazy data from queues.
 + SexprTransfom: Structurally transform Sexpr objects (get, set, etc).
-+ Python State Machine
++ State Machine
 + Stack Node, etc?
 + Database Module
 + LDAP Module
@@ -39,7 +39,7 @@ Modules - Flow:
 + Switcher - Like a railroad switch for queues.
 + Valve - Like a water valve for queues. A simply form of switcher really.
 + Syncer - Given (A -> B, X -> Y, Z). Wait for a value to be ready from Z (control), then forward (A -> B) and (X -> Y) simultaneously.
-+ Batcher - Givern (X -> Y, Z), store all messages from X, until a tick is received from Z, then forward the messages to Y.
++ Batcher - Given (X -> Y, Z), store all messages from X, until a tick is received from Z, then forward the messages to Y.
 + Repeater - Copy messages (reference copy, not deep copy) and then forward them.
 + Copier - Deep Copy????
 + Rate Throttle - Send messages to an alternate queue when one queue is receiving messages too frequently.
@@ -110,13 +110,19 @@ Modules - Basic IO
 + REST Server
 + Configuration Loader - Reads Symbolic-Expressions from a file on startup and sends them to queue(s).
 + Function - Invokes a Java method given a message and output queue as inputs.
++ GET/POST Sender - Given a message, issue an HTTP GET/POST based on the message.
++ Apache Servlet - A standard request/reply enabled servlet implementation.
 
 Modules - OS:
 + Predefined Command - Executes predefined shell commands.
 + Dynamic Command - Executes a shell command received in a message. Potentially dangerous from a security perspective.
 + File Store - Save messages to files and read files into messages.
 
+Storage:
++ ZIP Map File - Use a ZIP file as a persistent key-value store.
+
 Modules - Buffers/Caches:
++ In-Memory Key-Value Store - For performance improvement.
 + Data Buffer - Circular Byte Buffer with an optional resident minimum-time.
 + Copy Buffer?? - Copy binary messages into newly allocated byte array messages.
 
@@ -158,8 +164,119 @@ Modules - Data Generator:
 (set config = 123)
 
 
+----------------------------------------------------------------------------
 
 
+(layout Page1 (100 x 100) (P Z)
+
+    (cell (P 1 1) = (timer ))
+
+    (wire (1 2) (1 5) (2 5))
+
+)
+
+(root Page1)
+
+----------------------------------------------------------------------------
+
+include "ZMQ"
+
+compiletime classpath  "/raid/mhigh/lib/X.jar"
+runtime classpath "lib/X.jar"
+
+module Main
+
+datatype String
+datatype TwoStrings : [String , String , END ]
+datatype IntTwoStrings<E> : [ int , E ] & TwoStrings
+
+actor interface Router<T : TwoStrings>
+{
+    input inQ : T
+
+    output outQ : T[25] => MyClass::route
+
+    actor dispatcher : Dispatcher<T>
+
+    connect inQ -> dispatcher.inQ
+    connect dispatcher.outQ -> outQ
+}
+
+
+actor factory RouterFactory : Router
+
+allocator PrimaryAllocator =    0 to 1024 : dynamic
+                           | 1024 to 2048 : block(512, 1024)
+                           | 2048 to  MAX : chunk(512, 4096)
+                           ;
+
+spawning powerplant Nuke limit 10;
+dedicated powerplant Terminus;
+pooled powerplant MainLine.
+
+actor A1 : Router<String> :- Nuke
+actor A2 : Router<String> :- direct
+actor TT : Ticker<String> :- Nuke
+
+connect TT.outQ -> A1.inQ[5]
+connect A1.outQ -> A2.inQ
+
+----------------------------------------------------------------------------
+
+include <path> ;
+
+compiletime classpath <path> ;
+
+runtime classpath <path> ;
+
+package <full-name> ;
+
+define struct <name>
+{
+    field <field-name> : <type> = <id> ;
+
+    field <field-name> [ <count> ] : <type> = <id> ;
+}
+
+define enum <name>
+{
+    constant <field-name> = <id> ;
+}
+
+define union <name>
+{
+    option <field-name> : <type> = <id> ;
+}
+
+define message <name> = [ <type-1> , ... , <type-N> ] ;
+
+define message <name> = [: <type-1> , ... , <type-N> :] ;
+
+define actor <name>
+{
+    property <field-name> : <type> ;
+
+    input <field-name> : <message-type> ;
+
+    output <field-name> : <message-type> ;
+}
+
+default actor class <actor-name> = <class-name> ;
+
+define grid <name>
+{
+    property <field-name> : <type> ;
+
+    actor ( <xpos> , <ypos> , <rotation> ) : <actor-type> ;
+
+    wire ( <xpos> , <ypos> , <port-in> , <port-out> ) ;
+}
+
+grid <name> : <grid-name> ;
+
+set property <grid> . <property> = <value> ;
+
+set property <grid> . <property> . <actor> = <value> ;
 
 
 

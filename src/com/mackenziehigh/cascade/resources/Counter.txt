@@ -1,9 +1,0 @@
-
-
-root = [ configuration ];
-
-configuration = [ "send" , "count" , "of" , source , "to" , destination ];
-
-source = $ATOM;
-
-destination = $ATOM;

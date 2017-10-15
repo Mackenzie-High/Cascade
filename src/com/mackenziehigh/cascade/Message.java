@@ -1,274 +1,263 @@
 package com.mackenziehigh.cascade;
 
 import com.google.common.base.Preconditions;
-import com.mackenziehigh.sexpr.Sexpr;
-import java.time.Instant;
+import com.google.common.base.Verify;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
+import com.google.common.primitives.Shorts;
+import java.nio.charset.Charset;
 
 /**
- * Base Message Interface.
+ * Immutable Binary Message.
+ *
+ * <p>
+ * An instance of this message may be based on pre-allocated buffers;
+ * therefore, it may be necessary to invoke free() after use.
+ * </p>
  */
-public final class Message
+public interface Message
 {
-    private final String sourceName;
+    /**
+     * Use this method to free this message and
+     * return it to the pool of free messages.
+     */
+    public void free ();
 
-    private final UniqueID sourceID;
+    /**
+     * This method determines whether this message is free.
+     *
+     * @return true, iff this message is currently free.
+     */
+    public boolean isFree ();
 
-    private final long sequenceNumber;
+    /**
+     * Use this method to determine whether free()
+     * needs to be called when this message is no
+     * longer in-use in order to avoid memory leaks.
+     *
+     * @return true, if free() is *not* needed.
+     */
+    public boolean isGarbageCollected ();
 
-    private final UniqueID uniqueID;
+    /**
+     * Getter.
+     *
+     * @return the size of this message in bytes.
+     */
+    public int size ();
 
-    private final UniqueID correlationID;
+    /**
+     * Getter.
+     *
+     * @return the maximum size of this message in bytes.
+     */
+    public int capacity ();
 
-    private final long creationTimeMillis;
+    /**
+     * Use this method to efficiently retrieve a
+     * byte at a given index within this message.
+     *
+     * @param index identifies the byte in this message.
+     * @return the byte at the given index.
+     * @throws IndexOutOfBoundsException if index is illegal.
+     */
+    public byte byteAt (int index);
 
-    private final long referenceTimeNano;
-
-    private final Sexpr content;
-
-    private Message (final String sourceName,
-                     final UniqueID sourceID,
-                     final long sequenceNumber,
-                     final UniqueID uniqueID,
-                     final UniqueID correlationID,
-                     final long creationTimeMillis,
-                     final long referenceTimeNano,
-                     final Sexpr content)
+    /**
+     * Use this method to copy the content of this message into a given buffer.
+     *
+     * @param buffer is the buffer that will receive the content.
+     * @return the number of bytes copied into the buffer,
+     * which may be less than the size() of the message,
+     * if the buffer is too small.
+     */
+    public default int memcpy (byte[] buffer)
     {
-        Preconditions.checkNotNull(sourceName, "sourceName");
-        Preconditions.checkNotNull(sourceID, "sourceID");
-        Preconditions.checkArgument(sequenceNumber >= 0, "sequenceNumber < 0");
-        Preconditions.checkNotNull(uniqueID, "uniqueID");
-        Preconditions.checkNotNull(correlationID, "correlationID");
-        Preconditions.checkNotNull(content, "content");
-        this.sourceName = sourceName;
-        this.sourceID = sourceID;
-        this.sequenceNumber = sequenceNumber;
-        this.uniqueID = uniqueID;
-        this.correlationID = correlationID;
-        this.creationTimeMillis = creationTimeMillis;
-        this.referenceTimeNano = referenceTimeNano;
-        this.content = content;
+        return memcpy(buffer, 0);
     }
 
     /**
-     * This is the user-defined name of the source that created this message.
+     * Use this method to copy the content of this message into a given buffer,
+     * starting at a given offset in the buffer.
      *
-     * @return the name of the source.
+     * @param buffer is the buffer that will receive the content.
+     * @param offset is an index into the buffer.
+     * @return (-1) if the offset is out-of-range; otherwise,
+     * return the number of bytes copied into the buffer,
+     * which may be less than the size() of the message,
+     * if the buffer is too small.
      */
-    public String sourceName ()
+    public default int memcpy (byte[] buffer,
+                               int offset)
     {
-        return sourceName;
+        return memcpy(0, size(), buffer, offset);
     }
 
-    /**
-     * This is the unique-ID of the source that created this message.
-     *
-     * @return the unique-ID of the source.
-     */
-    public UniqueID sourceID ()
+    public int memcpy (int start,
+                       int length,
+                       byte[] buffer,
+                       int offset);
+
+    public default boolean asBoolean ()
     {
-        return sourceID;
+        Preconditions.checkState(size() == 1, "Wrong Size");
+        return asByte() == 1;
     }
 
-    /**
-     * This method retrieves the index of this message
-     * relative to other messages from the same exact source.
-     *
-     * @return the sequence-number of this message.
-     */
-    public long sequenceNumber ()
+    public default char asChar ()
     {
-        return sequenceNumber;
+        Preconditions.checkState(size() == 2, "Wrong Size");
+        return (char) asShort();
     }
 
-    /**
-     * This method retrieves the unique-ID of this message.
-     *
-     * @return the unique-ID of this message.
-     */
-    public UniqueID uniqueID ()
+    public default byte asByte ()
     {
-        return uniqueID;
+        Preconditions.checkState(size() == 1, "Wrong Size");
+        return byteAt(0);
     }
 
-    /**
-     * This method retrieves the correlation-ID of this message.
-     *
-     * <p>
-     * If a message does not have an explicitly specified correlation-ID,
-     * then this will simply be the unique-ID of the message itself.
-     * </p>
-     *
-     * @return the correlation-ID.
-     */
-    public UniqueID correlationID ()
+    public default short asShort ()
     {
-        return correlationID;
+        Preconditions.checkState(size() == 2, "Wrong Size");
+        return Shorts.fromBytes(byteAt(0), byteAt(1));
     }
 
-    /**
-     * This is when the message was created.
-     *
-     * <p>
-     * Equivalent To: Instant.ofEpochMilli(creationTimeMillis())
-     * </p>
-     *
-     * @return the creation time.
-     */
-    public Instant creationTime ()
+    public default int asInt ()
     {
-        return Instant.ofEpochMilli(creationTimeMillis());
+        Preconditions.checkState(size() == 4, "Wrong Size");
+        return Ints.fromBytes(byteAt(0),
+                              byteAt(1),
+                              byteAt(2),
+                              byteAt(3));
     }
 
-    /**
-     * This is when the message was created.
-     *
-     * <p>
-     * The result is expressed in milliseconds from the epoch.
-     * This method is equivalent to System.currentTimeMillis().
-     * </p>
-     *
-     * <p>
-     * If this object is the result of deserialization,
-     * then this is the creation-time <b>before</b> serialization.
-     * </p>
-     *
-     * @return the creation time.
-     */
-    public long creationTimeMillis ()
+    public default long asLong ()
     {
-        return creationTimeMillis;
+        Preconditions.checkState(size() == 8, "Wrong Size");
+        return Longs.fromBytes(byteAt(0),
+                               byteAt(1),
+                               byteAt(2),
+                               byteAt(3),
+                               byteAt(4),
+                               byteAt(5),
+                               byteAt(6),
+                               byteAt(7));
     }
 
-    /**
-     * This is the number of nanoseconds from an arbitrary point in time.
-     *
-     * <p>
-     * This method is equivalent to System.nanoTime().
-     * </p>
-     *
-     * <p>
-     * This value can only be meaningfully compared
-     * to values from the exact same source.
-     * </p>
-     *
-     * <p>
-     * If this object is the result of deserialization,
-     * then this is the reference-time <b>before</b> serialization.
-     * </p>
-     *
-     * @return the nanoseconds from the arbitrary reference point.
-     */
-    public long referenceTimeNano ()
+    public default float asFloat ()
     {
-        return referenceTimeNano;
+        Preconditions.checkState(size() == 4, "Wrong Size");
+        return Float.intBitsToFloat(asInt());
     }
 
-    /**
-     * This is user-defined content of this message.
-     *
-     * @return the content.
-     */
-    public Sexpr content ()
+    public default double asDouble ()
     {
-        return content;
+        Preconditions.checkState(size() == 8, "Wrong Size");
+        return Double.longBitsToDouble(asLong());
     }
 
-    @Override
-    public String toString ()
+    public default String asString ()
     {
-        return "Message: sourceName = '" + sourceName + "'"
-               + ", sourceID = " + sourceID
-               + ", sequenceNumber = " + sequenceNumber
-               + ", uniqueID = " + uniqueID
-               + ", correlationID = " + correlationID
-               + ", creationTimeMillis = '" + creationTime() + "'"
-               + ", creationTimeMillis = " + creationTimeMillis
-               + ", referenceTimeNano = " + referenceTimeNano
-               + ", content = " + content;
+        return new String(asByteArray(), Charset.forName("UTF-8"));
     }
 
-    /**
-     * This method creates a a new message.
-     *
-     * @param sourceName is the value for sourceName().
-     * @param sourceID is the value for sourceID().
-     * @param sequenceNumber is the value for sequenceNumber().
-     * @param content is the value for content().
-     * @return a new message-builder.
-     */
-    public static Message newMessage (final String sourceName,
-                                      final UniqueID sourceID,
-                                      final long sequenceNumber,
-                                      final Sexpr content)
+    public default boolean[] asBooleanArray ()
     {
-        final UniqueID id = UniqueID.random();
-        return new Message(sourceName,
-                           sourceID,
-                           sequenceNumber,
-                           id,
-                           id,
-                           System.currentTimeMillis(),
-                           System.nanoTime(),
-                           content);
+        return null;
     }
 
-    /**
-     * This method creates a a new message.
-     *
-     * @param sourceName is the value for sourceName().
-     * @param sourceID is the value for sourceID().
-     * @param sequenceNumber is the value for sequenceNumber().
-     * @param correlationID is the value for correlationID().
-     * @param content is the value for content().
-     * @return a new message-builder.
-     */
-    public static Message newMessage (final String sourceName,
-                                      final UniqueID sourceID,
-                                      final long sequenceNumber,
-                                      final UniqueID correlationID,
-                                      final Sexpr content)
+    public default char[] asCharArray ()
     {
-        return new Message(sourceName,
-                           sourceID,
-                           sequenceNumber,
-                           UniqueID.random(),
-                           correlationID,
-                           System.currentTimeMillis(),
-                           System.nanoTime(),
-                           content);
+        Preconditions.checkState(size() % 2 == 0, "Invalid Size");
+        return null;
     }
 
-    /**
-     * This method creates a a new message.
-     *
-     * @param sourceName is the value for sourceName().
-     * @param sourceID is the value for sourceID().
-     * @param sequenceNumber is the value for sequenceNumber().
-     * @param uniqueID is the value for uniqueID().
-     * @param correlationID is the value for correlationID().
-     * @param creationTimeMillis is the value for creationTimeMillis().
-     * @param referenceTimeNano is the value for referenceTimeNano().
-     * @param content is the value for content().
-     * @return a new message-builder.
-     */
-    public static Message newMessage (final String sourceName,
-                                      final UniqueID sourceID,
-                                      final long sequenceNumber,
-                                      final UniqueID uniqueID,
-                                      final UniqueID correlationID,
-                                      final long creationTimeMillis,
-                                      final long referenceTimeNano,
-                                      final Sexpr content)
+    public default byte[] asByteArray ()
     {
-        return new Message(sourceName,
-                           sourceID,
-                           sequenceNumber,
-                           uniqueID,
-                           correlationID,
-                           creationTimeMillis,
-                           referenceTimeNano,
-                           content);
+        final byte[] array = new byte[size()];
+        Verify.verify(memcpy(array) == size());
+        return array;
     }
 
+    public default short[] asShortArray ()
+    {
+        Preconditions.checkState(size() % 2 == 0, "Invalid Size");
+        final short[] array = new short[size() / 2];
+        for (int i = 0; i < array.length; i++)
+        {
+            array[i] = Shorts.fromBytes(byteAt(i * 2), byteAt(i * 2 + 1));
+        }
+        return array;
+    }
+
+    public default int[] asIntArray ()
+    {
+        Preconditions.checkState(size() % 4 == 0, "Invalid Size");
+        final int[] array = new int[size() / 4];
+        for (int i = 0; i < array.length; i++)
+        {
+            array[i] = Ints.fromBytes(byteAt(i * 4 + 0),
+                                      byteAt(i * 4 + 1),
+                                      byteAt(i * 4 + 2),
+                                      byteAt(i * 4 + 3));
+        }
+        return array;
+    }
+
+    public default long[] asLongArray ()
+    {
+        Preconditions.checkState(size() % 8 == 0, "Invalid Size");
+        final long[] array = new long[size() / 8];
+        for (int i = 0; i < array.length; i++)
+        {
+            array[i] = Longs.fromBytes(byteAt(i * 8 + 0),
+                                       byteAt(i * 8 + 1),
+                                       byteAt(i * 8 + 2),
+                                       byteAt(i * 8 + 3),
+                                       byteAt(i * 8 + 4),
+                                       byteAt(i * 8 + 5),
+                                       byteAt(i * 8 + 6),
+                                       byteAt(i * 8 + 7));
+        }
+        return array;
+    }
+
+    public default float[] asFloatArray ()
+    {
+        Preconditions.checkState(size() % 4 == 0, "Invalid Size");
+        final float[] array = new float[size() / 4];
+        for (int i = 0; i < array.length; i++)
+        {
+            final int bits = Ints.fromBytes(byteAt(i * 4 + 0),
+                                            byteAt(i * 4 + 1),
+                                            byteAt(i * 4 + 2),
+                                            byteAt(i * 4 + 3));
+            array[i] = Float.intBitsToFloat(bits);
+        }
+        return array;
+    }
+
+    public default double[] asDoubleArray ()
+    {
+        Preconditions.checkState(size() % 8 == 0, "Invalid Size");
+        final double[] array = new double[size() / 8];
+        for (int i = 0; i < array.length; i++)
+        {
+            final long bits = Longs.fromBytes(byteAt(i * 8 + 0),
+                                              byteAt(i * 8 + 1),
+                                              byteAt(i * 8 + 2),
+                                              byteAt(i * 8 + 3),
+                                              byteAt(i * 8 + 4),
+                                              byteAt(i * 8 + 5),
+                                              byteAt(i * 8 + 6),
+                                              byteAt(i * 8 + 7));
+            array[i] = Double.longBitsToDouble(bits);
+        }
+        return array;
+    }
+
+    public default String[] asStringArray ()
+    {
+        return null;
+    }
 }
