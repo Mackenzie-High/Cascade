@@ -1,13 +1,14 @@
-package com.mackenziehigh.cascade.internal.powerplants;
+package com.mackenziehigh.cascade.util;
 
 import com.google.common.base.Preconditions;
+import java.util.Deque;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Thread-Safe Facade for CombinedQueue.
  */
-public final class SyncCombinedQueue<E>
+public final class ArrayBlockingMultiDeque<E>
 {
     private final ReentrantReadWriteLock globalLock = new ReentrantReadWriteLock(true);
 
@@ -15,11 +16,11 @@ public final class SyncCombinedQueue<E>
 
     private final Lock writeLock = globalLock.writeLock();
 
-    private final CombinedQueue<E> combinedQueue;
+    private final ArrayMultiDeque<E> combinedQueue;
 
-    public SyncCombinedQueue (final int capacity)
+    public ArrayBlockingMultiDeque (final int capacity)
     {
-        this.combinedQueue = new CombinedQueue<>(capacity);
+        this.combinedQueue = new ArrayMultiDeque<>(capacity);
     }
 
     public int size ()
@@ -53,7 +54,7 @@ public final class SyncCombinedQueue<E>
         try
         {
             writeLock.lock();
-            return new SyncMemberQueue(capacity, combinedQueue.addMemberQueue());
+            return new SyncMemberQueue(capacity, combinedQueue.addDeque());
         }
         finally
         {
@@ -65,10 +66,10 @@ public final class SyncCombinedQueue<E>
     {
         private final int capacity;
 
-        private final CombinedQueue<E>.MemberQueue delegate;
+        private final Deque<E> delegate;
 
         private SyncMemberQueue (final int capacity,
-                                 final CombinedQueue<E>.MemberQueue delegate)
+                                 final Deque<E> delegate)
         {
             this.capacity = capacity;
             this.delegate = delegate;

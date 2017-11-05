@@ -1,27 +1,30 @@
 package com.mackenziehigh.cascade;
 
-import com.mackenziehigh.cascade.MessageStack;
-import com.mackenziehigh.cascade.Actor;
-
 /**
- * A pipeline is a connection between an output-port
- * an actor to an input-port of another actor.
+ * A pipeline is a connection between two actors.
  */
-public interface Pipeline
+public interface CascadePipeline
 {
+    /**
+     * Getter.
+     *
+     * @return the system that this pipeline is part of.
+     */
+    public Cascade cascade ();
+
     /**
      * This is the actor that sends messages to the consumer.
      *
-     * @return
+     * @return the supply-side of the pipeline.
      */
-    public Actor supplier ();
+    public CascadeActor supplier ();
 
     /**
      * This is the actor that receives messages from the supplier.
      *
-     * @return
+     * @return the consumer-side of the pipeline.
      */
-    public Actor consumer ();
+    public CascadeActor consumer ();
 
     /**
      * This method retrieves the number of messages that
@@ -105,31 +108,5 @@ public interface Pipeline
             final double bp = 100.0 * Math.max(queueBP, backlogBP);
             return bp;
         }
-    }
-
-    /**
-     * This method sends a message to the recipient actor.
-     *
-     * <p>
-     * If the backlog() has reached the queueCapacity(),
-     * then this method will simply return false.
-     * </p>
-     *
-     * <p>
-     * This method is intentionally vaguely defined
-     * in order to give implementors maximal control
-     * over the behavioral details.
-     * </p>
-     *
-     * <p>
-     * The message cannot be null.
-     * </p>
-     *
-     * @param message is the message to add to the queue.
-     * @return true, iff the message was successfully enqueued.
-     */
-    public default boolean send (MessageStack message)
-    {
-        return consumer().powerplant().send(consumer(), message);
     }
 }

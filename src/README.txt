@@ -4,6 +4,12 @@ Jenkins:
 + erin
 
 
+Cascade Notes:
++ MessageStack operations need to verify that free is not needed. Right?
++ Rename MessageStack to Message. Rename Message to something else. 
+
+
+
 Processors:
 + Dedicated - (N) threads are dedicated to each queue. Only useful for high-throughput queues.
 + Pooled - (N) threads share the load of servicing a multitude of queues.

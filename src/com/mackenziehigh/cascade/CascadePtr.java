@@ -1,37 +1,35 @@
 package com.mackenziehigh.cascade;
 
-import com.mackenziehigh.cascade.Message;
 import com.google.common.base.Preconditions;
-import com.mackenziehigh.cascade.internal.messages.DynamicAllocator;
 import java.util.LinkedList;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 
 /**
- * An immutable stack of messages.
+ * An instance of this class is a pointer to an operand-stack.
  *
  * <p>
  * Methods herein that create new messages will use
  * the dynamic allocator to allocate them.
  * </p>
  */
-public final class MessageStack
+public final class CascadePtr
 {
-    private final Message value;
+    private final CascadeOperand value;
 
-    private final MessageStack below;
+    private final CascadePtr below;
 
     private final int size;
 
-    public MessageStack (final Message value,
-                         final MessageStack below)
+    public CascadePtr (final CascadeOperand value,
+                       final CascadePtr below)
     {
         this.value = value;
         this.below = below;
         this.size = 1 + (below == null ? 0 : below.size());
     }
 
-    public MessageStack ()
+    public CascadePtr ()
     {
         this.size = 0;
         this.value = null;
@@ -44,10 +42,10 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack push (final Message value)
+    public CascadePtr push (final CascadeOperand value)
     {
         Preconditions.checkNotNull(value, "value");
-        return new MessageStack(value, this);
+        return new CascadePtr(value, this);
     }
 
     /**
@@ -56,9 +54,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushZ (boolean value)
+    public CascadePtr pushZ (boolean value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -67,9 +65,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushC (char value)
+    public CascadePtr pushC (char value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -78,9 +76,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushB (byte value)
+    public CascadePtr pushB (byte value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -89,9 +87,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushS (short value)
+    public CascadePtr pushS (short value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -100,9 +98,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushI (int value)
+    public CascadePtr pushI (int value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -111,9 +109,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushJ (long value)
+    public CascadePtr pushJ (long value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -122,9 +120,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushF (float value)
+    public CascadePtr pushF (float value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -133,9 +131,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushD (double value)
+    public CascadePtr pushD (double value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -144,9 +142,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushStr (String value)
+    public CascadePtr pushStr (String value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -155,9 +153,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushZA (boolean[] value)
+    public CascadePtr pushZA (boolean[] value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -166,9 +164,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushCA (char[] value)
+    public CascadePtr pushCA (char[] value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -177,9 +175,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushBA (byte[] value)
+    public CascadePtr pushBA (byte[] value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -188,9 +186,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushSA (short[] value)
+    public CascadePtr pushSA (short[] value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -199,9 +197,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushIA (int[] value)
+    public CascadePtr pushIA (int[] value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -210,9 +208,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushJA (long[] value)
+    public CascadePtr pushJA (long[] value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -221,9 +219,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushFA (float[] value)
+    public CascadePtr pushFA (float[] value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -232,9 +230,9 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushDA (double[] value)
+    public CascadePtr pushDA (double[] value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
     /**
@@ -243,21 +241,21 @@ public final class MessageStack
      * @param value is the message to push.
      * @return a modified copy of this stack.
      */
-    public MessageStack pushStrA (String[] value)
+    public CascadePtr pushStrA (String[] value)
     {
-        return push(DynamicAllocator.instance().from(value));
+        return push(CascadeAllocator.instance().from(value));
     }
 
-    public Message peek ()
+    public CascadeOperand peek ()
     {
         return peek(0);
     }
 
-    public Message peek (int index)
+    public CascadeOperand peek (int index)
     {
         Preconditions.checkArgument(index < size, "index >= size()");
 
-        MessageStack p = this;
+        CascadePtr p = this;
 
         for (int i = 0; i < index; i++)
         {
@@ -267,16 +265,16 @@ public final class MessageStack
         return p.value;
     }
 
-    public MessageStack pop ()
+    public CascadePtr pop ()
     {
         return pop(1);
     }
 
-    public MessageStack pop (final int count)
+    public CascadePtr pop (final int count)
     {
         Preconditions.checkArgument(count <= size, "count > size()");
 
-        MessageStack p = this;
+        CascadePtr p = this;
 
         for (int i = 0; i < count; i++)
         {
@@ -286,14 +284,14 @@ public final class MessageStack
         return p;
     }
 
-    public MessageStack top (final int count)
+    public CascadePtr top (final int count)
     {
         return null;
     }
 
-    public MessageStack clear ()
+    public CascadePtr clear ()
     {
-        return new MessageStack();
+        return new CascadePtr();
     }
 
     public int size ()
@@ -311,11 +309,11 @@ public final class MessageStack
      *
      * @return
      */
-    public LinkedList<Message> toLinkedList ()
+    public LinkedList<CascadeOperand> toLinkedList ()
     {
-        final LinkedList<Message> result = new LinkedList<>();
+        final LinkedList<CascadeOperand> result = new LinkedList<>();
 
-        MessageStack p = this;
+        CascadePtr p = this;
 
         for (int i = 0; i < size; i++)
         {
@@ -326,22 +324,22 @@ public final class MessageStack
         return result;
     }
 
-    public MessageStack dup ()
+    public CascadePtr dup ()
     {
         return push(peek());
     }
 
-    public MessageStack dup (final int count)
+    public CascadePtr dup (final int count)
     {
         return null;
     }
 
-    public MessageStack swap ()
+    public CascadePtr swap ()
     {
-        MessageStack p = this;
-        final Message x = peek();
+        CascadePtr p = this;
+        final CascadeOperand x = peek();
         p = p.pop();
-        final Message y = peek();
+        final CascadeOperand y = peek();
         p = p.pop();
         return p.push(y).push(x);
     }
@@ -366,12 +364,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack divD ()
+    public CascadePtr divD ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final double result = left.asDouble() / right.asDouble();
         return p.pushD(result);
@@ -397,12 +395,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack divF ()
+    public CascadePtr divF ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final float result = left.asFloat() / right.asFloat();
         return p.pushF(result);
@@ -428,12 +426,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack divJ ()
+    public CascadePtr divJ ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final long result = left.asLong() / right.asLong();
         return p.pushJ(result);
@@ -459,12 +457,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack divI ()
+    public CascadePtr divI ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final int result = left.asInt() / right.asInt();
         return p.pushI(result);
@@ -490,12 +488,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack divS ()
+    public CascadePtr divS ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final short result = (short) (left.asShort() / right.asShort());
         return p.pushS(result);
@@ -521,12 +519,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack divB ()
+    public CascadePtr divB ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final byte result = (byte) (left.asByte() / right.asByte());
         return p.pushB(result);
@@ -552,12 +550,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack divC ()
+    public CascadePtr divC ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final char result = (char) (left.asChar() / right.asChar());
         return p.pushC(result);
@@ -583,12 +581,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack modD ()
+    public CascadePtr modD ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final double result = left.asDouble() % right.asDouble();
         return p.pushD(result);
@@ -614,12 +612,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack modF ()
+    public CascadePtr modF ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final float result = left.asFloat() % right.asFloat();
         return p.pushF(result);
@@ -645,12 +643,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack modJ ()
+    public CascadePtr modJ ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final long result = left.asLong() % right.asLong();
         return p.pushJ(result);
@@ -676,12 +674,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack modI ()
+    public CascadePtr modI ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final int result = left.asInt() % right.asInt();
         return p.pushI(result);
@@ -707,12 +705,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack modS ()
+    public CascadePtr modS ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final short result = (short) (left.asShort() % right.asShort());
         return p.pushS(result);
@@ -738,12 +736,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack modB ()
+    public CascadePtr modB ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final byte result = (byte) (left.asByte() % right.asByte());
         return p.pushB(result);
@@ -769,12 +767,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack modC ()
+    public CascadePtr modC ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final char result = (char) (left.asChar() % right.asChar());
         return p.pushC(result);
@@ -800,12 +798,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack mulD ()
+    public CascadePtr mulD ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final double result = left.asDouble() * right.asDouble();
         return p.pushD(result);
@@ -831,12 +829,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack mulF ()
+    public CascadePtr mulF ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final float result = left.asFloat() * right.asFloat();
         return p.pushF(result);
@@ -862,12 +860,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack mulJ ()
+    public CascadePtr mulJ ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final long result = left.asLong() * right.asLong();
         return p.pushJ(result);
@@ -893,12 +891,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack mulI ()
+    public CascadePtr mulI ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final int result = left.asInt() * right.asInt();
         return p.pushI(result);
@@ -924,12 +922,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack mulS ()
+    public CascadePtr mulS ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final short result = (short) (left.asShort() * right.asShort());
         return p.pushS(result);
@@ -955,12 +953,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack mulB ()
+    public CascadePtr mulB ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final byte result = (byte) (left.asByte() * right.asByte());
         return p.pushB(result);
@@ -986,12 +984,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack mulC ()
+    public CascadePtr mulC ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final char result = (char) (left.asChar() * right.asChar());
         return p.pushC(result);
@@ -1017,12 +1015,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack addD ()
+    public CascadePtr addD ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final double result = left.asDouble() + right.asDouble();
         return p.pushD(result);
@@ -1048,12 +1046,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack addF ()
+    public CascadePtr addF ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final float result = left.asFloat() + right.asFloat();
         return p.pushF(result);
@@ -1079,12 +1077,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack addJ ()
+    public CascadePtr addJ ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final long result = left.asLong() + right.asLong();
         return p.pushJ(result);
@@ -1110,12 +1108,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack addI ()
+    public CascadePtr addI ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final int result = left.asInt() + right.asInt();
         return p.pushI(result);
@@ -1141,12 +1139,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack addS ()
+    public CascadePtr addS ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final short result = (short) (left.asShort() + right.asShort());
         return p.pushS(result);
@@ -1172,12 +1170,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack addB ()
+    public CascadePtr addB ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final byte result = (byte) (left.asByte() + right.asByte());
         return p.pushB(result);
@@ -1203,12 +1201,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack addC ()
+    public CascadePtr addC ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final char result = (char) (left.asChar() + right.asChar());
         return p.pushC(result);
@@ -1234,12 +1232,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack subD ()
+    public CascadePtr subD ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final double result = left.asDouble() - right.asDouble();
         return p.pushD(result);
@@ -1265,12 +1263,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack subF ()
+    public CascadePtr subF ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final float result = left.asFloat() - right.asFloat();
         return p.pushF(result);
@@ -1296,12 +1294,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack subJ ()
+    public CascadePtr subJ ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final long result = left.asLong() - right.asLong();
         return p.pushJ(result);
@@ -1327,12 +1325,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack subI ()
+    public CascadePtr subI ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final int result = left.asInt() - right.asInt();
         return p.pushI(result);
@@ -1358,12 +1356,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack subS ()
+    public CascadePtr subS ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final short result = (short) (left.asShort() - right.asShort());
         return p.pushS(result);
@@ -1389,12 +1387,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack subB ()
+    public CascadePtr subB ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final byte result = (byte) (left.asByte() - right.asByte());
         return p.pushB(result);
@@ -1420,12 +1418,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack subC ()
+    public CascadePtr subC ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final char result = (char) (left.asChar() - right.asChar());
         return p.pushC(result);
@@ -1451,12 +1449,12 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack concat ()
+    public CascadePtr concat ()
     {
-        MessageStack p = this;
-        final Message right = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand right = p.peek();
         p = p.pop();
-        final Message left = p.peek();
+        final CascadeOperand left = p.peek();
         p = p.pop();
         final String result = left.asString() + right.asString();
         return p.pushStr(result);
@@ -1473,7 +1471,7 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack convertD2D ()
+    public CascadePtr convertD2D ()
     {
         return this; // No Operation Required
     }
@@ -1489,10 +1487,10 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack convertD2F ()
+    public CascadePtr convertD2F ()
     {
-        MessageStack p = this;
-        final Message operand = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand operand = p.peek();
         p = p.pop();
         final float result = (float) operand.asDouble();
         return p.pushF(result);
@@ -1509,10 +1507,10 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack convertD2J ()
+    public CascadePtr convertD2J ()
     {
-        MessageStack p = this;
-        final Message operand = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand operand = p.peek();
         p = p.pop();
         final long result = (long) operand.asDouble();
         return p.pushJ(result);
@@ -1529,10 +1527,10 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack convertD2I ()
+    public CascadePtr convertD2I ()
     {
-        MessageStack p = this;
-        final Message operand = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand operand = p.peek();
         p = p.pop();
         final int result = (int) operand.asDouble();
         return p.pushI(result);
@@ -1549,10 +1547,10 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack convertD2S ()
+    public CascadePtr convertD2S ()
     {
-        MessageStack p = this;
-        final Message operand = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand operand = p.peek();
         p = p.pop();
         final short result = (short) operand.asDouble();
         return p.pushS(result);
@@ -1569,10 +1567,10 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack convertD2B ()
+    public CascadePtr convertD2B ()
     {
-        MessageStack p = this;
-        final Message operand = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand operand = p.peek();
         p = p.pop();
         final byte result = (byte) operand.asDouble();
         return p.pushB(result);
@@ -1589,26 +1587,26 @@ public final class MessageStack
      *
      * @return a modified copy of this stack.
      */
-    public MessageStack convertD2C ()
+    public CascadePtr convertD2C ()
     {
-        MessageStack p = this;
-        final Message operand = p.peek();
+        CascadePtr p = this;
+        final CascadeOperand operand = p.peek();
         p = p.pop();
         final char result = (char) operand.asDouble();
         return p.pushC(result);
     }
 
-    public MessageStack match (final Predicate<Message> functor)
+    public CascadePtr match (final Predicate<CascadeOperand> functor)
     {
         return pushZ(matches(functor));
     }
 
-    public MessageStack matchI (final IntPredicate functor)
+    public CascadePtr matchI (final IntPredicate functor)
     {
         return pushZ(matchesI(functor));
     }
 
-    public boolean matches (final Predicate<Message> functor)
+    public boolean matches (final Predicate<CascadeOperand> functor)
     {
         return functor.test(peek());
     }
@@ -1620,7 +1618,7 @@ public final class MessageStack
 
     public static void main (String[] args)
     {
-        MessageStack s = new MessageStack();
+        CascadePtr s = new CascadePtr();
 
         s = s.pushI(1).pushI(2).addI().pushI(7).addI().pushI(4).subI();
 

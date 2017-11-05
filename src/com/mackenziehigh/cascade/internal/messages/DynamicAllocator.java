@@ -1,41 +1,27 @@
 package com.mackenziehigh.cascade.internal.messages;
 
-import com.mackenziehigh.cascade.Allocator;
-import com.mackenziehigh.cascade.Message;
-import java.io.InputStream;
+import com.mackenziehigh.cascade.CascadeAllocator;
+import com.mackenziehigh.cascade.CascadeOperand;
+import java.util.Arrays;
 
 /**
  * This class implements MemoryAllocator using Java object allocation.
  */
 public final class DynamicAllocator
-        implements Allocator
+        implements CascadeAllocator
 {
-    private final class MessageImp
-            implements Message
+    private final CascadeAllocator SELF = this;
+
+    private final class DynamicMessage
+            implements CascadeOperand
     {
         private final byte[] data;
 
-        public MessageImp (final byte[] data)
+        private volatile int refCount = 0;
+
+        public DynamicMessage (final byte[] data)
         {
             this.data = data;
-        }
-
-        @Override
-        public void free ()
-        {
-            // Pass
-        }
-
-        @Override
-        public boolean isFree ()
-        {
-            return false;
-        }
-
-        @Override
-        public boolean isGarbageCollected ()
-        {
-            return true;
         }
 
         @Override
@@ -51,57 +37,39 @@ public final class DynamicAllocator
         }
 
         @Override
-        public byte byteAt (int index)
+        public byte byteAt (final int index)
         {
             return data[index];
         }
 
         @Override
-        public int memcpy (int start,
-                           int length,
-                           byte[] buffer,
-                           int offset)
+        public CascadeAllocator allocator ()
         {
-            return 0;
+            return SELF;
         }
 
     }
 
-    private static Allocator instance = null;
+    private final String name;
 
-    public static synchronized Allocator instance ()
+    public DynamicAllocator (final String name)
     {
-        instance = instance == null ? new DynamicAllocator() : instance;
-        return instance;
+        this.name = name;
     }
 
     @Override
-    public Message alloc (final byte[] data)
+    public String name ()
     {
-        return new MessageImp(data);
+        return name;
     }
 
     @Override
-    public Message alloc (int size,
-                          byte[] data)
+    public CascadeOperand alloc (final byte[] buffer,
+                                 final int offset,
+                                 final int length)
     {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public Message alloc (int size,
-                          int offset,
-                          byte[] data)
-    {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public Message alloc (int size,
-                          int offset,
-                          InputStream data)
-    {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final byte[] data = Arrays.copyOfRange(buffer, 0, length);
+        return new DynamicMessage(data);
     }
 
 }

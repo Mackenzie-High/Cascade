@@ -1,7 +1,7 @@
 package com.mackenziehigh.cascade.exceptions;
 
 import com.google.common.base.Preconditions;
-import com.mackenziehigh.cascade.Allocator;
+import com.mackenziehigh.cascade.CascadeAllocator;
 
 /**
  * This type of exception indicates that a MemoryAllocator
@@ -10,7 +10,7 @@ import com.mackenziehigh.cascade.Allocator;
 public class InsufficientMemoryException
         extends RuntimeException
 {
-    private final Allocator allocator;
+    private final CascadeAllocator allocator;
 
     private final long demand;
 
@@ -20,7 +20,7 @@ public class InsufficientMemoryException
      * @param allocator is throwing this exception.
      * @param demand is the number of requested bytes.
      */
-    public InsufficientMemoryException (final Allocator allocator,
+    public InsufficientMemoryException (final CascadeAllocator allocator,
                                         final long demand)
     {
         Preconditions.checkNotNull(allocator, "allocator");
@@ -28,7 +28,7 @@ public class InsufficientMemoryException
         this.demand = demand;
     }
 
-    public Allocator getAllocator ()
+    public CascadeAllocator getAllocator ()
     {
         return allocator;
     }

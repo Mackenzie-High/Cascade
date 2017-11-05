@@ -1,14 +1,9 @@
 package com.mackenziehigh.cascade;
 
-import com.mackenziehigh.sexpr.SAtom;
-import com.mackenziehigh.sexpr.SList;
-
 /**
- * TODO!!! Allow printf like strings in log-message functions for ease of use.
- *
  * Use this interface to issue log-messages.
  */
-public final class CascadeLogger
+public interface CascadeLogger
 {
     /**
      * Log Levels.
@@ -30,33 +25,45 @@ public final class CascadeLogger
     }
 
     /**
-     * Constructor.
+     * Getter.
      *
+     * @return the system that this logger is part of.
      */
-    public CascadeLogger ()
-    {
-
-    }
+    public Cascade cascade ();
 
     /**
-     * This method issues a log message.
+     * Use this method to issue a log-message.
      *
-     * @param level is the severity of the message.
-     * @param message is the human-readable error-message.
-     * @param exception is an exception, if applicable.
+     * @param level is the leg-level of the log-message.
+     * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
      * @return this.
      */
-    private CascadeLogger log (final LogLevel level,
-                               final Object content)
-    {
-        final SAtom part1 = new SAtom(level.toString());
-        final SAtom part2 = new SAtom(String.valueOf(content));
-        final SList list = SList.of(part1, part2);
+    public CascadeLogger log (final LogLevel level,
+                              final String message,
+                              final Object... args);
 
-//        final Message message = Message.newMessage(sourceName, sourceID, messageCounter.incrementAndGet(), list);
-//
-//        queue().send(message);
-        return this;
+    /**
+     * Use this method to issue a log-message.
+     *
+     * @param level is the leg-level of the log-message.
+     * @param message is the log-message to issue.
+     * @return this.
+     */
+    public CascadeLogger log (final LogLevel level,
+                              final Throwable message);
+
+    /**
+     * Use this method to issue a fatal-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
+     * @return this.
+     */
+    public default CascadeLogger fatal (final String message,
+                                        final Object... args)
+    {
+        return log(LogLevel.FATAL, message, args);
     }
 
     /**
@@ -65,18 +72,7 @@ public final class CascadeLogger
      * @param message is the log-message to issue.
      * @return this.
      */
-    public CascadeLogger fatal (final String message)
-    {
-        return log(LogLevel.FATAL, message);
-    }
-
-    /**
-     * Use this method to issue a fatal-level log-message.
-     *
-     * @param message is the log-message to issue.
-     * @return this.
-     */
-    public CascadeLogger fatal (final Throwable message)
+    public default CascadeLogger fatal (final Throwable message)
     {
         return log(LogLevel.FATAL, message);
     }
@@ -85,11 +81,13 @@ public final class CascadeLogger
      * Use this method to issue a error-level log-message.
      *
      * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
      * @return this.
      */
-    public CascadeLogger error (final String message)
+    public default CascadeLogger error (final String message,
+                                        final Object... args)
     {
-        return log(LogLevel.ERROR, message);
+        return log(LogLevel.ERROR, message, args);
     }
 
     /**
@@ -98,7 +96,7 @@ public final class CascadeLogger
      * @param message is the log-message to issue.
      * @return this.
      */
-    public CascadeLogger error (final Throwable message)
+    public default CascadeLogger error (final Throwable message)
     {
         return log(LogLevel.ERROR, message);
     }
@@ -107,11 +105,13 @@ public final class CascadeLogger
      * Use this method to issue a warning-level log-message.
      *
      * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
      * @return this.
      */
-    public CascadeLogger warn (final String message)
+    public default CascadeLogger warn (final String message,
+                                       final Object... args)
     {
-        return log(LogLevel.WARNING, message);
+        return log(LogLevel.WARNING, message, args);
     }
 
     /**
@@ -120,7 +120,7 @@ public final class CascadeLogger
      * @param message is the log-message to issue.
      * @return this.
      */
-    public CascadeLogger warn (final Throwable message)
+    public default CascadeLogger warn (final Throwable message)
     {
         return log(LogLevel.WARNING, message);
     }
@@ -129,11 +129,13 @@ public final class CascadeLogger
      * Use this method to issue a info-level log-message.
      *
      * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
      * @return this.
      */
-    public CascadeLogger info (final String message)
+    public default CascadeLogger info (final String message,
+                                       final Object... args)
     {
-        return log(LogLevel.INFO, message);
+        return log(LogLevel.INFO, message, args);
     }
 
     /**
@@ -142,7 +144,7 @@ public final class CascadeLogger
      * @param message is the log-message to issue.
      * @return this.
      */
-    public CascadeLogger info (final Throwable message)
+    public default CascadeLogger info (final Throwable message)
     {
         return log(LogLevel.INFO, message);
     }
@@ -151,11 +153,13 @@ public final class CascadeLogger
      * Use this method to issue a debug-level log-message.
      *
      * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
      * @return this.
      */
-    public CascadeLogger debug (final String message)
+    public default CascadeLogger debug (final String message,
+                                        final Object... args)
     {
-        return log(LogLevel.DEBUG, message);
+        return log(LogLevel.DEBUG, message, args);
     }
 
     /**
@@ -164,7 +168,7 @@ public final class CascadeLogger
      * @param message is the log-message to issue.
      * @return this.
      */
-    public CascadeLogger debug (final Throwable message)
+    public default CascadeLogger debug (final Throwable message)
     {
         return log(LogLevel.DEBUG, message);
     }
@@ -173,11 +177,13 @@ public final class CascadeLogger
      * Use this method to issue a trace-level log-message.
      *
      * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
      * @return this.
      */
-    public CascadeLogger trace (final String message)
+    public default CascadeLogger trace (final String message,
+                                        final Object... args)
     {
-        return log(LogLevel.TRACE, message);
+        return log(LogLevel.TRACE, message, args);
     }
 
     /**
@@ -186,7 +192,7 @@ public final class CascadeLogger
      * @param message is the log-message to issue.
      * @return this.
      */
-    public CascadeLogger trace (final Throwable message)
+    public default CascadeLogger trace (final Throwable message)
     {
         return log(LogLevel.TRACE, message);
     }

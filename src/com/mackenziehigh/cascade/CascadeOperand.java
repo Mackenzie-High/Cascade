@@ -9,35 +9,15 @@ import java.nio.charset.Charset;
 
 /**
  * Immutable Binary Message.
- *
- * <p>
- * An instance of this message may be based on pre-allocated buffers;
- * therefore, it may be necessary to invoke free() after use.
- * </p>
  */
-public interface Message
+public interface CascadeOperand
 {
     /**
-     * Use this method to free this message and
-     * return it to the pool of free messages.
-     */
-    public void free ();
-
-    /**
-     * This method determines whether this message is free.
+     * Getter.
      *
-     * @return true, iff this message is currently free.
+     * @return the allocator that created this operand.
      */
-    public boolean isFree ();
-
-    /**
-     * Use this method to determine whether free()
-     * needs to be called when this message is no
-     * longer in-use in order to avoid memory leaks.
-     *
-     * @return true, if free() is *not* needed.
-     */
-    public boolean isGarbageCollected ();
+    public CascadeAllocator allocator ();
 
     /**
      * Getter.
@@ -87,41 +67,90 @@ public interface Message
      * which may be less than the size() of the message,
      * if the buffer is too small.
      */
-    public default int memcpy (byte[] buffer,
-                               int offset)
+    public default int memcpy (final byte[] buffer,
+                               final int offset)
     {
-        return memcpy(0, size(), buffer, offset);
+        if (offset + size() >= buffer.length)
+        {
+            return -1;
+        }
+
+        final int size = size();
+
+        for (int i = 0; i < size; i++)
+        {
+            buffer[offset + i] = byteAt(i);
+        }
+
+        return size;
     }
 
-    public int memcpy (int start,
-                       int length,
-                       byte[] buffer,
-                       int offset);
-
+    /**
+     * Data Conversion: byte[] to boolean.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &ne (1).
+     */
     public default boolean asBoolean ()
     {
         Preconditions.checkState(size() == 1, "Wrong Size");
         return asByte() == 1;
     }
 
+    /**
+     * Data Conversion: byte[] to char.
+     *
+     * <p>
+     * The bytes must be in big-endian byte-order.
+     * </p>
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &ne (2).
+     */
     public default char asChar ()
     {
         Preconditions.checkState(size() == 2, "Wrong Size");
         return (char) asShort();
     }
 
+    /**
+     * Data Conversion: byte[] to byte.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &ne (1).
+     */
     public default byte asByte ()
     {
         Preconditions.checkState(size() == 1, "Wrong Size");
         return byteAt(0);
     }
 
+    /**
+     * Data Conversion: byte[] to short.
+     *
+     * <p>
+     * The bytes must be in big-endian byte-order.
+     * </p>
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &ne (2).
+     */
     public default short asShort ()
     {
         Preconditions.checkState(size() == 2, "Wrong Size");
         return Shorts.fromBytes(byteAt(0), byteAt(1));
     }
 
+    /**
+     * Data Conversion: byte[] to int.
+     *
+     * <p>
+     * The bytes must be in big-endian byte-order.
+     * </p>
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &ne (4).
+     */
     public default int asInt ()
     {
         Preconditions.checkState(size() == 4, "Wrong Size");
@@ -131,6 +160,16 @@ public interface Message
                               byteAt(3));
     }
 
+    /**
+     * Data Conversion: byte[] to long.
+     *
+     * <p>
+     * The bytes must be in big-endian byte-order.
+     * </p>
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &ne (8).
+     */
     public default long asLong ()
     {
         Preconditions.checkState(size() == 8, "Wrong Size");
@@ -144,34 +183,87 @@ public interface Message
                                byteAt(7));
     }
 
+    /**
+     * Data Conversion: byte[] to float.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &ne (4).
+     */
     public default float asFloat ()
     {
         Preconditions.checkState(size() == 4, "Wrong Size");
         return Float.intBitsToFloat(asInt());
     }
 
+    /**
+     * Data Conversion: byte[] to double.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &ne (2).
+     */
     public default double asDouble ()
     {
         Preconditions.checkState(size() == 8, "Wrong Size");
         return Double.longBitsToDouble(asLong());
     }
 
+    /**
+     * Data Conversion: Encoded byte[] to String.
+     *
+     * <p>
+     * The bytes must be UTF-8 encoded.
+     * </p>
+     *
+     * <p>
+     * All of the bytes are considered to be part of the string.
+     * No size header, etc, is present in the byte[].
+     * </p>
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &ne (2).
+     */
     public default String asString ()
     {
         return new String(asByteArray(), Charset.forName("UTF-8"));
     }
 
+    /**
+     * Data Conversion: byte[] to boolean[].
+     *
+     * <p>
+     * Each byte represents a single boolean value.
+     * A byte equal to zero equates to false.
+     * A byte not-equal to zero equates to true.
+     * </p>
+     *
+     * @return the converted value.
+     */
     public default boolean[] asBooleanArray ()
     {
         return null;
     }
 
+    /**
+     * Data Conversion: byte[] to char[].
+     *
+     * <p>
+     * For each element, the bytes must be in big-endian byte-order.
+     * </p>
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &#37 (2) &ne (0).
+     */
     public default char[] asCharArray ()
     {
         Preconditions.checkState(size() % 2 == 0, "Invalid Size");
         return null;
     }
 
+    /**
+     * Data Conversion: byte[] to byte[].
+     *
+     * @return the converted value.
+     */
     public default byte[] asByteArray ()
     {
         final byte[] array = new byte[size()];
@@ -179,6 +271,16 @@ public interface Message
         return array;
     }
 
+    /**
+     * Data Conversion: byte[] to short[].
+     *
+     * <p>
+     * For each element, the bytes must be in big-endian byte-order.
+     * </p>
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &#37 (2) &ne (0).
+     */
     public default short[] asShortArray ()
     {
         Preconditions.checkState(size() % 2 == 0, "Invalid Size");
@@ -190,6 +292,16 @@ public interface Message
         return array;
     }
 
+    /**
+     * Data Conversion: byte[] to int[].
+     *
+     * <p>
+     * For each element, the bytes must be in big-endian byte-order.
+     * </p>
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &#37 (4) &ne (0).
+     */
     public default int[] asIntArray ()
     {
         Preconditions.checkState(size() % 4 == 0, "Invalid Size");
@@ -204,6 +316,16 @@ public interface Message
         return array;
     }
 
+    /**
+     * Data Conversion: byte[] to long[].
+     *
+     * <p>
+     * For each element, the bytes must be in big-endian byte-order.
+     * </p>
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &#37 (8) &ne (0).
+     */
     public default long[] asLongArray ()
     {
         Preconditions.checkState(size() % 8 == 0, "Invalid Size");
@@ -222,6 +344,12 @@ public interface Message
         return array;
     }
 
+    /**
+     * Data Conversion: byte[] to float[].
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &#37 (4) &ne (0).
+     */
     public default float[] asFloatArray ()
     {
         Preconditions.checkState(size() % 4 == 0, "Invalid Size");
@@ -237,6 +365,12 @@ public interface Message
         return array;
     }
 
+    /**
+     * Data Conversion: byte[] to double[].
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &#37 (8) &ne (0).
+     */
     public default double[] asDoubleArray ()
     {
         Preconditions.checkState(size() % 8 == 0, "Invalid Size");
@@ -256,8 +390,57 @@ public interface Message
         return array;
     }
 
+    /**
+     * Data Conversion: Encoded byte[] to String[].
+     *
+     * <p>
+     * Each string must be UTF-8 encoded.
+     * </p>
+     *
+     * <p>
+     * The first four bytes is a big-endian integer,
+     * which specifies the number of array elements.
+     * </p>
+     *
+     * <p>
+     * Each element in the array consists of a header and body.
+     * The header is big-endian encoded four-byte integer that
+     * specifies the number (N) of bytes in the body.
+     * The body is (N) bytes that are the UTF-8 string itself.
+     * </p>
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if size() &lt (4).
+     * @throws IllegalStateException if the conversion is not
+     * possible due to invalid headers in the data.
+     */
     public default String[] asStringArray ()
     {
+        Preconditions.checkState(size() >= 4, "Missing ArraySize Header");
+
+        final int arraySize = Ints.fromBytes(byteAt(0), byteAt(1), byteAt(2), byteAt(3));
+        Preconditions.checkState(arraySize >= 0, "Negative ArraySize Header");
+        Preconditions.checkState(arraySize >= size(), "ArraySize Header is Too Large");
+        final String[] array = new String[arraySize];
+
+        int pos = 4;
+        int i = 0;
+        while (i < array.length && pos < (size() - 4))
+        {
+            final int strSize = Ints.fromBytes(byteAt(pos + 0),
+                                               byteAt(pos + 1),
+                                               byteAt(pos + 2),
+                                               byteAt(pos + 3));
+            pos += 4;
+            Preconditions.checkState(strSize < (size() - pos), "StrSize is Too Large");
+
+            final byte[] strBytes = new byte[strSize];
+            // TODO:
+            // 1. Get string byte
+            // 2. Create string UTF-8
+            // 3. Add to the array.
+        }
+
         return null;
     }
 }
