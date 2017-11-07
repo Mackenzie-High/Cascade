@@ -3,6 +3,7 @@ package com.mackenziehigh.cascade;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
@@ -1458,7 +1459,7 @@ public interface CascadeAllocator
          * <p>
          * Pop the right operand off the stack.
          * Pop the left operand off the stack.
-         * Divide the operands.
+         * Concatenate the operands.
          * Push the result onto the stack.
          * </p>
          *
@@ -1473,6 +1474,151 @@ public interface CascadeAllocator
          * @return this.
          */
         public OperandStack concat ();
+
+        public OperandStack bitwiseNot ();
+
+        public OperandStack bitwiseAnd ();
+
+        public OperandStack bitwiseOr ();
+
+        public OperandStack bitwiseXor ();
+
+        public OperandStack bitwiseNand ();
+
+        public OperandStack bitwiseNor ();
+
+        public OperandStack bitwiseImplies ();
+
+        public OperandStack bitwiseLeftShift ();
+
+        public OperandStack bitwiseRightShift ();
+
+        public OperandStack bitwiseUnsignedRightShift ();
+
+        /**
+         * Logical Operation: NOT
+         *
+         * <p>
+         * Pop the operand off the stack.
+         * Perform the logical operation.
+         * Push the result onto the stack.
+         * </p>
+         *
+         * <p>
+         * Both operands must be of type boolean.
+         * </p>
+         *
+         * @return this.
+         */
+        public OperandStack not ();
+
+        /**
+         * Logical Operation: AND
+         *
+         * <p>
+         * Pop the right operand off the stack.
+         * Pop the left operand off the stack.
+         * Perform the logical operation.
+         * Push the result onto the stack.
+         * </p>
+         *
+         * <p>
+         * Both operands must be of type boolean.
+         * </p>
+         *
+         * @return this.
+         */
+        public OperandStack and ();
+
+        /**
+         * Logical Operation: OR
+         *
+         * <p>
+         * Pop the right operand off the stack.
+         * Pop the left operand off the stack.
+         * Perform the logical operation.
+         * Push the result onto the stack.
+         * </p>
+         *
+         * <p>
+         * Both operands must be of type boolean.
+         * </p>
+         *
+         * @return this.
+         */
+        public OperandStack or ();
+
+        /**
+         * Logical Operation: XOR
+         *
+         * <p>
+         * Pop the right operand off the stack.
+         * Pop the left operand off the stack.
+         * Perform the logical operation.
+         * Push the result onto the stack.
+         * </p>
+         *
+         * <p>
+         * Both operands must be of type boolean.
+         * </p>
+         *
+         * @return this.
+         */
+        public OperandStack xor ();
+
+        /**
+         * Logical Operation: NAND
+         *
+         * <p>
+         * Pop the right operand off the stack.
+         * Pop the left operand off the stack.
+         * Perform the logical operation.
+         * Push the result onto the stack.
+         * </p>
+         *
+         * <p>
+         * Both operands must be of type boolean.
+         * </p>
+         *
+         * @return this.
+         */
+        public OperandStack nand ();
+
+        /**
+         * Logical Operation: NOR
+         *
+         * <p>
+         * Pop the right operand off the stack.
+         * Pop the left operand off the stack.
+         * Perform the logical operation.
+         * Push the result onto the stack.
+         * </p>
+         *
+         * <p>
+         * Both operands must be of type boolean.
+         * </p>
+         *
+         * @return this.
+         */
+        public OperandStack nor ();
+
+        /**
+         * Logical Operation: IMPLIES
+         *
+         * <p>
+         * Pop the right operand off the stack.
+         * Pop the left operand off the stack.
+         * Perform the logical operation.
+         * Push the result onto the stack.
+         * </p>
+         *
+         * <p>
+         * Both operands must be of type boolean.
+         * </p>
+         *
+         * @return this.
+         */
+        public OperandStack implies ();
 
         /**
          * Conversion: double TO double.
@@ -1565,8 +1711,67 @@ public interface CascadeAllocator
          */
         public OperandStack convertD2C ();
 
+        /**
+         * Conversion: double TO string.
+         *
+         * <p>
+         * Pop and operand off of the stack.
+         * Perform the conversion.
+         * Push the result onto the stack.
+         * </p>
+         *
+         * @return this.
+         */
+        public OperandStack convertD2Str ();
+
+        public OperandStack md5 ();
+
+        public OperandStack sha1 ();
+
+        public OperandStack sha256 ();
+
+        public OperandStack sha512 ();
+
+        public OperandStack crc32 ();
+
+        public OperandStack arraylen (); // Push length, in elements, of the top operand (an array).
+
+        public OperandStack len (); // Push length in bytes of top operand.
+
+        /**
+         * Copy bytes from the top operand into a given buffer.
+         *
+         * @param start is the offset in the operand to begin at.
+         * @param length is the number of bytes to copy.
+         * @param buffer will receive the bytes.
+         * @param offset is the position in the output buffer to start at.
+         * @return this.
+         */
+        public OperandStack write (int start,
+                                   int length,
+                                   byte[] buffer,
+                                   int offset);
+
         public OperandStack match (Predicate<OperandStack> functor);
 
+        /**
+         * Use this method to apply a function to this operand-stack.
+         *
+         * @param functor will be used to modify this operand-stack.
+         * @return this.
+         */
+        public OperandStack apply (Consumer<OperandStack> functor);
+
+        /**
+         * Copy this operand-stack.
+         *
+         * <p>
+         * This is a constant-time operation.
+         * </p>
+         *
+         * @return a new operand-stack object.
+         */
+        public OperandStack copy ();
     }
 
     /**

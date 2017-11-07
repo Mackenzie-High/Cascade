@@ -10,6 +10,7 @@ import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import java.nio.charset.Charset;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
@@ -542,7 +543,7 @@ public abstract class AbstractOperandStack
                                                    final int length)
     {
         Preconditions.checkNotNull(buffer, "value");
-        pool().alloc(this, buffer, offset, length);
+        allocator().anon().alloc(this, buffer, offset, length);
         return this;
     }
 
@@ -1199,12 +1200,206 @@ public abstract class AbstractOperandStack
     @Override
     public final synchronized OperandStack concat ()
     {
-        final String right = asString();
+//        final String right = asString();
+//        pop();
+//        final String left = asString();
+//        pop();
+//        final String result = left + right;
+//        pushStr(result);
+//        return this;
+        throw new RuntimeException(); // Concat bytes or strings????
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack bitwiseNot ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack bitwiseAnd ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack bitwiseOr ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack bitwiseXor ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack bitwiseNand ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack bitwiseNor ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack bitwiseImplies ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack bitwiseLeftShift ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack bitwiseRightShift ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack bitwiseUnsignedRightShift ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack not ()
+    {
+        final boolean operand = asBoolean();
         pop();
-        final String left = asString();
+        final boolean result = !operand;
+        pushZ(result);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack and ()
+    {
+        final boolean right = asBoolean();
         pop();
-        final String result = left + right;
-        pushStr(result);
+        final boolean left = asBoolean();
+        pop();
+        final boolean result = (left && right);
+        pushZ(result);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack or ()
+    {
+        final boolean right = asBoolean();
+        pop();
+        final boolean left = asBoolean();
+        pop();
+        final boolean result = (left || right);
+        pushZ(result);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack xor ()
+    {
+        final boolean right = asBoolean();
+        pop();
+        final boolean left = asBoolean();
+        pop();
+        final boolean result = (left ^ right);
+        pushZ(result);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack nand ()
+    {
+        final boolean right = asBoolean();
+        pop();
+        final boolean left = asBoolean();
+        pop();
+        final boolean result = !(left && right);
+        pushZ(result);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack nor ()
+    {
+        final boolean right = asBoolean();
+        pop();
+        final boolean left = asBoolean();
+        pop();
+        final boolean result = !(left || right);
+        pushZ(result);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack implies ()
+    {
+        final boolean right = asBoolean();
+        pop();
+        final boolean left = asBoolean();
+        pop();
+        final boolean result = (!left || right);
+        pushZ(result);
         return this;
     }
 
@@ -1299,9 +1494,114 @@ public abstract class AbstractOperandStack
      * {@inheritDoc}
      */
     @Override
+    public final synchronized OperandStack convertD2Str ()
+    {
+        return pushStr(Double.toString(asDouble()));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public final synchronized OperandStack match (final Predicate<OperandStack> functor)
     {
         return pushZ(functor.test(this));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack apply (final Consumer<OperandStack> functor)
+    {
+        functor.accept(this);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack md5 ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack sha1 ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack sha256 ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack sha512 ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack crc32 ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack arraylen ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack len ()
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack write (int start,
+                                                  int length,
+                                                  byte[] buffer,
+                                                  int offset)
+    {
+        throw new RuntimeException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final synchronized OperandStack copy ()
+    {
+        final OperandStack result = allocator().newOperandStack();
+        result.assign(this);
+        return result;
     }
 
 }
