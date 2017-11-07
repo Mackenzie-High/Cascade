@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade;
 
+import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import java.io.Closeable;
 import java.util.Collections;
 import java.util.List;
@@ -131,7 +132,7 @@ public interface CascadeActor
          *
          * @return the message that needs to be processed.
          */
-        public CascadePtr message ();
+        public OperandStack message ();
 
         /**
          * Send a message to the outputs().
@@ -153,7 +154,7 @@ public interface CascadeActor
          * @param atomic true, iff all outputs must accept the message.
          * @return true, iff all of the outputs accepted the message.
          */
-        public boolean send (CascadePtr message,
+        public boolean send (OperandStack message,
                              boolean atomic);
 
         /**
@@ -170,7 +171,7 @@ public interface CascadeActor
          * @param message will be enqueued in each output pipeline.
          * @return true, iff all of the outputs accepted the message.
          */
-        public default boolean send (final CascadePtr message)
+        public default boolean send (final OperandStack message)
         {
             return send(message, true);
         }
@@ -183,7 +184,7 @@ public interface CascadeActor
          * @param units are the units of the timeout.
          * @return true, if the message was sent.
          */
-        public boolean send (final CascadePtr message,
+        public boolean send (final OperandStack message,
                              final long timeout,
                              final TimeUnit units);
     }

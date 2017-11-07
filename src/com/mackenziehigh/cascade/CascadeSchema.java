@@ -2,6 +2,7 @@ package com.mackenziehigh.cascade;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import java.util.Map;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -243,7 +244,7 @@ public final class CascadeSchema
     {
         private final String name;
 
-        private Function<CascadePtr, CascadePtr> function = x -> x;
+        private Function<OperandStack, OperandStack> function = x -> x;
 
         private FunctionActorSchema (final String name)
         {
@@ -251,14 +252,14 @@ public final class CascadeSchema
             this.name = name;
         }
 
-        public FunctionActorSchema setFunction (final Function<CascadePtr, CascadePtr> function)
+        public FunctionActorSchema setFunction (final Function<OperandStack, OperandStack> function)
         {
             Preconditions.checkNotNull(function, "function");
             this.function = function;
             return this;
         }
 
-        public Function<CascadePtr, CascadePtr> getFunction ()
+        public Function<OperandStack, OperandStack> getFunction ()
         {
             return function;
         }
@@ -500,7 +501,7 @@ public final class CascadeSchema
      * @return the schema of the new actor.
      */
     public FunctionActorSchema addActor (final String name,
-                                         final Function<CascadePtr, CascadePtr> function)
+                                         final Function<OperandStack, OperandStack> function)
     {
         Preconditions.checkNotNull(name);
         Preconditions.checkArgument(actors.containsKey(name) == false, "Duplicate Actor: " + name);

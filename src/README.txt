@@ -6,7 +6,7 @@ Jenkins:
 
 Cascade Notes:
 + MessageStack operations need to verify that free is not needed. Right?
-+ Rename MessageStack to Message. Rename Message to something else. 
++ Rename MessageStack to Message. Rename Message to something else.
 
 
 
@@ -284,6 +284,56 @@ set property <grid> . <property> = <value> ;
 
 set property <grid> . <property> . <actor> = <value> ;
 
+-------------------------------------------------------------------------------------------------------
 
+module UseLib;
 
+define struct Person
+{
+    field name : string;
+    field age : int;
+}
+
+define stack User
+{
+    operand name : string;
+    operand age : int;
+    operand id : int;
+
+    require name ~= '[A-Z]+';
+    require age > 0;
+    require checkID(id);
+}
+
+define stack UserRequest = RequestHeader + User;
+
+define actor InsertUser : User
+{
+    var name = pop
+}
+
+define service AddUser : User
+{
+    in -> InsertUser -> out;
+    InsertUser -> counter;
+}
+
+define provider UserServices
+{
+    service AddUser;
+    serive RemoveUser;
+}
+
+define section
+{
+    provider UserServices;
+    provider CorporateServices;
+    provider Distro;
+}
+
+define function checkID (id : int) : int
+{
+    val result = call IdChecker.check(id);
+    return result;
+}
 
