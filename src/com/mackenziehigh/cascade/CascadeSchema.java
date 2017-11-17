@@ -575,7 +575,7 @@ public final class CascadeSchema
         cs.addDedicatedPowerplant("SteamLoco").setDefaultThreadCount(1);
         cs.addDynamicAllocator("default");
         cs.addActor("liver", 1, TimeUnit.SECONDS);
-        cs.addActor("adder", m -> m.addI());
+
         cs.connect("liver", "adder");
         cs.build().start();
     }

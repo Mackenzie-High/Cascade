@@ -2,12 +2,35 @@ package com.mackenziehigh.cascade;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
+import com.google.common.primitives.Shorts;
+import java.nio.charset.Charset;
 import java.util.Map;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 /**
  * Use this interface to allocate operands.
+ *
+ * <p>
+ * An operand is allocated within an allocation-pool,
+ * which may recycle the operand when it is no longer in-use.
+ * </p>
+ *
+ * <p>
+ * In general, operands must be explicitly deallocated.
+ * Operands use reference-counting in order to control deallocation.
+ * When the reference-count reaches zero, the operand will be deallocated.
+ * </p>
+ *
+ * <p>
+ * An operand contains a reference to an operand <i>below</i> it.
+ * Therefore, operands form spaghetti-stack data-structures.
+ * </p>
+ *
+ * <p>
+ * Unless stated explicitly otherwise, all the methods defined herein,
+ * including those in inner classes, are required to be thread-safe.
+ * </p>
  */
 public interface CascadeAllocator
 {
@@ -134,17 +157,53 @@ public interface CascadeAllocator
     }
 
     /**
+     * An instance of this class is a space-efficient array of pointers to operand-stacks.
+     *
+     * <p>
+     * You must call close() in order to free the operand-stacks referenced by the array;
+     * otherwise, a memory-leak will occur, because the operands may be pooled.
+     * </p>
+     */
+    public interface OperandStackArray
+            extends AutoCloseable
+    {
+        /**
+         * Getter.
+         *
+         * @return the allocator that created this pointer.
+         */
+        public CascadeAllocator allocator ();
+
+        /**
+         * Getter.
+         *
+         * @return the length of this array.
+         */
+        public OperandStackArray size ();
+
+        /**
+         * Use this method to assign an operand-stack to an element in this array.
+         *
+         * @param index identifies the element to set.
+         * @param value is the new value of the array element, or null, to clear the element.
+         * @return this.
+         */
+        public OperandStackArray set (int index,
+                                      OperandStack value);
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void close ();
+    }
+
+    /**
      * An instance of this class is a pointer to the top of an operand-stack.
      *
      * <p>
-     * This interface implements AutoCloseable,
-     * so that try-with-resources statements
-     * can be used to clear the pointer.
-     * </p>
-     *
-     * <p>
-     * <b>Warning:</b> Unless explicitly stated otherwise,
-     * instances of this interface are not thread-safe.
+     * You must call close() in order to free the referenced operand-stack;
+     * otherwise, a memory-leak will occur, because the operands may be pooled.
      * </p>
      */
     public interface OperandStack
@@ -166,26 +225,65 @@ public interface CascadeAllocator
         public AllocationPool pool ();
 
         /**
-         * Use this method to cause this pointer to refer to a different operand.
+         * Use this method to cause this object to refer to a different operand-stack.
          *
-         * @param value is a pointer to the other operand.
+         * @param value points to the other operand-stack.
          * @return this.
          */
-        public OperandStack assign (OperandStack value);
+        public OperandStack set (OperandStack value);
 
         /**
-         * Use this method to cause this method to no longer point to any operand.
+         * Use this method to cause this object to refer to a different operand-stack.
+         *
+         * <p>
+         * If the relevant array element is null,
+         * then this method is equivalent to clear().
+         * </p>
+         *
+         * @param array contains the other operand-stack.
+         * @param index identifies the relevant array element.
+         * @return this.
+         * @throws IndexOutOfBoundsException if the index is out-of-bounds.
+         */
+        public OperandStack set (OperandStackArray array,
+                                 int index);
+
+        /**
+         * Copy this operand-stack.
+         *
+         * <p>
+         * This is a constant-time operation.
+         * </p>
+         *
+         * @return a new operand-stack object.
+         */
+        public default OperandStack copy ()
+        {
+            final OperandStack retval = allocator().newOperandStack();
+            retval.set(this);
+            return retval;
+        }
+
+        /**
+         * Use this method to cause this method to no longer point to any operand-stack.
          * In other words, this pointer will become a null-pointer.
+         * Here a null-pointer is equivalent to an empty operand-stack.
          *
          * @return this.
          */
-        public OperandStack clear ();
+        public default OperandStack clear ()
+        {
+            return set(null);
+        }
 
         /**
          * Equivalent: clear().
          */
         @Override
-        public void close ();
+        public default void close ()
+        {
+            clear();
+        }
 
         /**
          * Getter.
@@ -213,14 +311,155 @@ public interface CascadeAllocator
          *
          * @return true, iff the operandSize() is zero.
          */
-        public boolean isOperandEmpty ();
+        public default boolean isOperandEmpty ()
+        {
+            return operandSize() == 0;
+        }
 
         /**
          * Getter.
          *
          * @return true, iff the stackSize() is zero.
          */
-        public boolean isStackEmpty ();
+        public default boolean isStackEmpty ()
+        {
+            return stackSize() == 0;
+        }
+
+        /**
+         * Copy an operand from the top of one operand-stack
+         * onto the top of this operand-stack.
+         *
+         * @param values are the operand(s) to push.
+         * @return this.
+         */
+        public OperandStack push (OperandStack values);
+
+        /**
+         * Push an operand onto the top of the stack.
+         *
+         * <p>
+         * True, becomes a single byte equal to one.
+         * False, becomes a single byte equal to zero.
+         * </p>
+         *
+         * @param value is the operand to push.
+         * @return this.
+         */
+        public default OperandStack push (boolean value)
+        {
+            return push((byte) (value ? 1 : 0));
+        }
+
+        /**
+         * Push an operand onto the top of the stack.
+         *
+         * @param value is the operand to push.
+         * @return this.
+         */
+        public default OperandStack push (byte value)
+        {
+            final byte[] array = new byte[1];
+            array[0] = value;
+            return push(array);
+        }
+
+        /**
+         * Push an operand onto the top of the stack.
+         *
+         * @param value is the operand to push.
+         * @return this.
+         */
+        public default OperandStack push (short value)
+        {
+            return push(Shorts.toByteArray(value));
+        }
+
+        /**
+         * Push an operand onto the top of the stack.
+         *
+         * @param value is the operand to push.
+         * @return this.
+         */
+        public default OperandStack push (int value)
+        {
+            return push(Ints.toByteArray(value));
+        }
+
+        /**
+         * Push an operand onto the top of the stack.
+         *
+         * @param value is the operand to push.
+         * @return this.
+         */
+        public default OperandStack push (long value)
+        {
+            return push(Longs.toByteArray(value));
+        }
+
+        /**
+         * Push an operand onto the top of the stack.
+         *
+         * @param value is the operand to push.
+         * @return this.
+         */
+        public default OperandStack push (float value)
+        {
+            return push(Float.floatToIntBits(value));
+        }
+
+        /**
+         * Push an operand onto the top of the stack.
+         *
+         * @param value is the operand to push.
+         * @return this.
+         */
+        public default OperandStack push (double value)
+        {
+            return push(Longs.toByteArray(Double.doubleToLongBits(value)));
+        }
+
+        /**
+         * Push an operand onto the top of the stack.
+         *
+         * <p>
+         * This method converts the string to a UTF-8
+         * encoded byte-array and then pushes the array.
+         * </p>
+         *
+         * @param value is the operand to push.
+         * @return this.
+         */
+        public default OperandStack push (String value)
+        {
+            Preconditions.checkNotNull(value, "value");
+            return push(value.getBytes(Charset.forName("UTF-8")));
+        }
+
+        /**
+         * Push a operand onto the top of the stack.
+         *
+         * @param value is the operand to push.
+         * @return this.
+         */
+        public default OperandStack push (byte[] value)
+        {
+            return push(value, 0, value.length);
+        }
+
+        /**
+         * Push a operand onto the top of the stack.
+         *
+         * @param buffer is the operand to push.
+         * @param offset is the start location of the data in the buffer.
+         * @param length is the length of the data.
+         * @return this.
+         * @throws IndexOutOfBoundsException if offset is less-than zero.
+         * @throws IllegalArgumentException if length is less-than zero.
+         */
+        public OperandStack push (byte[] buffer,
+                                  int offset,
+                                  int length);
 
         /**
          * Use this method to efficiently retrieve a
@@ -229,6 +468,7 @@ public interface CascadeAllocator
          * @param index identifies the byte in this operand.
          * @return the byte at the given index.
          * @throws IndexOutOfBoundsException if index is invalid.
+         * @throws IllegalStateException if stackSize() is zero.
          */
         public byte byteAt (int index);
 
@@ -237,10 +477,14 @@ public interface CascadeAllocator
          *
          * @param buffer is the buffer that will receive the content.
          * @return the number of bytes copied into the buffer,
-         * which may be less than the size() of the operand,
-         * if the buffer is too small.
+         * which may be less than operandSize(), if the buffer is too small.
+         * @throws IndexOutOfBoundsException if index is invalid.
+         * @throws IllegalStateException if stackSize() is zero.
          */
-        public int memcpy (byte[] buffer);
+        public default int copyTo (byte[] buffer)
+        {
+            return copyTo(buffer, 0);
+        }
 
         /**
          * Use this method to copy the content of this operand into a given buffer,
@@ -248,41 +492,57 @@ public interface CascadeAllocator
          *
          * @param buffer is the buffer that will receive the content.
          * @param offset is an index into the buffer.
-         * @return (-1) if the offset is out-of-range; otherwise,
-         * return the number of bytes copied into the buffer,
-         * which may be less than the size() of the operand,
-         * if the buffer is too small.
+         * @return the number of bytes copied into the buffer,
+         * which may be less than operandSize(), if the buffer is too small.
+         * @throws IndexOutOfBoundsException if index is invalid.
+         * @throws IllegalStateException if stackSize() is zero.
          */
-        public int memcpy (byte[] buffer,
-                           int offset);
+        public default int copyTo (byte[] buffer,
+                                   int offset)
+        {
+            return copyTo(buffer, offset, operandSize());
+        }
+
+        /**
+         * Use this method to copy the content of this operand into a given buffer,
+         * starting at a given offset in the buffer.
+         *
+         * @param buffer is the buffer that will receive the content.
+         * @param offset is an index into the buffer.
+         * @param length is the maximum number of bytes to copy.
+         * @return the number of bytes copied into the buffer,
+         * which may be less than operandSize(), if the buffer is too small.
+         * @throws IndexOutOfBoundsException if index is invalid.
+         * @throws IllegalStateException if stackSize() is zero.
+         */
+        public int copyTo (byte[] buffer,
+                           int offset,
+                           int length);
 
         /**
          * Data Conversion: byte[] to boolean.
          *
          * @return the converted value.
-         * @throws IllegalStateException if size() &ne (1).
+         * @throws IllegalStateException if operandSize() &ne (1).
+         * @throws IllegalStateException if stackSize() is zero.
          */
-        public boolean asBoolean ();
-
-        /**
-         * Data Conversion: byte[] to char.
-         *
-         * <p>
-         * The bytes must be in big-endian byte-order.
-         * </p>
-         *
-         * @return the converted value.
-         * @throws IllegalStateException if size() &ne (2).
-         */
-        public char asChar ();
+        public default boolean asBoolean ()
+        {
+            return asByte() != 0;
+        }
 
         /**
          * Data Conversion: byte[] to byte.
          *
          * @return the converted value.
-         * @throws IllegalStateException if size() &ne (1).
+         * @throws IllegalStateException if operandSize() &ne (1).
+         * @throws IllegalStateException if stackSize() is zero.
          */
-        public byte asByte ();
+        public default byte asByte ()
+        {
+            Preconditions.checkState(operandSize() == 1, "Wrong Size");
+            return byteAt(0);
+        }
 
         /**
          * Data Conversion: byte[] to short.
@@ -292,9 +552,14 @@ public interface CascadeAllocator
          * </p>
          *
          * @return the converted value.
-         * @throws IllegalStateException if size() &ne (2).
+         * @throws IllegalStateException if operandSize() &ne (2).
+         * @throws IllegalStateException if stackSize() is zero.
          */
-        public short asShort ();
+        public default short asShort ()
+        {
+            Preconditions.checkState(operandSize() == 2, "Wrong Size");
+            return Shorts.fromBytes(byteAt(0), byteAt(1));
+        }
 
         /**
          * Data Conversion: byte[] to int.
@@ -304,9 +569,17 @@ public interface CascadeAllocator
          * </p>
          *
          * @return the converted value.
-         * @throws IllegalStateException if size() &ne (4).
+         * @throws IllegalStateException if operandSize() &ne (4).
+         * @throws IllegalStateException if stackSize() is zero.
          */
-        public int asInt ();
+        public default int asInt ()
+        {
+            Preconditions.checkState(operandSize() == 4, "Wrong Size");
+            return Ints.fromBytes(byteAt(0),
+                                  byteAt(1),
+                                  byteAt(2),
+                                  byteAt(3));
+        }
 
         /**
          * Data Conversion: byte[] to long.
@@ -316,25 +589,47 @@ public interface CascadeAllocator
          * </p>
          *
          * @return the converted value.
-         * @throws IllegalStateException if size() &ne (8).
+         * @throws IllegalStateException if operandSize() &ne (8).
+         * @throws IllegalStateException if stackSize() is zero.
          */
-        public long asLong ();
+        public default long asLong ()
+        {
+            Preconditions.checkState(operandSize() == 8, "Wrong Size");
+            return Longs.fromBytes(byteAt(0),
+                                   byteAt(1),
+                                   byteAt(2),
+                                   byteAt(3),
+                                   byteAt(4),
+                                   byteAt(5),
+                                   byteAt(6),
+                                   byteAt(7));
+        }
 
         /**
          * Data Conversion: byte[] to float.
          *
          * @return the converted value.
-         * @throws IllegalStateException if size() &ne (4).
+         * @throws IllegalStateException if operandSize() &ne (4).
+         * @throws IllegalStateException if stackSize() is zero.
          */
-        public float asFloat ();
+        public default float asFloat ()
+        {
+            Preconditions.checkState(operandSize() == 4, "Wrong Size");
+            return Float.intBitsToFloat(asInt());
+        }
 
         /**
          * Data Conversion: byte[] to double.
          *
          * @return the converted value.
-         * @throws IllegalStateException if size() &ne (2).
+         * @throws IllegalStateException if operandSize() &ne (8).
+         * @throws IllegalStateException if stackSize() is zero.
          */
-        public double asDouble ();
+        public default double asDouble ()
+        {
+            Preconditions.checkState(operandSize() == 8, "Wrong Size");
+            return Double.longBitsToDouble(asLong());
+        }
 
         /**
          * Data Conversion: Encoded byte[] to String.
@@ -349,1429 +644,36 @@ public interface CascadeAllocator
          * </p>
          *
          * @return the converted value.
-         * @throws IllegalStateException if size() &ne (2).
+         * @throws IllegalStateException if stackSize() is zero.
          */
-        public String asString ();
+        public default String asString ()
+        {
+            return new String(asByteArray(), Charset.forName("UTF-8"));
+        }
 
         /**
-         * Data Conversion: byte[] to boolean[].
+         * Getter.
          *
-         * <p>
-         * Each byte represents a single boolean value.
-         * A byte equal to zero equates to false.
-         * A byte not-equal to zero equates to true.
-         * </p>
-         *
-         * @return the converted value.
+         * @return the content of the top operand on the operand-stack.
+         * @throws IllegalStateException if stackSize() is zero.
          */
-        public boolean[] asBooleanArray ();
-
-        /**
-         * Data Conversion: byte[] to char[].
-         *
-         * <p>
-         * For each element, the bytes must be in big-endian byte-order.
-         * </p>
-         *
-         * @return the converted value.
-         * @throws IllegalStateException if size() &#37 (2) &ne (0).
-         */
-        public char[] asCharArray ();
-
-        /**
-         * Data Conversion: byte[] to byte[].
-         *
-         * @return the converted value.
-         */
-        public byte[] asByteArray ();
-
-        /**
-         * Data Conversion: byte[] to short[].
-         *
-         * <p>
-         * For each element, the bytes must be in big-endian byte-order.
-         * </p>
-         *
-         * @return the converted value.
-         * @throws IllegalStateException if size() &#37 (2) &ne (0).
-         */
-        public short[] asShortArray ();
-
-        /**
-         * Data Conversion: byte[] to int[].
-         *
-         * <p>
-         * For each element, the bytes must be in big-endian byte-order.
-         * </p>
-         *
-         * @return the converted value.
-         * @throws IllegalStateException if size() &#37 (4) &ne (0).
-         */
-        public int[] asIntArray ();
-
-        /**
-         * Data Conversion: byte[] to long[].
-         *
-         * <p>
-         * For each element, the bytes must be in big-endian byte-order.
-         * </p>
-         *
-         * @return the converted value.
-         * @throws IllegalStateException if size() &#37 (8) &ne (0).
-         */
-        public long[] asLongArray ();
-
-        /**
-         * Data Conversion: byte[] to float[].
-         *
-         * @return the converted value.
-         * @throws IllegalStateException if size() &#37 (4) &ne (0).
-         */
-        public float[] asFloatArray ();
-
-        /**
-         * Data Conversion: byte[] to double[].
-         *
-         * @return the converted value.
-         * @throws IllegalStateException if size() &#37 (8) &ne (0).
-         */
-        public double[] asDoubleArray ();
-
-        /**
-         * Data Conversion: Encoded byte[] to String[].
-         *
-         * <p>
-         * Each string must be UTF-8 encoded.
-         * </p>
-         *
-         * <p>
-         * The first four bytes is a big-endian integer,
-         * which specifies the number of array elements.
-         * </p>
-         *
-         * <p>
-         * Each element in the array consists of a header and body.
-         * The header is big-endian encoded four-byte integer that
-         * specifies the number (N) of bytes in the body.
-         * The body is (N) bytes that are the UTF-8 string itself.
-         * </p>
-         *
-         * @return the converted value.
-         * @throws IllegalStateException if size() &lt (4).
-         * @throws IllegalStateException if the conversion is not
-         * possible due to invalid headers in the data.
-         */
-        public String[] asStringArray ();
-
-        /**
-         * Copy operands from the top of one operand-stack
-         * onto the top of this operand-stack.
-         *
-         * <p>
-         * The default implementation of this method is recursive,
-         * which avoids the need for unnecessary Java heap allocations,
-         * but may not be suitable for all use-cases.
-         * </p>
-         *
-         * @param values are the operand(s) to push.
-         * @param count is the number of operands to push.
-         * @return this.
-         */
-        public OperandStack push (OperandStack values,
-                                  int count);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushZ (boolean value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushC (char value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushB (byte value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushS (short value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushI (int value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushJ (long value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushF (float value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushD (double value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushStr (String value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushZA (boolean[] value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushCA (char[] value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushBA (byte[] value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param buffer is the operand to push.
-         * @param offset is the start location of the data in the buffer.
-         * @param length is the length of the data.
-         * @return this.
-         */
-        public OperandStack pushBA (byte[] buffer,
-                                    int offset,
-                                    int length);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushSA (short[] value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushIA (int[] value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushJA (long[] value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushFA (float[] value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushDA (double[] value);
-
-        /**
-         * Push a operand onto the top of the stack.
-         *
-         * @param value is the operand to push.
-         * @return this.
-         */
-        public OperandStack pushStrA (String[] value);
+        public default byte[] asByteArray ()
+        {
+            final byte[] array = new byte[operandSize()];
+            for (int i = 0; i < array.length; i++)
+            {
+                array[i] = byteAt(i);
+            }
+            return array;
+        }
 
         /**
          * Pop a single operand off the top of the operand-stack.
          *
          * @return this.
+         * @throws IllegalStateException if stackSize() is zero.
          */
         public OperandStack pop ();
-
-        /**
-         * Pop operands off the top of the operand-stack.
-         *
-         * @param count is the number of operands to pop.
-         * @return this.
-         */
-        public OperandStack pop (int count);
-
-        /**
-         * Use this method to find an operand and assign it to a pointer.
-         *
-         * @param out will be assigned the operand.
-         * @param depth is how far down the operand-stack the operand is located.
-         * @return this.
-         */
-        public OperandStack get (OperandStack out,
-                                 int depth);
-
-        /**
-         * Use this method to duplicate the operand on the top of the operand-stack.
-         *
-         * @return this.
-         */
-        public OperandStack dup ();
-
-        /**
-         * Use this method to duplicate the operand(s) on the top of the operand-stack.
-         *
-         * @param count is the number of operands to duplicate.
-         * @return this.
-         */
-        public OperandStack dup (int count);
-
-        /**
-         * Use this method to reverse the order of the top two operands on the operand-stack.
-         *
-         * @return this.
-         */
-        public OperandStack swap ();
-
-        /**
-         * Arithmetic Operation: DIVIDE.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Divide the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type double.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type double.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack divD ();
-
-        /**
-         * Arithmetic Operation: DIVIDE.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Divide the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type float.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type float.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack divF ();
-
-        /**
-         * Arithmetic Operation: DIVIDE.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Divide the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type long.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type long.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack divJ ();
-
-        /**
-         * Arithmetic Operation: DIVIDE.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Divide the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type int.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type int.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack divI ();
-
-        /**
-         * Arithmetic Operation: DIVIDE.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Divide the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type short.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type short.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack divS ();
-
-        /**
-         * Arithmetic Operation: DIVIDE.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Divide the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type byte.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type byte.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack divB ();
-
-        /**
-         * Arithmetic Operation: DIVIDE.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Divide the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type char.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type char.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack divC ();
-
-        /**
-         * Arithmetic Operation: MODULO.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Modulo the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type double.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type double.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack modD ();
-
-        /**
-         * Arithmetic Operation: MODULO.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Modulo the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type float.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type float.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack modF ();
-
-        /**
-         * Arithmetic Operation: MODULO.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Modulo the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type long.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type long.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack modJ ();
-
-        /**
-         * Arithmetic Operation: MODULO.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Modulo the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type int.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type int.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack modI ();
-
-        /**
-         * Arithmetic Operation: MODULO.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Modulo the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type short.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type short.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack modS ();
-
-        /**
-         * Arithmetic Operation: MODULO.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Modulo the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type byte.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type byte.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack modB ();
-
-        /**
-         * Arithmetic Operation: MODULO.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Modulo the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type char.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type char.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack modC ();
-
-        /**
-         * Arithmetic Operation: MULTIPLY.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Multiply the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type double.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type double.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack mulD ();
-
-        /**
-         * Arithmetic Operation: MULTIPLY.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Multiply the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type float.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type float.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack mulF ();
-
-        /**
-         * Arithmetic Operation: MULTIPLY.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Multiply the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type long.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type long.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack mulJ ();
-
-        /**
-         * Arithmetic Operation: MULTIPLY.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Multiply the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type int.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type int.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack mulI ();
-
-        /**
-         * Arithmetic Operation: MULTIPLY.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Multiply the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type short.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type short.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack mulS ();
-
-        /**
-         * Arithmetic Operation: MULTIPLY.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Multiply the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type byte.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type byte.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack mulB ();
-
-        /**
-         * Arithmetic Operation: MULTIPLY.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Multiply the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type char.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type char.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack mulC ();
-
-        /**
-         * Arithmetic Operation: ADD.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Add the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type double.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type double.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack addD ();
-
-        /**
-         * Arithmetic Operation: ADD.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Add the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type float.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type float.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack addF ();
-
-        /**
-         * Arithmetic Operation: ADD.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Add the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type long.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type long.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack addJ ();
-
-        /**
-         * Arithmetic Operation: ADD.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Add the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type int.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type int.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack addI ();
-
-        /**
-         * Arithmetic Operation: ADD.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Add the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type short.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type short.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack addS ();
-
-        /**
-         * Arithmetic Operation: ADD.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Add the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type byte.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type byte.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack addB ();
-
-        /**
-         * Arithmetic Operation: ADD.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Add the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type char.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type char.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack addC ();
-
-        /**
-         * Arithmetic Operation: SUBTRACT.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Subtract the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type double.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type double.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack subD ();
-
-        /**
-         * Arithmetic Operation: SUBTRACT.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Subtract the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type float.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type float.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack subF ();
-
-        /**
-         * Arithmetic Operation: SUBTRACT.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Subtract the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type long.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type long.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack subJ ();
-
-        /**
-         * Arithmetic Operation: SUBTRACT.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Subtract the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type int.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type int.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack subI ();
-
-        /**
-         * Arithmetic Operation: SUBTRACT.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Subtract the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type short.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type short.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack subS ();
-
-        /**
-         * Arithmetic Operation: SUBTRACT.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Subtract the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type byte.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type byte.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack subB ();
-
-        /**
-         * Arithmetic Operation: SUBTRACT.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Subtract the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of primitive-type char.
-         * </p>
-         *
-         * <p>
-         * The result will be of primitive-type char.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack subC ();
-
-        /**
-         * Concatenate Two Strings.
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Concatenate the operands.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of type String.
-         * </p>
-         *
-         * <p>
-         * The result will be of type String.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack concat ();
-
-        public OperandStack bitwiseNot ();
-
-        public OperandStack bitwiseAnd ();
-
-        public OperandStack bitwiseOr ();
-
-        public OperandStack bitwiseXor ();
-
-        public OperandStack bitwiseNand ();
-
-        public OperandStack bitwiseNor ();
-
-        public OperandStack bitwiseImplies ();
-
-        public OperandStack bitwiseLeftShift ();
-
-        public OperandStack bitwiseRightShift ();
-
-        public OperandStack bitwiseUnsignedRightShift ();
-
-        /**
-         * Logical Operation: NOT
-         *
-         * <p>
-         * Pop the operand off the stack.
-         * Perform the logical operation.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of type boolean.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack not ();
-
-        /**
-         * Logical Operation: AND
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Perform the logical operation.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of type boolean.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack and ();
-
-        /**
-         * Logical Operation: OR
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Perform the logical operation.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of type boolean.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack or ();
-
-        /**
-         * Logical Operation: XOR
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Perform the logical operation.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of type boolean.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack xor ();
-
-        /**
-         * Logical Operation: NAND
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Perform the logical operation.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of type boolean.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack nand ();
-
-        /**
-         * Logical Operation: NOR
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Perform the logical operation.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of type boolean.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack nor ();
-
-        /**
-         * Logical Operation: IMPLIES
-         *
-         * <p>
-         * Pop the right operand off the stack.
-         * Pop the left operand off the stack.
-         * Perform the logical operation.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * <p>
-         * Both operands must be of type boolean.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack implies ();
-
-        /**
-         * Conversion: double TO double.
-         *
-         * <p>
-         * Pop and operand off of the stack.
-         * Perform the conversion.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack convertD2D ();
-
-        /**
-         * Conversion: double TO float.
-         *
-         * <p>
-         * Pop and operand off of the stack.
-         * Perform the conversion.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack convertD2F ();
-
-        /**
-         * Conversion: double TO long.
-         *
-         * <p>
-         * Pop and operand off of the stack.
-         * Perform the conversion.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack convertD2J ();
-
-        /**
-         * Conversion: double TO int.
-         *
-         * <p>
-         * Pop and operand off of the stack.
-         * Perform the conversion.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack convertD2I ();
-
-        /**
-         * Conversion: double TO short.
-         *
-         * <p>
-         * Pop and operand off of the stack.
-         * Perform the conversion.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack convertD2S ();
-
-        /**
-         * Conversion: double TO byte.
-         *
-         * <p>
-         * Pop and operand off of the stack.
-         * Perform the conversion.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack convertD2B ();
-
-        /**
-         * Conversion: double TO char.
-         *
-         * <p>
-         * Pop and operand off of the stack.
-         * Perform the conversion.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack convertD2C ();
-
-        /**
-         * Conversion: double TO string.
-         *
-         * <p>
-         * Pop and operand off of the stack.
-         * Perform the conversion.
-         * Push the result onto the stack.
-         * </p>
-         *
-         * @return this.
-         */
-        public OperandStack convertD2Str ();
-
-        public OperandStack md5 ();
-
-        public OperandStack sha1 ();
-
-        public OperandStack sha256 ();
-
-        public OperandStack sha512 ();
-
-        public OperandStack crc32 ();
-
-        public OperandStack arraylen (); // Push length, in elements, of the top operand (an array).
-
-        public OperandStack len (); // Push length in bytes of top operand.
-
-        /**
-         * Copy bytes from the top operand into a given buffer.
-         *
-         * @param start is the offset in the operand to begin at.
-         * @param length is the number of bytes to copy.
-         * @param buffer will receive the bytes.
-         * @param offset is the position in the output buffer to start at.
-         * @return this.
-         */
-        public OperandStack write (int start,
-                                   int length,
-                                   byte[] buffer,
-                                   int offset);
-
-        public OperandStack match (Predicate<OperandStack> functor);
-
-        /**
-         * Use this method to apply a function to this operand-stack.
-         *
-         * @param functor will be used to modify this operand-stack.
-         * @return this.
-         */
-        public OperandStack apply (Consumer<OperandStack> functor);
-
-        /**
-         * Copy this operand-stack.
-         *
-         * <p>
-         * This is a constant-time operation.
-         * </p>
-         *
-         * @return a new operand-stack object.
-         */
-        public OperandStack copy ();
     }
 
     /**
@@ -1780,6 +682,14 @@ public interface CascadeAllocator
      * @return a new empty operand-stack.
      */
     public OperandStack newOperandStack ();
+
+    /**
+     * Use this method to create a new operand-stack-array.
+     *
+     * @param size is the length of the new array.
+     * @return a new empty operand-stack-array.
+     */
+    public OperandStackArray newOperandStackArray (int size);
 
     /**
      * Getter.

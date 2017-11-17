@@ -1,7 +1,6 @@
 package com.mackenziehigh.cascade.internal.messages;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableList;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import java.util.Collections;
@@ -71,7 +70,7 @@ public final class ConcreteAllocator
      * </p>
      */
     private final class StandardOperandStack
-            extends AbstractOperandStack
+            implements OperandStack
     {
 
         private Operand top = null;
@@ -83,14 +82,6 @@ public final class ConcreteAllocator
             operand.below = top;
             top = operand;
             top.increment();
-        }
-
-        public final synchronized void performPop ()
-        {
-            Verify.verify(top != null);
-            final Operand oldTop = top;
-            top = top.below;
-            oldTop.decrement();
         }
 
         @Override
@@ -106,7 +97,7 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public final synchronized OperandStack assign (final OperandStack value)
+        public final synchronized OperandStack set (final OperandStack value)
         {
             // TODO: Optimize
             Preconditions.checkArgument(ALLOCATOR.equals(value.allocator()), "Wrong Allocator");
@@ -152,32 +143,49 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public final synchronized OperandStack pop (final int count)
+        public final synchronized OperandStack set (final OperandStackArray array,
+                                                    final int index)
         {
-            Preconditions.checkArgument(count <= stackSize(), "count > stackSize()");
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
 
-            for (int i = 0; i < count; i++)
-            {
-                performPop();
-            }
+        @Override
+        public final synchronized OperandStack push (final OperandStack value)
+        {
+            Preconditions.checkArgument(ALLOCATOR.equals(value.allocator()), "Wrong Allocator");
+            final StandardOperandStack other = ((StandardOperandStack) value);
+            Preconditions.checkState(other.isStackEmpty() == false, "Empty Stack");
+            return push(((StandardOperandStack) value).top.data, 0, 0);
+        }
 
+        @Override
+        public final synchronized OperandStack push (final byte[] buffer,
+                                                     final int offset,
+                                                     final int length)
+        {
+            allocator().anon().alloc(this, buffer, offset, length);
             return this;
         }
 
         @Override
-        public final synchronized OperandStack get (final OperandStack out,
-                                                    final int depth)
+        public final synchronized int copyTo (final byte[] buffer,
+                                              final int offset,
+                                              final int length)
         {
-            Preconditions.checkArgument(depth <= stackSize());
-            Operand p = top;
-            int i = 0;
-            while (i++ < depth)
-            {
-                p = top;
-            }
-            final StandardOperandStack stack = (StandardOperandStack) out;
-            stack.clear();
-            stack.performPush(p);
+            Preconditions.checkArgument(length >= 0, "length < 0");
+            System.arraycopy(top.data, 0, buffer, offset, length);
+            final int diff = buffer.length - offset;
+            final int copied = diff < length ? diff : length;
+            return copied;
+        }
+
+        @Override
+        public final synchronized OperandStack pop ()
+        {
+            Preconditions.checkState(isStackEmpty() == false, "Empty Stack");
+            final Operand oldTop = top;
+            top = top.below;
+            oldTop.decrement();
             return this;
         }
 
@@ -507,6 +515,12 @@ public final class ConcreteAllocator
     }
 
     @Override
+    public OperandStackArray newOperandStackArray (int size)
+    {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
     public Map<String, AllocationPool> pools ()
     {
         return unmodPools;
@@ -522,9 +536,10 @@ public final class ConcreteAllocator
     {
         final ConcreteAllocator ca = new ConcreteAllocator();
         final StandardOperandStack s = (StandardOperandStack) ca.newOperandStack();
+
         System.out.println(ca.anon.size());
-        s.pushStr("Andoria");
-        s.pushStr("Mars");
+        s.push("Andoria");
+        s.push("Mars");
         System.out.println(ca.anon.size());
         s.pop();
         System.out.println(s.asString());
