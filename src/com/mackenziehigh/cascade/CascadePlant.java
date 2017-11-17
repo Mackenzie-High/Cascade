@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
  * Implementations of this class must have a nullary constructor.
  * </p>
  */
-public interface CascadeActor
+public interface CascadePlant
 {
     /**
      * An instance of this interface provides access to important objects
@@ -55,7 +55,7 @@ public interface CascadeActor
          *
          * @return the powerplant that powers this actor.
          */
-        public CascadePowerplant powerplant ();
+        public CascadePump powerplant ();
 
         /**
          * Getter.
@@ -67,7 +67,7 @@ public interface CascadeActor
          *
          * @return this actor.
          */
-        public CascadeActor actor ();
+        public CascadePlant actor ();
 
         /**
          * Getter.
@@ -102,7 +102,7 @@ public interface CascadeActor
          *
          * @return the inputs that supply message to this actor.
          */
-        public List<CascadePipeline> inputs ();
+        public List<CascadePipe> inputs ();
 
         /**
          * Getter.
@@ -125,7 +125,7 @@ public interface CascadeActor
          *
          * @return the pipelines that carry messages from this actor.
          */
-        public List<CascadePipeline> outputs ();
+        public List<CascadePipe> outputs ();
 
         /**
          * Getter.

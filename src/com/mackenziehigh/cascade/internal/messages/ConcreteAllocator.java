@@ -99,6 +99,11 @@ public final class ConcreteAllocator
         @Override
         public final synchronized OperandStack set (final OperandStack value)
         {
+            if (value == null)
+            {
+                return clear();
+            }
+
             // TODO: Optimize
             Preconditions.checkArgument(ALLOCATOR.equals(value.allocator()), "Wrong Allocator");
             final StandardOperandStack stack = (StandardOperandStack) value;

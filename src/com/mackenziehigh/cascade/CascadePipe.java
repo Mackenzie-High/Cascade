@@ -3,7 +3,7 @@ package com.mackenziehigh.cascade;
 /**
  * A pipeline is a connection between two actors.
  */
-public interface CascadePipeline
+public interface CascadePipe
 {
     /**
      * Getter.
@@ -17,14 +17,14 @@ public interface CascadePipeline
      *
      * @return the supply-side of the pipeline.
      */
-    public CascadeActor supplier ();
+    public CascadePlant supplier ();
 
     /**
      * This is the actor that receives messages from the supplier.
      *
      * @return the consumer-side of the pipeline.
      */
-    public CascadeActor consumer ();
+    public CascadePlant consumer ();
 
     /**
      * This method retrieves the number of messages that

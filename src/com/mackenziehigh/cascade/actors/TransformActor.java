@@ -1,15 +1,15 @@
 package com.mackenziehigh.cascade.actors;
 
-import com.mackenziehigh.cascade.CascadeActor;
-import com.mackenziehigh.cascade.CascadeActor.Context;
+import com.mackenziehigh.cascade.CascadePlant.Context;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import java.util.function.Function;
+import com.mackenziehigh.cascade.CascadePlant;
 
 /**
  *
  */
 public class TransformActor
-        implements CascadeActor
+        implements CascadePlant
 {
     private Function<OperandStack, OperandStack> transform;
 

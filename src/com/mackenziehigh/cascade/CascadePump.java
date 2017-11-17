@@ -5,7 +5,7 @@ import java.util.Set;
 /**
  * A power-plant powers the execution of an actor.
  */
-public interface CascadePowerplant
+public interface CascadePump
 {
     /**
      * Getter.
@@ -47,5 +47,5 @@ public interface CascadePowerplant
      *
      * @return the actors that this power-plant powers.
      */
-    public Set<CascadeActor> actors ();
+    public Set<CascadePlant> actors ();
 }

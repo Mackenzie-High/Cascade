@@ -1,19 +1,19 @@
 package com.mackenziehigh.cascade.internal.powerplants;
 
-import com.mackenziehigh.cascade.CascadeActor;
-import com.mackenziehigh.cascade.CascadePipeline;
-import com.mackenziehigh.cascade.CascadePowerplant;
+import com.mackenziehigh.cascade.CascadePlant;
+import com.mackenziehigh.cascade.CascadePipe;
+import com.mackenziehigh.cascade.CascadePump;
 
 /**
  *
  */
 public interface BasePowerplant
-        extends CascadePowerplant
+        extends CascadePump
 {
-    public CascadeActor declareActor (CascadeActor actor);
+    public CascadePlant declareActor (CascadePlant actor);
 
-    public CascadePipeline connect (CascadeActor src,
-                                    CascadeActor dest);
+    public CascadePipe connect (CascadePlant src,
+                                    CascadePlant dest);
 
     public void start ();
 

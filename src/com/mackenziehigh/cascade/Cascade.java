@@ -41,7 +41,7 @@ public interface Cascade
      * @param actor owns the logger.
      * @return the logger intended for-use by the given actor.
      */
-    public CascadeLogger loggerOf (CascadeActor actor);
+    public CascadeLogger loggerOf (CascadePlant actor);
 
     /**
      * Getter.
@@ -57,7 +57,7 @@ public interface Cascade
      * @return an immutable map that maps the names of power-plants
      * to the power-plants themselves.
      */
-    public SortedMap<String, CascadePowerplant> powerplants ();
+    public SortedMap<String, CascadePump> powerplants ();
 
     /**
      * Getter.
@@ -65,14 +65,14 @@ public interface Cascade
      * @return an immutable map that maps the names of actors
      * to the actors themselves.
      */
-    public SortedMap<String, CascadeActor> actors ();
+    public SortedMap<String, CascadePlant> actors ();
 
     /**
      * Getter.
      *
      * @return all of the pipelines between the actors.
      */
-    public Set<CascadePipeline> pipelines ();
+    public Set<CascadePipe> pipelines ();
 
     /**
      * Getter.
@@ -80,7 +80,7 @@ public interface Cascade
      * @param actor is powered by the requested power-plant.
      * @return the power-planet that powers the given actor.
      */
-    public CascadePowerplant powerplantOf (CascadeActor actor);
+    public CascadePump powerplantOf (CascadePlant actor);
 
     /**
      * Getter.
@@ -88,7 +88,7 @@ public interface Cascade
      * @param actor is the actor whose name is sought.
      * @return the name of the given actor.
      */
-    public String nameOf (CascadeActor actor);
+    public String nameOf (CascadePlant actor);
 
     /**
      * Getter.
@@ -96,7 +96,7 @@ public interface Cascade
      * @param actor the the consumer-side actor.
      * @return the supply-side pipelines.
      */
-    public Set<CascadePipeline> inputsOf (CascadeActor actor);
+    public Set<CascadePipe> inputsOf (CascadePlant actor);
 
     /**
      * Getter.
@@ -104,7 +104,7 @@ public interface Cascade
      * @param actor the the supply-side actor.
      * @return the consumer-side pipelines.
      */
-    public Set<CascadePipeline> outputsOf (CascadeActor actor);
+    public Set<CascadePipe> outputsOf (CascadePlant actor);
 
     /**
      * Getter.

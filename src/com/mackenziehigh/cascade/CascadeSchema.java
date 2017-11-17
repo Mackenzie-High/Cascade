@@ -300,7 +300,7 @@ public final class CascadeSchema
      *
      * @param <T> the the type of the actor being built.
      */
-    public final class ActorSchema<T extends CascadeActor>
+    public final class ActorSchema<T extends CascadePlant>
     {
         private final String name;
 
@@ -474,7 +474,7 @@ public final class CascadeSchema
      * @param klass is the fully-qualified name of the actor class.
      * @return the schema of the new actor.
      */
-    public <T extends CascadeActor> ActorSchema<T> addActor (final String name,
+    public <T extends CascadePlant> ActorSchema<T> addActor (final String name,
                                                              final Class<T> klass)
     {
         Preconditions.checkNotNull(name);
