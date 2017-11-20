@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.internal.powerplants;
+package com.mackenziehigh.cascade.internal.pumps;
 
 import com.mackenziehigh.cascade.CascadePlant;
 import com.mackenziehigh.cascade.CascadePipe;

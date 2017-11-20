@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.internal.powerplants;
+package com.mackenziehigh.cascade.internal.pumps;
 
 /**
  * Powerplant based on Dedicated Threads.

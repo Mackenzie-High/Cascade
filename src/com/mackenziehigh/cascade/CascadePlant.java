@@ -8,10 +8,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Rename to Cog???
- *
- *
- * Instances of this interface received messages from neighboring actors,
+ * Instances of this interface receive messages from neighboring actors,
  * process those messages, send then messages to neighboring actors.
  *
  * <p>

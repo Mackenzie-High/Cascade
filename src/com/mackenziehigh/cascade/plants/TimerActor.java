@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.actors;
+package com.mackenziehigh.cascade.plants;
 
 import com.mackenziehigh.cascade.CascadePlant.Context;
 import java.util.concurrent.Executors;

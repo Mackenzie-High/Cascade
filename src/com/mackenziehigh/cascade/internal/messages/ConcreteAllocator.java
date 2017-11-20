@@ -1,15 +1,17 @@
 package com.mackenziehigh.cascade.internal.messages;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
+import com.google.common.base.Verify;
+import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
+import com.mackenziehigh.cascade.internal.messages.PositiveIntRangeMap.RangeEntry;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * Concrete Implementation Of: CascadeAllocator.
@@ -17,27 +19,28 @@ import java.util.function.Consumer;
 public final class ConcreteAllocator
         implements CascadeAllocator
 {
+
     private final CascadeAllocator ALLOCATOR = this;
 
-    private static final class Operand
+    private static final class StandardOperand
     {
         public final byte[] data;
 
-        private final AllocationPool pool;
+        public final AllocationPool pool;
 
         public volatile int dataSize;
 
-        public volatile Operand below;
+        public volatile StandardOperand below;
 
         public volatile int stackSize = 1;
 
         private volatile long refCount = 0;
 
-        private final Consumer<Operand> onFree;
+        private final Consumer<StandardOperand> onFree;
 
-        public Operand (final AllocationPool pool,
-                        final Consumer<Operand> onFree,
-                        final int capacity)
+        public StandardOperand (final AllocationPool pool,
+                                final Consumer<StandardOperand> onFree,
+                                final int capacity)
         {
             this.pool = pool;
             this.onFree = onFree;
@@ -51,12 +54,52 @@ public final class ConcreteAllocator
 
         public synchronized void decrement ()
         {
-            if (--refCount == 0)
+            StandardOperand p = this;
+            StandardOperand next;
+
+            /**
+             * Walk down the spaghetti-stack, freeing operands,
+             * until either no more frees are needed or the bottom
+             * of the operand-stack is reached.
+             */
+            while (p != null)
             {
-                if (onFree != null)
+                if (--p.refCount == 0)
                 {
-                    onFree.accept(this);
+                    next = p.below;
+
+                    // Free
+                    p.below = null;
+                    p.dataSize = 0;
+                    p.stackSize = 0;
+                    if (p.onFree != null)
+                    {
+                        p.onFree.accept(this);
+                    }
+
+                    p = next;
                 }
+                else
+                {
+                    p = null;
+                }
+            }
+        }
+
+        public void init (final byte[] buffer,
+                          final int offset,
+                          final int length,
+                          final StandardOperand below)
+        {
+            this.refCount = 0;
+            this.dataSize = length;
+            this.stackSize = (below == null ? 1 : below.stackSize + 1);
+            this.below = below;
+            System.arraycopy(buffer, 0, this.data, offset, length);
+
+            if (below != null)
+            {
+                below.increment();
             }
         }
     }
@@ -66,22 +109,42 @@ public final class ConcreteAllocator
      *
      * <p>
      * A unit-test is used to ensure that all of the methods herein are either
-     * (final + synchronized), because OperandStack needs to be thread-safe.
+     * (final + synchronized) or (default), because OperandStack must be thread-safe.
      * </p>
      */
     private final class StandardOperandStack
             implements OperandStack
     {
 
-        private Operand top = null;
+        private volatile StandardOperand top = null;
 
-        public final synchronized void performPush (final Operand operand)
+        public final synchronized void performSet (final StandardOperand operand)
         {
-            Preconditions.checkNotNull(operand, "operand");
-            operand.stackSize = top == null ? 1 : top.stackSize + 1;
-            operand.below = top;
-            top = operand;
-            top.increment();
+            if (operand == null && top == null)
+            {
+                return;
+            }
+            else if (operand == null && top != null)
+            {
+                top.decrement();
+                top = null;
+                return;
+            }
+            else if (operand != null && top == null)
+            {
+                top = operand;
+                top.increment();
+                return;
+            }
+            else // (operand != null && top != null)
+            {
+                assert operand != null;
+                final StandardOperand oldTop = top;
+                top = operand;
+                top.increment();
+                oldTop.decrement();
+                return;
+            }
         }
 
         @Override
@@ -99,20 +162,22 @@ public final class ConcreteAllocator
         @Override
         public final synchronized OperandStack set (final OperandStack value)
         {
-            if (value == null)
-            {
-                return clear();
-            }
 
-            // TODO: Optimize
-            Preconditions.checkArgument(ALLOCATOR.equals(value.allocator()), "Wrong Allocator");
-            final StandardOperandStack stack = (StandardOperandStack) value;
-            clear();
-            if (stack.top != null)
+            if (value == null || value.isStackEmpty())
             {
-                performPush(stack.top);
+                performSet(null);
+                return this;
             }
-            return this;
+            else if (value instanceof StandardOperandStack)
+            {
+                final StandardOperandStack other = (StandardOperandStack) value;
+                performSet(other.top);
+                return this;
+            }
+            else
+            {
+                throw new IllegalArgumentException("Wrong Allocator");
+            }
         }
 
         @Override
@@ -136,10 +201,13 @@ public final class ConcreteAllocator
         @Override
         public final synchronized byte byteAt (final int index)
         {
-            Preconditions.checkState(top != null, "Empty Stack");
-            if (index < 0 || index >= top.dataSize)
+            if (isStackEmpty())
             {
-                throw new IndexOutOfBoundsException(String.format("index=%d, size=%d", index, top.dataSize));
+                throw new IllegalStateException("Empty Stack");
+            }
+            else if (index < 0 || index >= top.dataSize)
+            {
+                throw new IndexOutOfBoundsException(String.format("index = %d, size = %d", index, top.dataSize));
             }
             else
             {
@@ -148,28 +216,53 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public final synchronized OperandStack set (final OperandStackArray array,
+        public final synchronized OperandStack set (final OperandArray array,
                                                     final int index)
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            if (array == null)
+            {
+                throw new NullPointerException("array");
+            }
+            else if (array instanceof StandardOperandArray == false)
+            {
+                throw new IllegalArgumentException("Wrong Allocator");
+            }
+            else if (index < 0)
+            {
+                throw new IndexOutOfBoundsException("index < 0");
+            }
+            else if (index >= array.size())
+            {
+                throw new IndexOutOfBoundsException("index >= array.length");
+            }
+            else
+            {
+                final StandardOperand operand = ((StandardOperandArray) array).array[index];
+                performSet(operand);
+                return this;
+            }
         }
 
         @Override
         public final synchronized OperandStack push (final OperandStack value)
         {
-            Preconditions.checkArgument(ALLOCATOR.equals(value.allocator()), "Wrong Allocator");
-            final StandardOperandStack other = ((StandardOperandStack) value);
-            Preconditions.checkState(other.isStackEmpty() == false, "Empty Stack");
-            return push(((StandardOperandStack) value).top.data, 0, 0);
-        }
-
-        @Override
-        public final synchronized OperandStack push (final byte[] buffer,
-                                                     final int offset,
-                                                     final int length)
-        {
-            allocator().anon().alloc(this, buffer, offset, length);
-            return this;
+            if (value == null)
+            {
+                throw new NullPointerException("value");
+            }
+            else if (value instanceof StandardOperandStack == false)
+            {
+                throw new IllegalArgumentException("Wrong Allocator");
+            }
+            else if (value.isStackEmpty())
+            {
+                throw new IllegalArgumentException("Empty Stack");
+            }
+            else
+            {
+                final StandardOperandStack other = ((StandardOperandStack) value);
+                return push(other.top.data, 0, value.operandSize());
+            }
         }
 
         @Override
@@ -177,21 +270,117 @@ public final class ConcreteAllocator
                                               final int offset,
                                               final int length)
         {
-            Preconditions.checkArgument(length >= 0, "length < 0");
-            System.arraycopy(top.data, 0, buffer, offset, length);
-            final int diff = buffer.length - offset;
-            final int copied = diff < length ? diff : length;
-            return copied;
+            if (buffer == null)
+            {
+                throw new NullPointerException("buffer");
+            }
+            else if (offset < 0)
+            {
+                throw new IndexOutOfBoundsException("offset < 0");
+            }
+            else if (offset > buffer.length)
+            {
+                throw new IndexOutOfBoundsException("offset > buffer.length");
+            }
+            else if (offset + length > buffer.length)
+            {
+                throw new IllegalArgumentException("offset + length >= buffer.length");
+            }
+            else
+            {
+                System.arraycopy(top.data, 0, buffer, offset, length);
+                final int diff = buffer.length - offset;
+                final int copied = diff < length ? diff : length;
+                return copied;
+            }
         }
 
         @Override
         public final synchronized OperandStack pop ()
         {
-            Preconditions.checkState(isStackEmpty() == false, "Empty Stack");
-            final Operand oldTop = top;
-            top = top.below;
-            oldTop.decrement();
+            if (isStackEmpty())
+            {
+                throw new IllegalStateException("Empty Stack");
+            }
+            else
+            {
+                final StandardOperand oldTop = top;
+                top = top.below;
+                oldTop.decrement();
+                return this;
+            }
+        }
+
+    }
+
+    private final class StandardOperandArray
+            implements OperandArray
+    {
+        private final StandardOperand[] array;
+
+        public StandardOperandArray (final int size)
+        {
+            Preconditions.checkArgument(size >= 0, "size < 0");
+            this.array = new StandardOperand[size];
+        }
+
+        @Override
+        public CascadeAllocator allocator ()
+        {
+            return ALLOCATOR;
+        }
+
+        @Override
+        public int size ()
+        {
+            return array.length;
+        }
+
+        @Override
+        public OperandArray set (final int index,
+                                 final OperandStack value)
+        {
+            if (index < 0)
+            {
+                throw new IndexOutOfBoundsException("index < 0");
+            }
+            else if (index >= array.length)
+            {
+                throw new IndexOutOfBoundsException("index >= array.length");
+            }
+            else if (value == null && array[index] == null)
+            {
+                return this;
+            }
+            else if (value == null && array[index] != null)
+            {
+                array[index].decrement();
+            }
+            else if (value instanceof StandardOperandStack == false)
+            {
+                throw new IllegalArgumentException("Wrong Allocator");
+            }
+            else if (value.isStackEmpty())
+            {
+                return set(index, null);
+            }
+            else // value.isStackEmpty() == false
+            {
+                final StandardOperand operand = ((StandardOperandStack) value).top;
+                operand.increment();
+                array[index] = operand;
+            }
+
             return this;
+        }
+
+        @Override
+        public void close ()
+        {
+            for (int i = 0; i < array.length; i++)
+            {
+                set(i, null);
+            }
         }
 
     }
@@ -200,32 +389,26 @@ public final class ConcreteAllocator
      * This class provides a concrete implementation of AllocationPool,
      * which allocates operands on-demand, rather than pre-allocating them.
      */
-    private final class DynamicAllocationPool
+    public final class DynamicAllocationPool
             implements AllocationPool
     {
         private final String name;
 
-        private final boolean defaultFlag;
+        private final boolean anonFlag;
 
         private final int minimumSize;
 
         private final int maximumSize;
 
-        private final AtomicInteger size = new AtomicInteger();
-
-        private final int capacity;
-
         public DynamicAllocationPool (final String name,
-                                      final boolean defaultFlag,
+                                      final boolean anonFlag,
                                       final int minimumSize,
-                                      final int maximumSize,
-                                      final int capacity)
+                                      final int maximumSize)
         {
             this.name = name;
-            this.defaultFlag = defaultFlag;
+            this.anonFlag = anonFlag;
             this.minimumSize = minimumSize;
             this.maximumSize = maximumSize;
-            this.capacity = capacity;
         }
 
         @Override
@@ -235,9 +418,9 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public boolean isDefault ()
+        public boolean isAnon ()
         {
-            return defaultFlag;
+            return anonFlag;
         }
 
         @Override
@@ -259,31 +442,17 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public int size ()
-        {
-            return size.get();
-        }
-
-        @Override
-        public int capacity ()
-        {
-            return capacity;
-        }
-
-        @Override
         public AllocationCodes tryAlloc (final OperandStack stack,
                                          final byte[] buffer,
                                          final int offset,
                                          final int length)
         {
-            // TODO Capacity check
-            Preconditions.checkArgument(ALLOCATOR.equals(stack.allocator()), "Different Allocator");
+            Preconditions.checkArgument(ALLOCATOR.equals(stack.allocator()), "Wrong Allocator");
             Preconditions.checkArgument(offset + length <= buffer.length, "(offset + length) > buffer.length");
             final StandardOperandStack operands = (StandardOperandStack) stack;
-            final Operand operand = new Operand(this, null, length);
-            operand.dataSize = length;
-            System.arraycopy(buffer, 0, operand.data, offset, length);
-            operands.performPush(operand);
+            final StandardOperand operand = new StandardOperand(this, null, length);
+            operand.init(buffer, offset, length, operands.top);
+            operands.performSet(operand);
             return AllocationCodes.OK;
         }
 
@@ -293,12 +462,12 @@ public final class ConcreteAllocator
      * This class provides a concrete implementation of AllocationPool,
      * which allocates operands using pre-allocated buffers.
      */
-    private final class FixedAllocationPool
+    public final class FixedAllocationPool
             implements AllocationPool
     {
         private final String name;
 
-        private final boolean defaultFlag;
+        private final boolean anonFlag;
 
         private final int minimumSize;
 
@@ -306,18 +475,18 @@ public final class ConcreteAllocator
 
         private final int capacity;
 
-        private final ArrayBlockingQueue<Operand> freePool;
+        private final ArrayBlockingQueue<StandardOperand> freePool;
 
-        private final Consumer<Operand> onFree;
+        private final Consumer<StandardOperand> onFree;
 
         public FixedAllocationPool (final String name,
-                                    final boolean defaultFlag,
+                                    final boolean anonFlag,
                                     final int minimumSize,
                                     final int maximumSize,
                                     final int capacity)
         {
             this.name = name;
-            this.defaultFlag = defaultFlag;
+            this.anonFlag = anonFlag;
             this.minimumSize = minimumSize;
             this.maximumSize = maximumSize;
             this.capacity = capacity;
@@ -326,8 +495,13 @@ public final class ConcreteAllocator
 
             for (int i = 0; i < capacity; i++)
             {
-                freePool.offer(new Operand(this, onFree, maximumSize));
+                freePool.offer(new StandardOperand(this, onFree, maximumSize));
             }
+        }
+
+        public int size ()
+        {
+            return capacity - freePool.size();
         }
 
         @Override
@@ -337,9 +511,9 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public boolean isDefault ()
+        public boolean isAnon ()
         {
-            return defaultFlag;
+            return anonFlag;
         }
 
         @Override
@@ -361,34 +535,21 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public int size ()
-        {
-            return capacity() - freePool.size();
-        }
-
-        @Override
-        public int capacity ()
-        {
-            return capacity;
-        }
-
-        @Override
         public AllocationCodes tryAlloc (final OperandStack stack,
                                          final byte[] buffer,
                                          final int offset,
                                          final int length)
         {
-            Preconditions.checkArgument(ALLOCATOR.equals(stack.allocator()), "Different Allocator");
+            Preconditions.checkArgument(ALLOCATOR.equals(stack.allocator()), "Wrong Allocator");
             Preconditions.checkArgument(offset + length <= buffer.length, "(offset + length) > buffer.length");
             final StandardOperandStack operands = (StandardOperandStack) stack;
-            final Operand operand = freePool.poll();
+            final StandardOperand operand = freePool.poll();
             if (operand == null)
             {
                 return AllocationCodes.OUT_OF_MEMORY;
             }
-            operand.dataSize = length;
-            System.arraycopy(buffer, 0, operand.data, offset, length);
-            operands.performPush(operand);
+            operand.init(buffer, offset, length, operands.top);
+            operands.performSet(operand);
             return AllocationPool.AllocationCodes.OK;
         }
     }
@@ -397,32 +558,43 @@ public final class ConcreteAllocator
      * This class provides a concrete implementation of AllocationPool,
      * which delegates to other pools based on a best-match policy.
      */
-    private final class BestMatchAllocationPool
+    public final class CompositeAllocationPool
             implements AllocationPool
     {
         private final String name;
 
-        private final boolean defaultFlag;
+        private final boolean anonFlag;
 
         private final int minimumSize;
 
         private final int maximumSize;
 
-        private final int capacity;
+        private final AllocationPool fallback;
 
-        private final List<AllocationPool> pools;
+        /**
+         * This object is used to select the best-matching delegate pool
+         * based on the size of the requested allocation.
+         */
+        private final PositiveIntRangeMap<AllocationPool> lookup;
 
-        public BestMatchAllocationPool (final String name,
-                                        final boolean defaultFlag,
-                                        final AllocationPool dynamicFallback,
+        public CompositeAllocationPool (final String name,
+                                        final boolean anonFlag,
+                                        final AllocationPool fallback,
                                         final List<AllocationPool> pools)
         {
             this.name = name;
-            this.defaultFlag = defaultFlag;
-            this.pools = ImmutableList.copyOf(pools);
-            this.minimumSize = pools.stream().mapToInt(x -> x.minimumAllocationSize()).min().getAsInt();
-            this.maximumSize = pools.stream().mapToInt(x -> x.maximumAllocationSize()).max().getAsInt();
-            this.capacity = pools.stream().mapToInt(x -> x.capacity()).sum();
+            this.anonFlag = anonFlag;
+            this.fallback = fallback;
+
+            final int min1 = fallback == null ? Integer.MAX_VALUE : fallback.minimumAllocationSize();
+            final int min2 = pools.stream().mapToInt(x -> x.minimumAllocationSize()).min().getAsInt();
+            this.minimumSize = Math.min(min1, min2);
+
+            final int max1 = fallback == null ? Integer.MIN_VALUE : fallback.maximumAllocationSize();
+            final int max2 = pools.stream().mapToInt(x -> x.maximumAllocationSize()).max().getAsInt();
+            this.maximumSize = Math.max(max1, max2);
+
+            this.lookup = new PositiveIntRangeMap<>(pools.stream().map(x -> new RangeEntry<>(x.maximumAllocationSize(), x.maximumAllocationSize(), x)).collect(Collectors.toList()));
         }
 
         @Override
@@ -432,15 +604,15 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public boolean isDefault ()
+        public boolean isAnon ()
         {
-            return defaultFlag;
+            return anonFlag;
         }
 
         @Override
         public boolean isPreallocated ()
         {
-            return true;
+            return false;
         }
 
         @Override
@@ -456,61 +628,124 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public int size ()
-        {
-            int sum = 0;
-
-            for (int i = 0; i < pools.size(); i++)
-            {
-                sum += pools.get(i).size();
-            }
-
-            return sum;
-        }
-
-        @Override
-        public int capacity ()
-        {
-            return capacity;
-        }
-
-        @Override
         public AllocationCodes tryAlloc (final OperandStack stack,
                                          final byte[] buffer,
                                          final int offset,
                                          final int length)
         {
-            return null;
+            final AllocationPool match = lookup.search(length);
+            final AllocationPool pool = match == null ? fallback : match;
+            if (pool == null)
+            {
+                return AllocationCodes.REQUEST_IS_TOO_SMALL; // TODO: change
+            }
+            else
+            {
+                return pool.tryAlloc(stack, buffer, offset, length);
+            }
         }
     }
+
+    public static String ANON = "<anonymous>";
+
+    private Cascade cascade;
 
     private final Map<String, AllocationPool> pools = new ConcurrentHashMap<>();
 
     private final Map<String, AllocationPool> unmodPools = Collections.unmodifiableMap(pools);
 
-    private final FixedAllocationPool anon = new FixedAllocationPool("anon", true, 0, 1024, 128);
+    private volatile AllocationPool anon;
 
-    public void addDynamic (final String name,
-                            final int minimumSize,
-                            final int maximumSize,
-                            final int capacity)
+    /**
+     * Constructor, for testing purposes.
+     */
+    public ConcreteAllocator ()
     {
-        pools.put(name, new DynamicAllocationPool(name, false, minimumSize, maximumSize, capacity));
+        this(null);
     }
 
-    public void addFixed (final String name,
-                          final int minimumSize,
-                          final int maximumSize,
-                          final int capacity)
+    /**
+     * Constructor, for production.
+     *
+     * @param owner owns this allocator.
+     */
+    public ConcreteAllocator (final Cascade owner)
     {
-        pools.put(name, new FixedAllocationPool(name, false, minimumSize, maximumSize, capacity));
+        this.cascade = owner;
     }
 
-    public void addAnonFixed (final int minimumSize,
-                              final int maximumSize,
-                              final int capacity)
+    /**
+     * Use this method to add a new dynamic allocation-pool to this allocator.
+     *
+     * <p>
+     * This method should only be called during initial configuration.
+     * </p>
+     *
+     * @param name is the name of the new pool.
+     * @param minimumSize is the minimum size of allocations in the pool.
+     * @param maximumSize is the maximum size of allocations in the pool.
+     * @return the new pool.
+     */
+    public AllocationPool addDynamicPool (final String name,
+                                          final int minimumSize,
+                                          final int maximumSize)
     {
+        final boolean anonFlag = ANON.equals(name);
+        final AllocationPool pool = new DynamicAllocationPool(name, anonFlag, minimumSize, maximumSize);
+        pools.put(name, pool);
+        return pool;
+    }
 
+    /**
+     * Use this method to add a new fixed-size allocation-pool to this allocator.
+     *
+     * <p>
+     * This method should only be called during initial configuration.
+     * </p>
+     *
+     * @param name is the name of the new pool.
+     * @param minimumSize is the minimum size of allocations in the pool.
+     * @param maximumSize is the maximum size of allocations in the pool.
+     * @param capacity is the maximum number of allocations in the pool at one time.
+     * @return the new pool.
+     */
+    public AllocationPool addFixedPool (final String name,
+                                        final int minimumSize,
+                                        final int maximumSize,
+                                        final int capacity)
+    {
+        final boolean anonFlag = ANON.equals(name);
+        final AllocationPool pool = new FixedAllocationPool(name, anonFlag, minimumSize, maximumSize, capacity);
+        pools.put(name, pool);
+        return pool;
+    }
+
+    /**
+     * Use this method to add a new composite allocation-pool to this allocator.
+     *
+     * <p>
+     * This method should only be called during initial configuration.
+     * </p>
+     *
+     * @param name is the name of the new pool.
+     * @param fallback is the allocator to use, if none of the delegates are applicable.
+     * @param delegates are the pools that the new pool will be composed of.
+     * @return the new pool.
+     */
+    public AllocationPool addCompositePool (final String name,
+                                            final AllocationPool fallback,
+                                            final List<AllocationPool> delegates)
+    {
+        final boolean anonFlag = ANON.equals(name);
+        final AllocationPool pool = new CompositeAllocationPool(name, anonFlag, fallback, delegates);
+        pools.put(name, pool);
+        return pool;
+    }
+
+    @Override
+    public Cascade cascade ()
+    {
+        return cascade;
     }
 
     @Override
@@ -520,9 +755,9 @@ public final class ConcreteAllocator
     }
 
     @Override
-    public OperandStackArray newOperandStackArray (int size)
+    public OperandArray newOperandArray (final int size)
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return new StandardOperandArray(size);
     }
 
     @Override
@@ -534,20 +769,29 @@ public final class ConcreteAllocator
     @Override
     public AllocationPool anon ()
     {
+        if (anon == null)
+        {
+            anon = pools.get(ANON);
+            Verify.verify(anon != null);
+        }
+
         return anon;
     }
 
     public static void main (String[] args)
     {
         final ConcreteAllocator ca = new ConcreteAllocator();
+        ca.addFixedPool("anon", 0, 1024 * 1024 * 50, 16);
+//        ca.addDynamic("anon", 0, 1024 * 1024 * 50);
         final StandardOperandStack s = (StandardOperandStack) ca.newOperandStack();
 
-        System.out.println(ca.anon.size());
-        s.push("Andoria");
-        s.push("Mars");
-        System.out.println(ca.anon.size());
-        s.pop();
-        System.out.println(s.asString());
-        System.out.println(ca.anon.size());
+        s.push(0);
+
+        for (int i = 0; i < 10_000_000; i++)
+        {
+            final int k = s.asInt();
+            s.pop().push(k + 1);
+        }
+        System.out.println(s.asInt());
     }
 }

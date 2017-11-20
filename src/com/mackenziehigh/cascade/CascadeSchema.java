@@ -2,11 +2,11 @@ package com.mackenziehigh.cascade;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
-import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import java.util.Map;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 
 /**
  * Use an instance of this class to create a Cascade object.

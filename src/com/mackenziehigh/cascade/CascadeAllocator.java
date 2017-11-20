@@ -35,6 +35,19 @@ import java.util.Map;
 public interface CascadeAllocator
 {
     /**
+     * This type of exception means that an allocation failed,
+     * because the relevant allocation-pool is full.
+     */
+    public class ExhaustedAllocationPoolException
+            extends RuntimeException
+    {
+        public ExhaustedAllocationPoolException (final String poolName)
+        {
+            super(String.format("Allocation pool (%s) is completely full!", poolName));
+        }
+    }
+
+    /**
      * An instance of this interface describes a pool of allocations,
      * which may have specific finite user-defined bounds.
      */
@@ -75,7 +88,7 @@ public interface CascadeAllocator
          *
          * @return true, if this is one of the default pool(s).
          */
-        public boolean isDefault ();
+        public boolean isAnon ();
 
         /**
          * Getter.
@@ -99,20 +112,6 @@ public interface CascadeAllocator
         public int maximumAllocationSize ();
 
         /**
-         * Getter.
-         *
-         * @return the current number of allocations in this pool.
-         */
-        public int size ();
-
-        /**
-         * Getter.
-         *
-         * @return the maximum number of allocations in this pool.
-         */
-        public int capacity ();
-
-        /**
          * Use this method to allocate an operand.
          *
          * @param stack points to the top of the operand-stack that
@@ -120,7 +119,7 @@ public interface CascadeAllocator
          * @param buffer contains the content of the operand.
          * @param offset is the start position of the data in the buffer.
          * @param length is the length of the data in the buffer.
-         * @throws IllegalArgumentException if out was not created by this allocator.
+         * @throws IllegalArgumentException if stack was not created by this allocator.
          * @throws IllegalArgumentException if (offset + length) exceeds length(buffer).
          * @throws IllegalArgumentException if length is less than minimumAllocationSize().
          * @throws IllegalArgumentException if length is greater than maximumAllocationSize().
@@ -134,7 +133,10 @@ public interface CascadeAllocator
             Preconditions.checkArgument(length >= minimumAllocationSize(), AllocationCodes.REQUEST_IS_TOO_SMALL.toString());
             Preconditions.checkArgument(length <= maximumAllocationSize(), AllocationCodes.REQUEST_IS_TOO_LARGE.toString());
             final AllocationCodes retval = tryAlloc(stack, buffer, offset, length);
-            Preconditions.checkState(retval != AllocationCodes.OUT_OF_MEMORY, AllocationCodes.OUT_OF_MEMORY.toString());
+            if (retval == AllocationCodes.OUT_OF_MEMORY)
+            {
+                throw new ExhaustedAllocationPoolException(name());
+            }
             Verify.verify(retval == AllocationCodes.OK);
         }
 
@@ -147,7 +149,7 @@ public interface CascadeAllocator
          * @param offset is the start position of the data in the buffer.
          * @param length is the length of the data in the buffer.
          * @return a status-code indicating success or the reason for failure.
-         * @throws IllegalArgumentException if out was not created by this allocator.
+         * @throws IllegalArgumentException if stack was not created by this allocator.
          * @throws IllegalArgumentException if (offset + length) exceeds length(buffer).
          */
         public AllocationCodes tryAlloc (OperandStack stack,
@@ -157,14 +159,14 @@ public interface CascadeAllocator
     }
 
     /**
-     * An instance of this class is a space-efficient array of pointers to operand-stacks.
+     * An instance of this class is a space-efficient array of <i>pointers</i> to operands.
      *
      * <p>
-     * You must call close() in order to free the operand-stacks referenced by the array;
+     * You must call close() in order to free the operands referenced by the array;
      * otherwise, a memory-leak will occur, because the operands may be pooled.
      * </p>
      */
-    public interface OperandStackArray
+    public interface OperandArray
             extends AutoCloseable
     {
         /**
@@ -179,17 +181,17 @@ public interface CascadeAllocator
          *
          * @return the length of this array.
          */
-        public OperandStackArray size ();
+        public int size ();
 
         /**
-         * Use this method to assign an operand-stack to an element in this array.
+         * Use this method to assign an operand to an element in this array.
          *
          * @param index identifies the element to set.
          * @param value is the new value of the array element, or null, to clear the element.
          * @return this.
          */
-        public OperandStackArray set (int index,
-                                      OperandStack value);
+        public OperandArray set (int index,
+                                 OperandStack value);
 
         /**
          * {@inheritDoc}
@@ -199,7 +201,18 @@ public interface CascadeAllocator
     }
 
     /**
-     * An instance of this class is a pointer to the top of an operand-stack.
+     * An instance of this class is a <i>pointer</i> to an operand.
+     *
+     * <p>
+     * An operand is actually the top element of a spaghetti-stack data-structure.
+     * Thus, this object allows one to manipulate the stack by modifying the pointer.
+     * </p>
+     *
+     * <p>
+     * Since this object is merely a pointer to an operand,
+     * rather than the operand itself, two instances of this
+     * interface may actually refer to the exact same operand.
+     * </p>
      *
      * <p>
      * You must call close() in order to free the referenced operand-stack;
@@ -243,9 +256,9 @@ public interface CascadeAllocator
          * @param array contains the other operand-stack.
          * @param index identifies the relevant array element.
          * @return this.
-         * @throws IndexOutOfBoundsException if the index is out-of-bounds.
+         * @throws IndexOutOfBoundsException if the index is too large or small.
          */
-        public OperandStack set (OperandStackArray array,
+        public OperandStack set (OperandArray array,
                                  int index);
 
         /**
@@ -330,10 +343,12 @@ public interface CascadeAllocator
          * Copy an operand from the top of one operand-stack
          * onto the top of this operand-stack.
          *
-         * @param values are the operand(s) to push.
+         * @param value contains the operand to push.
          * @return this.
+         * @throws NullPointerException if value is null.
+         * @throws IllegalArgumentException if value is empty.
          */
-        public OperandStack push (OperandStack values);
+        public OperandStack push (OperandStack value);
 
         /**
          * Push an operand onto the top of the stack.
@@ -457,9 +472,13 @@ public interface CascadeAllocator
          * @throws IndexOutOfBoundsException if offset is less-than zero.
          * @throws IllegalArgumentException if length is less-than zero.
          */
-        public OperandStack push (byte[] buffer,
-                                  int offset,
-                                  int length);
+        public default OperandStack push (byte[] buffer,
+                                          int offset,
+                                          int length)
+        {
+            pool().alloc(this, buffer, offset, length);
+            return this;
+        }
 
         /**
          * Use this method to efficiently retrieve a
@@ -660,10 +679,7 @@ public interface CascadeAllocator
         public default byte[] asByteArray ()
         {
             final byte[] array = new byte[operandSize()];
-            for (int i = 0; i < array.length; i++)
-            {
-                array[i] = byteAt(i);
-            }
+            copyTo(array);
             return array;
         }
 
@@ -677,6 +693,13 @@ public interface CascadeAllocator
     }
 
     /**
+     * Getter.
+     *
+     * @return the system that this allocator is part of.
+     */
+    public Cascade cascade ();
+
+    /**
      * Use this method to create a new operand-stack.
      *
      * @return a new empty operand-stack.
@@ -684,12 +707,13 @@ public interface CascadeAllocator
     public OperandStack newOperandStack ();
 
     /**
-     * Use this method to create a new operand-stack-array.
+     * Use this method to create a new operand-array.
      *
      * @param size is the length of the new array.
-     * @return a new empty operand-stack-array.
+     * @return a new empty operand-array.
+     * @throws IllegalArgumentException if size is less than zero.
      */
-    public OperandStackArray newOperandStackArray (int size);
+    public OperandArray newOperandArray (int size);
 
     /**
      * Getter.
