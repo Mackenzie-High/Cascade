@@ -1,12 +1,12 @@
 package com.mackenziehigh.cascade;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Verify;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.Shorts;
 import java.nio.charset.Charset;
 import java.util.Map;
+import java.util.OptionalLong;
 
 /**
  * Use this interface to allocate operands.
@@ -39,11 +39,49 @@ public interface CascadeAllocator
      * because the relevant allocation-pool is full.
      */
     public class ExhaustedAllocationPoolException
+            extends IllegalStateException
+    {
+        private final AllocationPool pool;
+
+        public ExhaustedAllocationPoolException (final AllocationPool pool)
+        {
+            super(String.format("Allocation pool (%s) is completely full!", pool.name()));
+            this.pool = pool;
+        }
+
+        public AllocationPool getPool ()
+        {
+            return pool;
+        }
+    }
+
+    /**
+     * This type of exception indicates that an operation cannot be performed,
+     * because the underlying allocators differ.
+     */
+    public class AllocatorMismatchException
             extends RuntimeException
     {
-        public ExhaustedAllocationPoolException (final String poolName)
+        private final CascadeAllocator allocatorX;
+
+        private final CascadeAllocator allocatorY;
+
+        public AllocatorMismatchException (final CascadeAllocator allocatorX,
+                                           final CascadeAllocator allocatorY)
         {
-            super(String.format("Allocation pool (%s) is completely full!", poolName));
+            super(String.format("Allocator Mismatch"));
+            this.allocatorX = allocatorX;
+            this.allocatorY = allocatorY;
+        }
+
+        public CascadeAllocator getAllocatorX ()
+        {
+            return allocatorX;
+        }
+
+        public CascadeAllocator getAllocatorY ()
+        {
+            return allocatorY;
         }
     }
 
@@ -53,28 +91,12 @@ public interface CascadeAllocator
      */
     public interface AllocationPool
     {
-        public enum AllocationCodes
-        {
-            /**
-             * The allocation was successful.
-             */
-            OK,
-
-            /**
-             * The allocation failed due to insufficient memory or size() exceeds capacity().
-             */
-            OUT_OF_MEMORY,
-
-            /**
-             * The allocation failed, because the requested size is larger than maximumAllocationSize().
-             */
-            REQUEST_IS_TOO_LARGE,
-
-            /**
-             * The allocation failed, because the requested size is less than minimumAllocationSize().
-             */
-            REQUEST_IS_TOO_SMALL,
-        }
+        /**
+         * Getter.
+         *
+         * @return the allocator that created this pool.
+         */
+        public CascadeAllocator allocator ();
 
         /**
          * Getter.
@@ -86,16 +108,45 @@ public interface CascadeAllocator
         /**
          * Getter.
          *
-         * @return true, if this is one of the default pool(s).
+         * @return true, if this pool is based on pre-allocated memory.
          */
-        public boolean isAnon ();
+        public boolean isFixed ();
 
         /**
          * Getter.
          *
-         * @return true, if this pool is based on pre-allocated memory.
+         * <p>
+         * This method only returns a value, if isFixed(),
+         * because maintaining counts can be a performance hit
+         * in some implementations due to thread contention.
+         * Only the other hand, fixed pools must maintain
+         * the counts anyway due to the recycling of operands.
+         * </p>
+         *
+         * @return the number of active allocations.
          */
-        public boolean isPreallocated ();
+        public default OptionalLong size ()
+        {
+            return OptionalLong.empty();
+        }
+
+        /**
+         * Getter.
+         *
+         * <p>
+         * This method only returns a value, if isFixed(),
+         * because maintaining counts can be a performance hit
+         * in some implementations due to thread contention.
+         * Only the other hand, fixed pools must maintain
+         * the counts anyway due to the recycling of operands.
+         * </p>
+         *
+         * @return the maximum number of concurrent active allocations herein.
+         */
+        public default OptionalLong capacity ()
+        {
+            return OptionalLong.empty();
+        }
 
         /**
          * Getter.
@@ -119,43 +170,48 @@ public interface CascadeAllocator
          * @param buffer contains the content of the operand.
          * @param offset is the start position of the data in the buffer.
          * @param length is the length of the data in the buffer.
-         * @throws IllegalArgumentException if stack was not created by this allocator.
+         * @throws AllocatorMismatchException if stack was not created by this allocator.
          * @throws IllegalArgumentException if (offset + length) exceeds length(buffer).
          * @throws IllegalArgumentException if length is less than minimumAllocationSize().
          * @throws IllegalArgumentException if length is greater than maximumAllocationSize().
-         * @throws IllegalStateException if the pool is out-of-memory.
+         * @throws ExhaustedAllocationPoolException if the pool is out-of-memory.
          */
-        public default void alloc (OperandStack stack,
-                                   byte[] buffer,
-                                   int offset,
-                                   int length)
+        public default void alloc (final OperandStack stack,
+                                   final byte[] buffer,
+                                   final int offset,
+                                   final int length)
         {
-            Preconditions.checkArgument(length >= minimumAllocationSize(), AllocationCodes.REQUEST_IS_TOO_SMALL.toString());
-            Preconditions.checkArgument(length <= maximumAllocationSize(), AllocationCodes.REQUEST_IS_TOO_LARGE.toString());
-            final AllocationCodes retval = tryAlloc(stack, buffer, offset, length);
-            if (retval == AllocationCodes.OUT_OF_MEMORY)
+            if (tryAlloc(stack, buffer, offset, length) == false)
             {
-                throw new ExhaustedAllocationPoolException(name());
+                throw new ExhaustedAllocationPoolException(this);
             }
-            Verify.verify(retval == AllocationCodes.OK);
         }
 
         /**
          * Use this method to allocate an operand.
+         *
+         * <p>
+         * The only difference between this method and alloc(*)
+         * is that this method will return a boolean flag,
+         * rather than throwing an exception, when an allocation
+         * would fail due to pool/memory exhaustion.
+         * </p>
          *
          * @param stack points to the top of the operand-stack that
          * the newly allocated operand will be pushed onto.
          * @param buffer contains the content of the operand.
          * @param offset is the start position of the data in the buffer.
          * @param length is the length of the data in the buffer.
-         * @return a status-code indicating success or the reason for failure.
-         * @throws IllegalArgumentException if stack was not created by this allocator.
+         * @return true, iff the allocation succeeds.
+         * @throws AllocatorMismatchException if stack was not created by this allocator.
          * @throws IllegalArgumentException if (offset + length) exceeds length(buffer).
+         * @throws IllegalArgumentException if length is less than minimumAllocationSize().
+         * @throws IllegalArgumentException if length is greater than maximumAllocationSize().
          */
-        public AllocationCodes tryAlloc (OperandStack stack,
-                                         byte[] buffer,
-                                         int offset,
-                                         int length);
+        public boolean tryAlloc (OperandStack stack,
+                                 byte[] buffer,
+                                 int offset,
+                                 int length);
     }
 
     /**
@@ -189,6 +245,7 @@ public interface CascadeAllocator
          * @param index identifies the element to set.
          * @param value is the new value of the array element, or null, to clear the element.
          * @return this.
+         * @throws AllocatorMismatchException if value was not created by this allocator.
          */
         public OperandArray set (int index,
                                  OperandStack value);
@@ -233,7 +290,7 @@ public interface CascadeAllocator
          * Getter.
          *
          * @return the allocation-pool of the top operand on the operand-stack,
-         * or the anonymous-pool, if the operand-stack is empty.
+         * or the defaultPool(), if the stack is empty.
          */
         public AllocationPool pool ();
 
@@ -242,6 +299,7 @@ public interface CascadeAllocator
          *
          * @param value points to the other operand-stack.
          * @return this.
+         * @throws AllocatorMismatchException if value was not created by this allocator.
          */
         public OperandStack set (OperandStack value);
 
@@ -256,6 +314,7 @@ public interface CascadeAllocator
          * @param array contains the other operand-stack.
          * @param index identifies the relevant array element.
          * @return this.
+         * @throws AllocatorMismatchException if array was not created by this allocator.
          * @throws IndexOutOfBoundsException if the index is too large or small.
          */
         public OperandStack set (OperandArray array,
@@ -346,6 +405,7 @@ public interface CascadeAllocator
          * @param value contains the operand to push.
          * @return this.
          * @throws NullPointerException if value is null.
+         * @throws AllocatorMismatchException if value was not created by this allocator.
          * @throws IllegalArgumentException if value is empty.
          */
         public OperandStack push (OperandStack value);
@@ -476,7 +536,7 @@ public interface CascadeAllocator
                                           int offset,
                                           int length)
         {
-            pool().alloc(this, buffer, offset, length);
+            allocator().defaultPool().alloc(this, buffer, offset, length);
             return this;
         }
 
@@ -718,14 +778,23 @@ public interface CascadeAllocator
     /**
      * Getter.
      *
+     * <p>
+     * The map will include the default-pool.
+     * </p>
+     *
      * @return a map that maps the names of pools to the pools themselves.
      */
     public Map<String, AllocationPool> pools ();
 
     /**
-     * Use this method to retrieve the anonymous-pool.
+     * Getter.
      *
-     * @return a pool that routes allocation requests to the best-matching default pool.
+     * <p>
+     * The name of the default-pool must be "default".
+     * </p>
+     *
+     * @return the default-pool.
+     * @throws IllegalStateException if no default pool exists.
      */
-    public AllocationPool anon ();
+    public AllocationPool defaultPool ();
 }
