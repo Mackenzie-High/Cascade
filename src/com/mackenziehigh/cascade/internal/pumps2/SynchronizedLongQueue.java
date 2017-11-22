@@ -11,13 +11,13 @@ public final class SynchronizedLongQueue
 {
     private final int capacity;
 
-    private volatile int size = 0;
+    private int size = 0;
 
     private final long[] circularBuffer;
 
-    private int tail = -1;
+    private int tail = 0;
 
-    private int head = -1;
+    private int head = 0;
 
     public SynchronizedLongQueue (final int capacity)
     {
@@ -42,8 +42,8 @@ public final class SynchronizedLongQueue
         else
         {
             ++size;
-            ++tail;
-            circularBuffer[tail % capacity] = value;
+            tail = (tail >= circularBuffer.length - 1) ? 0 : tail + 1;
+            circularBuffer[tail] = value;
             return true;
         }
     }
@@ -63,8 +63,8 @@ public final class SynchronizedLongQueue
         else
         {
             --size;
-            ++head;
-            out.set(circularBuffer[head % capacity]);
+            head = (head >= circularBuffer.length - 1) ? 0 : head + 1;
+            out.set(circularBuffer[head]);
             return true;
         }
     }
@@ -84,7 +84,7 @@ public final class SynchronizedLongQueue
      *
      * @return the current size of the queue.
      */
-    public int size ()
+    public synchronized int size ()
     {
         return size;
     }
@@ -94,7 +94,7 @@ public final class SynchronizedLongQueue
      *
      * @return the maximum size of the queue.
      */
-    public int capacity ()
+    public synchronized int capacity ()
     {
         return capacity;
     }
