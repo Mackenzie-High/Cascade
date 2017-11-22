@@ -144,44 +144,30 @@ public final class PositiveIntRangeMap<E>
     public E search (final int key)
     {
         Preconditions.checkArgument(key >= 0, "key < 0");
-        return entries.isEmpty() ? null : binarySearch(key, entries.size() / 2);
+        return entries.isEmpty() ? null : binarySearch(key, 0, entries.size() - 1);
     }
 
     private E binarySearch (final int key,
-                            final int pivot)
+                            final int low,
+                            final int high)
     {
-        if (pivot >= entries.size())
+        final int mid = low + ((high - low) / 2);
+
+        if (high < low)
         {
             return null;
         }
-        else if (key < entries.get(pivot).minimum)
+        else if (key < entries.get(mid).minimum)
         {
-            return binarySearch(key, pivot / 2);
+            return binarySearch(key, low, mid - 1);
         }
-        else if (key > entries.get(pivot).maximum)
+        else if (key > entries.get(mid).maximum)
         {
-            return binarySearch(key, pivot + (pivot / 2) + 1);
+            return binarySearch(key, mid + 1, high);
         }
         else
         {
-            return entries.get(pivot).value;
-        }
-    }
-
-    public static void main (String[] args)
-    {
-        final List<RangeEntry> xentries = new LinkedList<>();
-        xentries.add(new RangeEntry(1, 2, "A"));
-        xentries.add(new RangeEntry(3, 4, "B"));
-        xentries.add(new RangeEntry(5, 6, "C"));
-        xentries.add(new RangeEntry(7, 8, "D"));
-        xentries.add(new RangeEntry(9, 10, "E"));
-
-        final PositiveIntRangeMap b = new PositiveIntRangeMap(xentries);
-
-        for (int i = 0; i <= 11; i++)
-        {
-            System.out.println("X[" + i + "] = " + b.search(i));
+            return entries.get(mid).value;
         }
     }
 }

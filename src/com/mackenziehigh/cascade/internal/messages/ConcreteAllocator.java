@@ -1,6 +1,7 @@
 package com.mackenziehigh.cascade.internal.messages;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.internal.messages.PositiveIntRangeMap.RangeEntry;
@@ -54,15 +55,37 @@ public final class ConcreteAllocator
 
         public synchronized void decrement ()
         {
-            if (--refCount == 0)
+            StandardOperand p = this;
+            StandardOperand next;
+
+            /**
+             * Walk down the spaghetti-stack, freeing operands,
+             * until either no more frees are needed or the bottom
+             * of the operand-stack is reached.
+             */
+            while (p != null)
             {
-                // Free
-                below = null;
-                dataSize = 0;
-                stackSize = 0;
-                if (onFree != null)
+                Verify.verify(p != p.below);
+
+                if (--p.refCount == 0)
                 {
-                    onFree.accept(this);
+                    next = p.below;
+
+                    // Free
+                    p.below = null;
+                    p.dataSize = 0;
+                    p.stackSize = 0;
+                    if (p.onFree != null)
+                    {
+                        p.onFree.accept(p);
+                    }
+
+                    p = next;
+                }
+                else
+                {
+                    Verify.verify(p.below == null || p.below.refCount > 0);
+                    p = null;
                 }
             }
         }
@@ -75,8 +98,9 @@ public final class ConcreteAllocator
             this.refCount = 0;
             this.dataSize = length;
             this.stackSize = (below == null ? 1 : below.stackSize + 1);
+            Verify.verify(this != below);
             this.below = below;
-            System.arraycopy(buffer, 0, this.data, offset, length);
+            System.arraycopy(buffer, offset, this.data, 0, length);
 
             if (below != null)
             {
@@ -283,10 +307,18 @@ public final class ConcreteAllocator
             {
                 throw new IllegalStateException("Empty Stack");
             }
-            else
+            else if (stackSize() > 1)
             {
                 final StandardOperand oldTop = top;
-                top = top.below;
+                top = oldTop.below;
+                top.increment();
+                oldTop.decrement();
+                return this;
+            }
+            else // stackSize() == 1
+            {
+                final StandardOperand oldTop = top;
+                top = null;
                 oldTop.decrement();
                 return this;
             }
@@ -532,6 +564,7 @@ public final class ConcreteAllocator
             {
                 return false;
             }
+            Verify.verify(operands.top == null || operands.top.refCount >= 1);
             operand.init(buffer, offset, length, operands.top);
             operands.performSet(operand);
             return true;
@@ -786,9 +819,9 @@ public final class ConcreteAllocator
         {
             throw new IndexOutOfBoundsException("offset < 0");
         }
-        else if (offset >= buffer.length)
+        else if (offset > 0 && offset >= buffer.length)
         {
-            throw new IndexOutOfBoundsException("offset >= buffer.length");
+            throw new IndexOutOfBoundsException("offset > 0 && offset >= buffer.length");
         }
         else if (length < pool.minimumAllocationSize())
         {
@@ -797,6 +830,10 @@ public final class ConcreteAllocator
         else if (length > pool.maximumAllocationSize())
         {
             throw new IllegalArgumentException("length > maximumAllocationSize()");
+        }
+        else if (offset > 0 && offset + length >= buffer.length)
+        {
+            throw new IllegalArgumentException("offset > 0 && offset + length >= buffer.length");
         }
         else if (offset + length > buffer.length)
         {

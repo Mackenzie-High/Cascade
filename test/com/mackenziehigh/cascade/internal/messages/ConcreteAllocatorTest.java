@@ -354,7 +354,32 @@ public final class ConcreteAllocatorTest
     public void test20171121040558663618 ()
     {
         System.out.println("Test: 20171121040558663618");
-        fail();
+
+        final ConcreteAllocator allocator = new ConcreteAllocator();
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool("default", 0, 128, 16);
+        final OperandStack stack1 = allocator.newOperandStack();
+        final OperandStack stack2 = allocator.newOperandStack();
+        final byte[] data1 = "Emma".getBytes();
+        final byte[] data2 = "Erin".getBytes();
+
+        stack1.push(data1);
+        stack1.push(data2);
+        stack2.push("Autumn");
+        stack2.push(stack1); // Method Under Test
+
+        assertEquals(2, stack1.stackSize());
+        assertEquals(2, stack2.stackSize());
+        assertEquals(4, pool.size().getAsLong());
+
+        assertTrue(Arrays.equals(data2, stack2.asByteArray())); // Method Under Test
+        assertTrue(Arrays.equals(data2, stack1.asByteArray())); // Method Under Test
+        stack1.pop();
+        assertTrue(Arrays.equals(data1, stack1.asByteArray())); // Method Under Test
+
+        stack1.clear();
+        stack2.clear();
+
+        assertEquals(0, pool.size().getAsLong());
     }
 
     /**
@@ -516,7 +541,66 @@ public final class ConcreteAllocatorTest
     public void test20171121041637421363 ()
     {
         System.out.println("Test: 20171121041637421363");
-        fail();
+
+        final ConcreteAllocator allocator = new ConcreteAllocator();
+        final AllocationPool pool = allocator.addFixedPool("default", 0, 128, 16);
+        final OperandStack stack1 = allocator.newOperandStack();
+        final OperandStack stack2 = allocator.newOperandStack();
+
+        stack1.push("A").push("B");
+        stack2.set(stack1);
+        stack1.push("P").push("Q");
+        stack2.push("X").push("Y");
+
+        assertEquals(4, stack1.stackSize());
+        assertEquals(4, stack2.stackSize());
+        assertEquals(6, pool.size().getAsLong());
+
+        /**
+         * Verify Stack #1.
+         */
+        assertEquals("Q", stack1.asString());
+        stack1.pop();
+        assertEquals(5, pool.size().getAsLong());
+        assertEquals(3, stack1.stackSize());
+
+        assertEquals("P", stack1.asString());
+        stack1.pop();
+        assertEquals(4, pool.size().getAsLong());
+        assertEquals(2, stack1.stackSize());
+
+        assertEquals("B", stack1.asString());
+        stack1.pop();
+        assertEquals(4, pool.size().getAsLong());
+        assertEquals(1, stack1.stackSize());
+
+        assertEquals("A", stack1.asString());
+        stack1.pop();
+        assertEquals(4, pool.size().getAsLong());
+        assertEquals(0, stack1.stackSize());
+
+        /**
+         * Verify Stack #2.
+         */
+        assertEquals("Y", stack2.asString());
+        stack2.pop();
+        assertEquals(3, pool.size().getAsLong());
+        assertEquals(3, stack2.stackSize());
+
+        assertEquals("X", stack2.asString());
+        stack2.pop();
+        assertEquals(2, pool.size().getAsLong());
+        assertEquals(2, stack2.stackSize());
+
+        assertEquals("B", stack2.asString());
+        stack2.pop();
+        assertEquals(1, pool.size().getAsLong());
+        assertEquals(1, stack2.stackSize());
+
+        assertEquals("A", stack2.asString());
+        stack2.pop();
+        assertEquals(0, pool.size().getAsLong());
+        assertEquals(0, stack2.stackSize());
     }
 
     /**
@@ -534,11 +618,80 @@ public final class ConcreteAllocatorTest
     public void test20171121041637421449 ()
     {
         System.out.println("Test: 20171121041637421449");
-        fail();
+
+        final ConcreteAllocator allocator = new ConcreteAllocator();
+        final AllocationPool pool = allocator.addFixedPool("default", 0, 128, 16);
+
+        final OperandStack empty = allocator.newOperandStack();
+        final OperandStack women = allocator.newOperandStack().push("Autumn").push("Emma").push("Erin");
+        final OperandStack stack = allocator.newOperandStack();
+
+        /**
+         * Case: Empty, Null
+         */
+        assertTrue(stack.isStackEmpty());
+        stack.set(null);
+        assertTrue(stack.isStackEmpty());
+        assertEquals(3, pool.size().getAsLong());
+
+        /**
+         * Case: Empty, Empty
+         */
+        assertTrue(stack.isStackEmpty());
+        stack.set(empty);
+        assertTrue(stack.isStackEmpty());
+        assertEquals(3, pool.size().getAsLong());
+
+        /**
+         * Case: Empty, Not Empty
+         */
+        assertTrue(stack.isStackEmpty());
+        stack.set(women);
+        assertEquals(3, stack.stackSize());
+        stack.clear();
+        assertTrue(stack.isStackEmpty());
+        assertEquals(3, pool.size().getAsLong());
+
+        /**
+         * Case: Not Empty, Null
+         */
+        assertTrue(stack.isStackEmpty());
+        stack.set(women);
+        assertEquals(3, stack.stackSize());
+        stack.set(null);
+        assertTrue(stack.isStackEmpty());
+        assertEquals(3, pool.size().getAsLong());
+
+        /**
+         * Case: Not Empty, Empty
+         */
+        assertTrue(stack.isStackEmpty());
+        stack.set(women);
+        assertEquals(3, stack.stackSize());
+        stack.set(empty);
+        assertTrue(stack.isStackEmpty());
+        assertEquals(3, pool.size().getAsLong());
+
+        /**
+         * Case: Not Empty, Not Empty
+         */
+        assertTrue(stack.isStackEmpty());
+        stack.set(women);
+        assertEquals(3, stack.stackSize());
+        stack.push("Rachel");
+        stack.push("Jenna");
+        assertEquals(5, stack.stackSize());
+        assertEquals(5, pool.size().getAsLong());
+        stack.set(women);
+        assertEquals(3, stack.stackSize());
+        assertEquals(3, pool.size().getAsLong());
+        stack.clear();
+        assertTrue(stack.isStackEmpty());
     }
 
     /**
      * Test: 20171121041637421477
+     *
      *
      * <p>
      * Method: <code>set(int, OperandArray)</code>
@@ -552,7 +705,81 @@ public final class ConcreteAllocatorTest
     public void test20171121041637421477 ()
     {
         System.out.println("Test: 20171121041637421477");
-        fail();
+
+        final ConcreteAllocator allocator = new ConcreteAllocator();
+        final AllocationPool pool = allocator.addFixedPool("default", 0, 128, 16);
+
+        final OperandStack emptyStk = allocator.newOperandStack();
+        final OperandStack womenStk = allocator.newOperandStack().push("Autumn").push("Emma").push("Erin");
+        final OperandArray womenArray = allocator.newOperandArray(1);
+        final OperandArray emptyArray = allocator.newOperandArray(1);
+        final OperandArray nullArray = allocator.newOperandArray(1);
+        womenArray.set(0, womenStk);
+        emptyArray.set(0, emptyStk);
+        nullArray.set(0, null);
+        final OperandStack stack = allocator.newOperandStack();
+
+        /**
+         * Case: Empty, Null
+         */
+        assertTrue(stack.isStackEmpty());
+        stack.set(nullArray, 0);
+        assertTrue(stack.isStackEmpty());
+        assertEquals(3, pool.size().getAsLong());
+
+        /**
+         * Case: Empty, Empty
+         */
+        assertTrue(stack.isStackEmpty());
+        stack.set(emptyArray, 0);
+        assertTrue(stack.isStackEmpty());
+        assertEquals(3, pool.size().getAsLong());
+
+        /**
+         * Case: Empty, Not Empty
+         */
+        assertTrue(stack.isStackEmpty());
+        stack.set(womenArray, 0);
+        assertEquals(3, stack.stackSize());
+        stack.clear();
+        assertTrue(stack.isStackEmpty());
+        assertEquals(3, pool.size().getAsLong());
+
+        /**
+         * Case: Not Empty, Null
+         */
+        assertTrue(stack.isStackEmpty());
+        stack.set(womenStk);
+        assertEquals(3, stack.stackSize());
+        stack.set(nullArray, 0);
+        assertTrue(stack.isStackEmpty());
+        assertEquals(3, pool.size().getAsLong());
+
+        /**
+         * Case: Not Empty, Empty
+         */
+        assertTrue(stack.isStackEmpty());
+        stack.set(womenStk);
+        assertEquals(3, stack.stackSize());
+        stack.set(emptyArray, 0);
+        assertTrue(stack.isStackEmpty());
+        assertEquals(3, pool.size().getAsLong());
+
+        /**
+         * Case: Not Empty, Not Empty
+         */
+        assertTrue(stack.isStackEmpty());
+        stack.set(womenStk);
+        assertEquals(3, stack.stackSize());
+        stack.push("Rachel");
+        stack.push("Jenna");
+        assertEquals(5, stack.stackSize());
+        assertEquals(5, pool.size().getAsLong());
+        stack.set(womenArray, 0);
+        assertEquals(3, stack.stackSize());
+        assertEquals(3, pool.size().getAsLong());
+        stack.clear();
+        assertTrue(stack.isStackEmpty());
     }
 
     /**
@@ -757,7 +984,6 @@ public final class ConcreteAllocatorTest
                 stk.push(1000 * i);
             }
 
-            assertFalse(stk.isStackEmpty());
             assertEquals(k, stk.stackSize());
             assertEquals(k, pool.size().getAsLong());
             stk.clear(); // Method Under Test
@@ -781,7 +1007,57 @@ public final class ConcreteAllocatorTest
     public void test20171121042309256052 ()
     {
         System.out.println("Test: 20171121042309256052");
-        fail();
+
+        final ConcreteAllocator allocator = new ConcreteAllocator();
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool("default", 0, 128, 16);
+        final OperandStack stack1 = allocator.newOperandStack();
+
+        stack1.push("Emma");
+        stack1.push("Erin");
+
+        assertEquals(2, stack1.stackSize());
+        assertEquals(2, pool.size().getAsLong());
+
+        final OperandStack stack2 = stack1.copy(); // Method Under Test
+
+        assertEquals(2, stack1.stackSize());
+        assertEquals(2, stack2.stackSize());
+        assertEquals(2, pool.size().getAsLong());
+
+        /**
+         * Verify Stack #1.
+         */
+        assertEquals("Erin", stack1.asString());
+        assertEquals(2, stack1.stackSize());
+        assertEquals(2, pool.size().getAsLong());
+        stack1.pop();
+
+        assertEquals("Emma", stack1.asString());
+        assertEquals(1, stack1.stackSize());
+        assertEquals(2, pool.size().getAsLong());
+        stack1.pop();
+
+        assertTrue(stack1.isStackEmpty());
+        assertEquals(0, stack1.stackSize());
+        assertEquals(2, stack2.stackSize());
+        assertEquals(2, pool.size().getAsLong());
+
+        /**
+         * Verify Stack #2.
+         */
+        assertEquals("Erin", stack2.asString());
+        assertEquals(2, stack2.stackSize());
+        assertEquals(2, pool.size().getAsLong());
+        stack2.pop();
+
+        assertEquals("Emma", stack2.asString());
+        assertEquals(1, stack2.stackSize());
+        assertEquals(1, pool.size().getAsLong());
+        stack2.pop();
+
+        assertTrue(stack2.isStackEmpty());
+        assertEquals(0, stack2.stackSize());
+        assertEquals(0, pool.size().getAsLong());
     }
 
     /**
@@ -813,7 +1089,6 @@ public final class ConcreteAllocatorTest
                 stk.push(1000 * i);
             }
 
-            assertFalse(stk.isStackEmpty());
             assertEquals(k, stk.stackSize());
             assertEquals(k, pool.size().getAsLong());
             stk.close();// Method Under Test
@@ -1387,46 +1662,6 @@ public final class ConcreteAllocatorTest
         final byte[] data = "Venus".getBytes();
 
         pool.tryAlloc(stk, data, 0, data.length + 1);
-    }
-
-    /**
-     * Test: 20171121033510905559
-     *
-     * <p>
-     * Allocator: Dynamic
-     * </p>
-     *
-     * <p>
-     * Method: <code>tryAlloc</code>
-     * </p>
-     *
-     * <p>
-     * Case: Out of Space
-     * </p>
-     */
-    @Test
-    public void test20171121033510905559 ()
-    {
-        System.out.println("Test: 20171121033510905559");
-
-        final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addDynamicPool("default", 0, Integer.MAX_VALUE);
-        final OperandStack stk = allocator.newOperandStack();
-
-        final byte[] buffer = new byte[64 * 1024 * 024];
-
-        int count = 0;
-
-        /**
-         * Repeatedly allocate operands, until the VM runs out of memory.
-         * The OutOfMemoryError will be caught and handled.
-         */
-        while (pool.tryAlloc(stk, buffer, 0, buffer.length))
-        {
-            ++count;
-        }
-
-        assertTrue(count > 64);
     }
 
     /**
@@ -2333,30 +2568,179 @@ public final class ConcreteAllocatorTest
     }
 
     /**
-     * Test: 20171121034704532368
+     * Test: 20171121223521973170
      *
      * <p>
-     * Case: Deallocation Logic inside of StandardOperand
+     * Allocator: Dynamic
+     * </p>
+     *
+     * <p>
+     * Case: Getters
      * </p>
      */
     @Test
-    public void test20171121034704532368 ()
+    public void test20171121223521973170 ()
     {
-        System.out.println("Test: 20171121034704532368");
-        fail();
+        System.out.println("Test: 20171121223521973170");
+
+        final ConcreteAllocator allocator = new ConcreteAllocator();
+        final AllocationPool pool = allocator.addDynamicPool("BigBangPool", 100, 200);
+
+        assertSame(allocator, pool.allocator());
+        assertEquals("BigBangPool", pool.name());
+        assertFalse(pool.isFixed());
+        assertEquals(100, pool.minimumAllocationSize());
+        assertEquals(200, pool.maximumAllocationSize());
+        assertFalse(pool.size().isPresent());
+        assertFalse(pool.capacity().isPresent());
     }
 
     /**
-     * Test: 20171121034816202848
+     * Test: 20171121223521973256
      *
      * <p>
-     * Case: Memory Management of Operands inside Operand Arrays
+     * Allocator: Fixed
+     * </p>
+     *
+     * <p>
+     * Case: Getters
      * </p>
      */
     @Test
-    public void test20171121034816202848 ()
+    public void test20171121223521973256 ()
     {
-        System.out.println("Test: 20171121034816202848");
-        fail();
+        System.out.println("Test: 20171121223521973256");
+
+        final ConcreteAllocator allocator = new ConcreteAllocator();
+        final AllocationPool pool = allocator.addFixedPool("SwimmingPool", 100, 200, 300);
+
+        assertSame(allocator, pool.allocator());
+        assertEquals("SwimmingPool", pool.name());
+        assertTrue(pool.isFixed());
+        assertEquals(100, pool.minimumAllocationSize());
+        assertEquals(200, pool.maximumAllocationSize());
+        assertEquals(0, pool.size().getAsLong());
+        assertEquals(300, pool.capacity().getAsLong());
+    }
+
+    /**
+     * Test: 20171121223521973291
+     *
+     * <p>
+     * Allocator: Composite with Fallback
+     * </p>
+     *
+     * <p>
+     * Case: Getters
+     * </p>
+     */
+    @Test
+    public void test20171121223521973291 ()
+    {
+        System.out.println("Test: 20171121223521973291");
+
+        final ConcreteAllocator allocator = new ConcreteAllocator();
+        final AllocationPool fallback = allocator.addFixedPool("delegate1", 91, 321, 2);
+        final AllocationPool delegate1 = allocator.addFixedPool("delegate1", 101, 200, 2);
+        final AllocationPool delegate2 = allocator.addFixedPool("delegate2", 201, 300, 2);
+        final AllocationPool pool = allocator.addCompositePool("RouterPool", fallback, ImmutableList.of(delegate1, delegate2));
+
+        assertSame(allocator, pool.allocator());
+        assertEquals("RouterPool", pool.name());
+        assertFalse(pool.isFixed());
+        assertEquals(91, pool.minimumAllocationSize());
+        assertEquals(321, pool.maximumAllocationSize());
+        assertFalse(pool.size().isPresent());
+        assertFalse(pool.capacity().isPresent());
+    }
+
+    /**
+     * Test: 20171121224042640578
+     *
+     * <p>
+     * Allocator: Composite without Fallback
+     * </p>
+     *
+     * <p>
+     * Case: Getters
+     * </p>
+     */
+    @Test
+    public void test20171121224042640578 ()
+    {
+        System.out.println("Test: 20171121224042640578");
+
+        final ConcreteAllocator allocator = new ConcreteAllocator();
+        final AllocationPool fallback = null;
+        final AllocationPool delegate1 = allocator.addFixedPool("delegate1", 101, 200, 2);
+        final AllocationPool delegate2 = allocator.addFixedPool("delegate2", 201, 300, 2);
+        final AllocationPool pool = allocator.addCompositePool("RouterPool", fallback, ImmutableList.of(delegate1, delegate2));
+
+        assertSame(allocator, pool.allocator());
+        assertEquals("RouterPool", pool.name());
+        assertFalse(pool.isFixed());
+        assertEquals(101, pool.minimumAllocationSize());
+        assertEquals(300, pool.maximumAllocationSize());
+        assertFalse(pool.size().isPresent());
+        assertFalse(pool.capacity().isPresent());
+    }
+
+    /**
+     * Test: 20171121223521973323
+     *
+     * <p>
+     * Method in OperandArray: <code>close()</code>
+     * </p>
+     *
+     * <p>
+     * Case: Normal
+     * </p>
+     */
+    @Test
+    public void test20171121223521973323 ()
+    {
+        System.out.println("Test: 20171121223521973323");
+
+        final ConcreteAllocator allocator = new ConcreteAllocator();
+        final AllocationPool pool = allocator.addFixedPool("default", 0, 200, 300);
+        final OperandArray array = allocator.newOperandArray(4);
+        final OperandStack stack = allocator.newOperandStack();
+
+        stack.push("Autumn");
+        array.set(0, stack);
+        stack.clear();
+
+        stack.push("Emma").push("Erin");
+        array.set(1, stack);
+        stack.clear();
+
+        stack.push("Jenna").push("Rachel");
+        array.set(2, stack);
+
+        // Jenna and Rachel are still on the stack.
+        assertEquals(2, stack.stackSize());
+        stack.push("Kate");
+        array.set(3, stack);
+
+        // Remove Kate and Rachel from the stack.
+        stack.pop().pop();
+
+        assertEquals(1, stack.stackSize());
+        assertEquals(6, pool.size().getAsLong());
+
+        // Method Under Test
+        array.close();
+
+        /**
+         * All of the operands, except "Jenna", should have been deallocated,
+         * because they were not referenced by anything other than the array.
+         * "Jenna" was referenced by the array, so that operand was still in-use;
+         * therefore, that operand must still be actively allocated.
+         */
+        assertEquals(1, stack.stackSize());
+        assertEquals(1, pool.size().getAsLong());
+
+        // The array is now clear.
+        assertTrue(IntStream.range(0, 4).allMatch(i -> stack.set(array, i).isStackEmpty()));
     }
 }
