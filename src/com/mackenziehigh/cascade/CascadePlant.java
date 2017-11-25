@@ -5,7 +5,6 @@ import java.io.Closeable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Instances of this interface receive messages from neighboring actors,
@@ -46,6 +45,20 @@ public interface CascadePlant
          * @return the logger for use by this actor.
          */
         public CascadeLogger logger ();
+
+        /**
+         * Getter.
+         *
+         * @return the allocator intended for use by this actor.
+         */
+        public CascadeAllocator allocator ();
+
+        /**
+         * Getter.
+         *
+         * @return the allocation-pool intended for use by this actor.
+         */
+        public CascadeAllocator.AllocationPool pool ();
 
         /**
          * Getter.
@@ -127,7 +140,7 @@ public interface CascadePlant
         /**
          * Getter.
          *
-         * @return the message that needs to be processed.
+         * @return the message that needs to be processed, if any.
          */
         public OperandStack message ();
 
@@ -136,11 +149,22 @@ public interface CascadePlant
          *
          * <p>
          * If the backlog() of any output has reached the queueCapacity(),
-         * then this method will simply return false, if atomic is true.
+         * then this method will simply return false.
          * </p>
          *
          * <p>
-         * The message cannot be null.
+         * This method is atomic; therefore, the message will be enqueued
+         * in all of the output pipelines or none of them.
+         * </p>
+         *
+         * <p>
+         * This method must maintain the ordering of messages in the face
+         * of multiple threads invoking this method concurrently given
+         * the same actor. In other words, this method is thread-safe.
+         * </p>
+         *
+         * <p>
+         * The message cannot be null or empty.
          * </p>
          *
          * <p>
@@ -148,42 +172,32 @@ public interface CascadePlant
          * </p>
          *
          * @param message will be enqueued in each output pipeline.
-         * @param atomic true, iff all outputs must accept the message.
-         * @return true, iff all of the outputs accepted the message.
+         * @return this.
          */
-        public boolean send (OperandStack message,
-                             boolean atomic);
+        public boolean async (OperandStack message);
 
         /**
          * Send a message to the outputs().
          *
          * <p>
-         * Equivalent: send(message, true)
+         * This method is atomic; therefore, the message will be enqueued
+         * in all of the output pipelines or none of them.
          * </p>
          *
          * <p>
-         * This method does not block.
+         * This method must maintain the ordering of messages in the face
+         * of multiple threads invoking this method concurrently given
+         * the same actor. In other words, this method is thread-safe.
+         * </p>
+         *
+         * <p>
+         * This method will block until all of the outputs enqueue the message.
          * </p>
          *
          * @param message will be enqueued in each output pipeline.
-         * @return true, iff all of the outputs accepted the message.
+         * @return true.
          */
-        public default boolean send (final OperandStack message)
-        {
-            return send(message, true);
-        }
-
-        /**
-         * Send a message, blocking if necessary.
-         *
-         * @param message will be sent.
-         * @param timeout is the maximum amount of time to block.
-         * @param units are the units of the timeout.
-         * @return true, if the message was sent.
-         */
-        public boolean send (final OperandStack message,
-                             final long timeout,
-                             final TimeUnit units);
+        public boolean sync (final OperandStack message);
     }
 
     /**
