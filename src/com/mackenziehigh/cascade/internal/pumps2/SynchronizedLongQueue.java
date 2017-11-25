@@ -1,11 +1,10 @@
 package com.mackenziehigh.cascade.internal.pumps2;
 
 import com.google.common.base.Preconditions;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This is a simple efficient thread-safe queue implementation
- * for storing values of primitive-type long.
+ * for storing values of primitive-type (long).
  */
 public final class SynchronizedLongQueue
 {
@@ -49,23 +48,39 @@ public final class SynchronizedLongQueue
     }
 
     /**
-     * Use this method to retrieve the head of the queue, if possible.
+     * Use this method to retrieve and remove the head of the queue, if possible.
      *
-     * @param out will receive the value, if any.
-     * @return true, if a value was actually retrieved.
+     * @return the value, if one was retrieved; otherwise, return zero.
      */
-    public synchronized boolean poll (final AtomicLong out)
+    public synchronized long poll ()
     {
         if (size == 0)
         {
-            return false;
+            return 0;
         }
         else
         {
             --size;
             head = (head >= circularBuffer.length - 1) ? 0 : head + 1;
-            out.set(circularBuffer[head]);
-            return true;
+            return (circularBuffer[head]);
+        }
+    }
+
+    /**
+     * Use this method to retrieve, but not remove, the head of the queue, if possible.
+     *
+     * @return the value, if one was retrieved; otherwise, return zero.
+     */
+    public synchronized long peek ()
+    {
+        if (size == 0)
+        {
+            return 0;
+        }
+        else
+        {
+            final int index = (head >= circularBuffer.length - 1) ? 0 : head + 1;
+            return (circularBuffer[index]);
         }
     }
 
@@ -77,6 +92,16 @@ public final class SynchronizedLongQueue
         size = 0;
         head = -1;
         tail = -1;
+    }
+
+    /**
+     * Getter.
+     *
+     * @return true, if size() is zero.
+     */
+    public synchronized boolean isEmpty ()
+    {
+        return size() == 0;
     }
 
     /**

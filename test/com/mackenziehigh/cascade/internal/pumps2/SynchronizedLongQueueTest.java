@@ -3,7 +3,6 @@ package com.mackenziehigh.cascade.internal.pumps2;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.atomic.AtomicLong;
 import static junit.framework.Assert.*;
 import org.junit.Test;
 
@@ -24,7 +23,6 @@ public final class SynchronizedLongQueueTest
         final int capacity = 8;
         final SynchronizedLongQueue queue1 = new SynchronizedLongQueue(capacity);
         final ArrayBlockingQueue<Long> queue2 = new ArrayBlockingQueue<>(capacity);
-        final AtomicLong out = new AtomicLong();
 
         assertEquals(capacity, queue1.capacity());
 
@@ -38,16 +36,20 @@ public final class SynchronizedLongQueueTest
                     assertEquals(i < capacity, queue2.offer(i * 1000 + 1L));
                     assertEquals(queue1.size(), queue2.size());
                     assertEquals(Math.min(i + 1, capacity), queue1.size());
+                    assertEquals(queue2.isEmpty(), queue1.isEmpty());
+                    assertEquals((long) queue2.peek(), queue1.peek());
                 }
 
                 for (int i = 0; i <= k; i++)
                 {
-                    out.set(0);
-                    final boolean actual = queue1.poll(out);
+                    assertEquals(queue2.peek() == null ? 0L : (long) queue2.peek(), queue1.peek());
+
+                    final long actual = queue1.poll();
                     final Long expected = queue2.poll();
-                    assertEquals(expected != null, actual);
-                    assertEquals((expected == null ? 0 : expected), out.get());
-                    assertEquals(queue1.size(), queue2.size());
+                    assertEquals(expected != null, actual != 0);
+                    assertEquals((expected == null ? 0 : expected), actual);
+                    assertEquals(queue2.size(), queue1.size());
+                    assertEquals(queue2.isEmpty(), queue1.isEmpty());
                 }
             }
         }
@@ -68,7 +70,6 @@ public final class SynchronizedLongQueueTest
         final int capacity = 8;
         final SynchronizedLongQueue queue1 = new SynchronizedLongQueue(capacity);
         final ArrayBlockingQueue<Long> queue2 = new ArrayBlockingQueue<>(capacity);
-        final AtomicLong out = new AtomicLong();
 
         assertEquals(capacity, queue1.capacity());
 
@@ -82,16 +83,18 @@ public final class SynchronizedLongQueueTest
                     assertEquals(i < capacity, queue2.offer(i * 1000 + 1L));
                     assertEquals(queue1.size(), queue2.size());
                     assertEquals(Math.min(i + 1, capacity), queue1.size());
+                    assertEquals(queue2.isEmpty(), queue1.isEmpty());
+                    assertEquals((long) queue2.peek(), queue1.peek());
                 }
 
                 for (int i = 0; i <= k; i++)
                 {
-                    out.set(0);
-                    final boolean actual = queue1.poll(out);
+                    final long actual = queue1.poll();
                     final Long expected = queue2.poll();
-                    assertEquals(expected != null, actual);
-                    assertEquals((expected == null ? 0 : expected), out.get());
-                    assertEquals(queue1.size(), queue2.size());
+                    assertEquals(expected != null, actual != 0);
+                    assertEquals((expected == null ? 0 : expected), actual);
+                    assertEquals(queue2.size(), queue1.size());
+                    assertEquals(queue2.isEmpty(), queue1.isEmpty());
                 }
 
                 queue1.clear();
