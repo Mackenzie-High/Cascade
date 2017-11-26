@@ -1,12 +1,13 @@
 package com.mackenziehigh.cascade.internal.pumps2;
 
+import com.mackenziehigh.cascade.internal.pumps3.LongSynchronizedQueue;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.concurrent.ArrayBlockingQueue;
 import static junit.framework.Assert.*;
 import org.junit.Test;
 
-public final class SynchronizedLongQueueTest
+public final class LongSynchronizedQueueTest
 {
     /**
      * Test: 20171122032828423331
@@ -21,7 +22,7 @@ public final class SynchronizedLongQueueTest
         System.out.println("Test: 20171122032828423331");
 
         final int capacity = 8;
-        final SynchronizedLongQueue queue1 = new SynchronizedLongQueue(capacity);
+        final LongSynchronizedQueue queue1 = new LongSynchronizedQueue(capacity);
         final ArrayBlockingQueue<Long> queue2 = new ArrayBlockingQueue<>(capacity);
 
         assertEquals(capacity, queue1.capacity());
@@ -68,7 +69,7 @@ public final class SynchronizedLongQueueTest
         System.out.println("Test: 20171122032828423393");
 
         final int capacity = 8;
-        final SynchronizedLongQueue queue1 = new SynchronizedLongQueue(capacity);
+        final LongSynchronizedQueue queue1 = new LongSynchronizedQueue(capacity);
         final ArrayBlockingQueue<Long> queue2 = new ArrayBlockingQueue<>(capacity);
 
         assertEquals(capacity, queue1.capacity());
@@ -114,9 +115,9 @@ public final class SynchronizedLongQueueTest
     {
         System.out.println("Test: 20171122041309084760");
 
-        assertTrue(Modifier.isFinal(SynchronizedLongQueue.class.getModifiers()));
+        assertTrue(Modifier.isFinal(LongSynchronizedQueue.class.getModifiers()));
 
-        for (Method x : SynchronizedLongQueue.class.getDeclaredMethods())
+        for (Method x : LongSynchronizedQueue.class.getDeclaredMethods())
         {
             assertTrue(Modifier.isSynchronized(x.getModifiers()));
         }

@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade.internal.pumps2;
 
+import com.mackenziehigh.cascade.internal.pumps3.LongSynchronizedQueue;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
 import java.util.concurrent.Semaphore;
@@ -55,7 +56,7 @@ public final class ReservationLongQueue
             return value;
         }
 
-        public synchronized boolean transfer (final SynchronizedLongQueue queue)
+        public synchronized boolean transfer (final LongSynchronizedQueue queue)
         {
             /**
              * If the reservation bucket contains a value
@@ -94,7 +95,7 @@ public final class ReservationLongQueue
      * Instead, values will be placed into the reservation buckets
      * and then transferred into this queue as space becomes available.
      */
-    private final SynchronizedLongQueue queue;
+    private final LongSynchronizedQueue queue;
 
     /**
      * These are the reservation buckets the can be reserved by producers
@@ -108,7 +109,7 @@ public final class ReservationLongQueue
      * that are waiting to be transferred to the underlying queue
      * as soon as space becomes available in the underlying queue.
      */
-    private final SynchronizedLongQueue neededTransfers;
+    private final LongSynchronizedQueue neededTransfers;
 
     /**
      * Sole Constructor.
@@ -124,8 +125,8 @@ public final class ReservationLongQueue
         this.consumerPermits = new Semaphore(capacity);
         this.consumerPermits.drainPermits();
         this.reservations = new ReservationBucket[maxReservations];
-        this.neededTransfers = new SynchronizedLongQueue(maxReservations);
-        this.queue = new SynchronizedLongQueue(capacity);
+        this.neededTransfers = new LongSynchronizedQueue(maxReservations);
+        this.queue = new LongSynchronizedQueue(capacity);
 
         for (int i = 0; i < reservations.length; i++)
         {

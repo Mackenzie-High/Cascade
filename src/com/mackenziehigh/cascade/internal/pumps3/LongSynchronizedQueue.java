@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.internal.pumps2;
+package com.mackenziehigh.cascade.internal.pumps3;
 
 import com.google.common.base.Preconditions;
 
@@ -6,7 +6,7 @@ import com.google.common.base.Preconditions;
  * This is a simple efficient thread-safe queue implementation
  * for storing values of primitive-type (long).
  */
-public final class SynchronizedLongQueue
+public final class LongSynchronizedQueue
 {
     private final int capacity;
 
@@ -18,7 +18,7 @@ public final class SynchronizedLongQueue
 
     private int head = 0;
 
-    public SynchronizedLongQueue (final int capacity)
+    public LongSynchronizedQueue (final int capacity)
     {
         Preconditions.checkArgument(capacity >= 0, "capacity < 0");
         this.capacity = capacity;

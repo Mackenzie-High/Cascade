@@ -40,24 +40,18 @@ public class Main1
     {
         final AtomicLong i = new AtomicLong();
 
-        try
+        while (true)
         {
-            while (true)
+            if (queue.poll(i, 1, TimeUnit.SECONDS))
             {
-                if (queue.poll(i, 1, TimeUnit.SECONDS))
-                {
-                    System.out.println("X = " + i);
-                }
-                else
-                {
-                    System.out.println("false");
-                }
+                System.out.println("X = " + i);
+            }
+            else
+            {
+                System.out.println("false");
             }
         }
-        catch (InterruptedException ex)
-        {
-            ex.printStackTrace(System.out);
-        }
+
     }
 
     public static void main (String[] args)

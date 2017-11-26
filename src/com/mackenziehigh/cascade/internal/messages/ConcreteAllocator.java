@@ -90,15 +90,16 @@ public final class ConcreteAllocator
             }
         }
 
-        public void init (final byte[] buffer,
-                          final int offset,
-                          final int length,
-                          final StandardOperand below)
+        public synchronized void init (final byte[] buffer,
+                                       final int offset,
+                                       final int length,
+                                       final StandardOperand below)
         {
             this.refCount = 0;
             this.dataSize = length;
             this.stackSize = (below == null ? 1 : below.stackSize + 1);
             Verify.verify(this != below);
+            Verify.verify(0 != (below == null ? 1 : below.refCount));
             this.below = below;
             System.arraycopy(buffer, offset, this.data, 0, length);
 
@@ -275,7 +276,11 @@ public final class ConcreteAllocator
                                               final int offset,
                                               final int length)
         {
-            if (buffer == null)
+            if (isStackEmpty())
+            {
+                throw new IllegalStateException("Empty Stack");
+            }
+            else if (buffer == null)
             {
                 throw new NullPointerException("buffer");
             }
@@ -368,6 +373,7 @@ public final class ConcreteAllocator
             else if (value == null && array[index] != null)
             {
                 array[index].decrement();
+                array[index] = null;
             }
             else if (allocator().equals(value.allocator()) == false)
             {
