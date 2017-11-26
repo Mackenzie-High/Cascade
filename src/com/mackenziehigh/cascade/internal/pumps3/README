@@ -1,7 +1,10 @@
 
 TODO:
++ Should we do away with Direct Pumps altogether due to the risk of deadlocks???
 + AtomicOrderlySender needs to always acquire the transaction lock!
 + Look into propagating InterruptedException in more places. Reset the interrupted flag???
 + ThreadedEngine needs to take a ThreadFactory.
 + Connection needs to allow callback on commit in order to facilitate spawning pumps.
 + The ThreadedEngine needs to be extra careful to not execute the same actor concurrently, unless allowed.
++ LongTransactionalMultiQueue needs to use LongSynchronizedMultiQueue internally, rather than LongSynchronizedQueue.
++ Finsih the globalSize() method in LongTransactionalMultiQueue.

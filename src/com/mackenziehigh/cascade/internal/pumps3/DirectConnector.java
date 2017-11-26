@@ -112,7 +112,7 @@ public final class DirectConnector
          * {@inheritDoc}
          */
         @Override
-        public Object lockSync (final long timeout,
+        public Object lock (final long timeout,
                                 final TimeUnit timeoutUnits)
         {
             Preconditions.checkState(open.get(), "closed");
@@ -142,7 +142,7 @@ public final class DirectConnector
          * {@inheritDoc}
          */
         @Override
-        public Object lockAsync ()
+        public Object lock ()
         {
             Preconditions.checkState(open.get(), "closed");
 

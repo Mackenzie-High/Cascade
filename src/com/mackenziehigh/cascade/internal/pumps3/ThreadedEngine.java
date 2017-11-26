@@ -1,6 +1,7 @@
 package com.mackenziehigh.cascade.internal.pumps3;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
@@ -17,7 +18,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 
 /**
  *
@@ -33,11 +33,11 @@ public final class ThreadedEngine
 
     private final int maximumThreads;
 
-    private final List<Consumer<OperandStack>> actions;
+    private final List<MessageConsumer> actions;
 
-    private final Map<Connection, Consumer<OperandStack>> connections = new ConcurrentHashMap<>();
+    private final Map<Connection, MessageConsumer> connections = new ConcurrentHashMap<>();
 
-    private final Map<Connection, Consumer<OperandStack>> unmodConnections = Collections.unmodifiableMap(connections);
+    private final Map<Connection, MessageConsumer> unmodConnections = Collections.unmodifiableMap(connections);
 
     private final Set<Thread> permanentThreads = Sets.newConcurrentHashSet();
 
@@ -56,7 +56,7 @@ public final class ThreadedEngine
                            final int[] localCapacity,
                            final int minimumThreads,
                            final int maximumThreads,
-                           final List<Consumer<OperandStack>> actions)
+                           final List<MessageConsumer> actions)
     {
         this.allocator = allocator;
         this.minimumThreads = minimumThreads;
@@ -68,7 +68,7 @@ public final class ThreadedEngine
         for (int i = 0; i < actions.size(); i++)
         {
             final Connection connection = connector.connections().get(i);
-            final Consumer<OperandStack> action = actions.get(i);
+            final MessageConsumer action = actions.get(i);
             connections.put(connection, action);
         }
 
@@ -87,7 +87,7 @@ public final class ThreadedEngine
     }
 
     @Override
-    public Map<Connection, Consumer<OperandStack>> connections ()
+    public Map<Connection, MessageConsumer> connections ()
     {
         return unmodConnections;
     }
@@ -118,6 +118,7 @@ public final class ThreadedEngine
         running.incrementAndGet();
 
         int lastConnectionId = 0;
+        MessageConsumer consumer = null;
 
         try (OperandStack stack = allocator.newOperandStack())
         {
@@ -134,15 +135,26 @@ public final class ThreadedEngine
 
                     lastConnectionId = connection.id();
 
-                    final Consumer<OperandStack> action = actions.get(connection.id());
+                    consumer = actions.get(connection.id());
 
                     connection.poll(stack);
 
-                    action.accept(stack);
+                    consumer.accept(stack);
                 }
                 catch (Throwable ex)
                 {
-                    ex.printStackTrace(System.out); // TODO. Also, what about InterruptedException.
+                    if (consumer == null)
+                    {
+                        ex.printStackTrace(System.out); // TODO. Also, what about InterruptedException.
+                    }
+                    else
+                    {
+                        consumer.handle(ex);
+                    }
+                }
+                finally
+                {
+                    consumer = null;
                 }
             }
         }
@@ -156,26 +168,47 @@ public final class ThreadedEngine
             throws InterruptedException
     {
         final ConcreteAllocator alloc = new ConcreteAllocator();
-        final AllocationPool pool = alloc.addFixedPool("default", 0, 128, 4);
+        final AllocationPool pool = alloc.addFixedPool("default", 0, 128, 100);
         final OperandStack msg = alloc.newOperandStack();
 
         final int[] localCap = new int[1];
         localCap[0] = 128;
 
-        final Consumer<OperandStack> action = x -> System.out.println("X = " + x.asString());
+        final MessageConsumer action = new MessageConsumer()
+        {
+            @Override
+            public void accept (OperandStack message)
+            {
+//                throw new Error();
+                System.out.println("X = #" + message.asString() + ", Thread = " + Thread.currentThread().getId());
+            }
+
+            @Override
+            public void handle (Throwable exception)
+            {
+                System.out.println("Error: " + exception.getClass());
+            }
+
+            @Override
+            public int concurrentLimit ()
+            {
+                return 1;
+            }
+        };
 
         final ThreadedEngine pump = new ThreadedEngine(alloc, 8, localCap, 1, 1, ImmutableList.of(action));
         pump.start();
 
+        final OrderlyAtomicSender sender = new OrderlyAtomicSender(Lists.newArrayList(pump.connections.keySet()));
+
         for (int i = 0; i < 16; i++)
         {
             msg.push("E #" + i);
-            final Object key = pump.connector.connections().get(0).lockSync(1, TimeUnit.HOURS);
-            pump.connector.connections().get(0).commit(key, msg);
-            pump.connector.connections().get(0).unlock(key);
+            sender.sendAsync(msg);
             msg.pop();
             Thread.sleep(1000);
         }
+
     }
 
 }

@@ -3,18 +3,71 @@ package com.mackenziehigh.cascade.internal.pumps3;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.internal.pumps3.Connector.Connection;
 import java.util.Map;
-import java.util.function.Consumer;
 
 /**
- *
+ * Instances of this class receive messages from connections
+ * and process them using appropriate message-consumers.
  */
 public interface Engine
 {
-    public Map<Connection, Consumer<OperandStack>> connections ();
+    /**
+     * The engine uses instances of this interface
+     * in order to process incoming messages.
+     */
+    public interface MessageConsumer
+    {
+        /**
+         * Use this method to consume a message.
+         *
+         * @param message will be consumed.
+         * @throws java.lang.Throwable at will.
+         */
+        public void accept (OperandStack message)
+                throws Throwable;
 
+        /**
+         * If accept(*) throws an exception,
+         * then handle the exception by invoking
+         * this method with the given exception.
+         *
+         * @param exception was thrown by accept(*).
+         */
+        public void handle (Throwable exception);
+
+        /**
+         * Getter.
+         *
+         * @return the maximum number of threads that
+         * can be concurrently executing this consumer.
+         */
+        public int concurrentLimit ();
+
+    }
+
+    /**
+     * Getter.
+     *
+     * @return a map that maps connections to the consumers
+     * that will handle messages coming from those connections.
+     */
+    public Map<Connection, MessageConsumer> connections ();
+
+    /**
+     * Getter.
+     *
+     * @return true, if messages *can* currently be processed
+     * or *are* still being processed.
+     */
     public boolean isRunning ();
 
+    /**
+     * Start processing incoming messages.
+     */
     public void start ();
 
+    /**
+     * Permanently stop processing incoming messages.
+     */
     public void stop ();
+
 }

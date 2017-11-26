@@ -1,12 +1,14 @@
 package com.mackenziehigh.cascade.internal.pumps3;
 
+import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
+import com.mackenziehigh.cascade.internal.pumps3.Connector.Connection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import com.mackenziehigh.cascade.internal.pumps3.Connector.Connection;
+import java.util.stream.IntStream;
 
 /**
  * This class provides the algorithms needed to send
@@ -50,9 +52,6 @@ public final class OrderlyAtomicSender
      */
     private final Lock transactionLock = new ReentrantLock();
 
-    /**
-     * These
-     */
     private final ArrayList<Connection> outputs;
 
     private final ArrayList<Object> keys;
@@ -61,6 +60,9 @@ public final class OrderlyAtomicSender
     {
         this.outputs = new ArrayList<>(outputs);
         this.keys = new ArrayList<>(outputs.size());
+        IntStream.range(0, outputs.size()).forEach(i -> keys.add(null));
+        this.keys.trimToSize();
+        this.outputs.trimToSize();
     }
 
     /**
@@ -88,7 +90,7 @@ public final class OrderlyAtomicSender
              */
             for (int i = 0; i < keys.size(); i++)
             {
-                final Object key = outputs.get(i).lockAsync();
+                final Object key = outputs.get(i).lock();
                 hasAllLocks &= key != null;
                 keys.set(i, key);
             }
@@ -110,7 +112,7 @@ public final class OrderlyAtomicSender
             for (int i = 0; i < keys.size(); i++)
             {
                 outputs.get(i).unlock(keys.get(i));
-                outputs.set(i, null);
+                keys.set(i, null);
             }
         }
         finally
@@ -135,11 +137,15 @@ public final class OrderlyAtomicSender
      * @param timeout is the maximum amount of time to wait.
      * @param timeoutUnits describes the timeout.
      * @return true, if the message was sent.
+     * @throws java.lang.InterruptedException
      */
     public boolean sendSync (final OperandStack message,
                              final long timeout,
                              final TimeUnit timeoutUnits)
+            throws InterruptedException
     {
+        Preconditions.checkArgument(timeoutUnits.toNanos(timeout) > 0, "Invalid Timeout");
+
         /**
          * The asynchronous version of this method is usually faster,
          * because fewer system-calls are needed, etc; therefore,
@@ -154,57 +160,69 @@ public final class OrderlyAtomicSender
         final long startTime = System.nanoTime();
         int lockCount = 0;
 
-        /**
-         * Acquire the locks.
-         */
-        for (int i = 0; i < keys.size(); i++)
+        if (transactionLock.tryLock(timeoutNanos, TimeUnit.NANOSECONDS) == false)
         {
-            final long elapsedTime = System.nanoTime() - startTime;
-            final long diffTime = timeoutNanos - elapsedTime; // Limit (diffTime) -> 0
-            final long remainingTime = Math.max(Math.min(diffTime, timeoutNanos), 0);
-
-            if (remainingTime == 0)
-            {
-                break;
-            }
-
-            final Object key = outputs.get(i).lockSync(remainingTime, TimeUnit.NANOSECONDS);
-            if (key == null)
-            {
-                break;
-            }
-            else
-            {
-                keys.set(i, outputs.get(i).lockAsync());
-                ++lockCount;
-            }
+            return false;
         }
 
-        final boolean hasAllLocks = lockCount == keys.size();
-
-        /**
-         * If we successfully obtained the locks,
-         * then commit the message to each output.
-         */
-        int commitCount = 0;
-        for (int i = 0; hasAllLocks && i < keys.size(); i++)
+        try
         {
-            final Object key = keys.get(i);
-            outputs.get(i).commit(key, message);
-            ++commitCount;
-        }
+            /**
+             * Acquire the locks.
+             */
+            for (int i = 0; i < keys.size(); i++)
+            {
+                final long elapsedTime = System.nanoTime() - startTime;
+                final long diffTime = timeoutNanos - elapsedTime; // Limit (diffTime) -> 0
+                final long remainingTime = Math.max(Math.min(diffTime, timeoutNanos), 0);
 
-        /**
-         * Release the locks.
-         */
-        for (int i = 0; i < keys.size(); i++)
+                if (remainingTime == 0)
+                {
+                    break;
+                }
+
+                final Object key = outputs.get(i).lock(remainingTime, TimeUnit.NANOSECONDS);
+                if (key == null)
+                {
+                    break;
+                }
+                else
+                {
+                    keys.set(i, outputs.get(i).lock());
+                    ++lockCount;
+                }
+            }
+
+            final boolean hasAllLocks = lockCount == keys.size();
+
+            /**
+             * If we successfully obtained the locks,
+             * then commit the message to each output.
+             */
+            int commitCount = 0;
+            for (int i = 0; hasAllLocks && i < keys.size(); i++)
+            {
+                final Object key = keys.get(i);
+                outputs.get(i).commit(key, message);
+                ++commitCount;
+            }
+
+            /**
+             * Release the locks.
+             */
+            for (int i = 0; i < keys.size(); i++)
+            {
+                outputs.get(i).unlock(keys.get(i));
+                keys.set(i, null);
+            }
+
+            final boolean result = commitCount == keys.size();
+            return result;
+        }
+        finally
         {
-            outputs.get(i).unlock(keys.get(i));
-            outputs.set(i, null);
+            transactionLock.lock();
         }
-
-        final boolean result = commitCount == keys.size();
-        return result;
     }
 
 }
