@@ -1,7 +1,7 @@
 package com.mackenziehigh.cascade.internal.pumps;
 
-import com.mackenziehigh.cascade.CascadePlant;
-import com.mackenziehigh.cascade.CascadePipe;
+import com.mackenziehigh.cascade.CascadeEdge;
+import com.mackenziehigh.cascade.CascadeNode;
 import com.mackenziehigh.cascade.CascadePump;
 
 /**
@@ -10,10 +10,10 @@ import com.mackenziehigh.cascade.CascadePump;
 public interface BasePowerplant
         extends CascadePump
 {
-    public CascadePlant declareActor (CascadePlant actor);
+    public CascadeNode declareActor (CascadeNode actor);
 
-    public CascadePipe connect (CascadePlant src,
-                                    CascadePlant dest);
+    public CascadeEdge connect (CascadeNode src,
+                                    CascadeNode dest);
 
     public void start ();
 

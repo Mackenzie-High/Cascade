@@ -1,13 +1,15 @@
 package com.mackenziehigh.cascade.internal;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
+import com.mackenziehigh.cascade.CascadeEdge;
 import com.mackenziehigh.cascade.CascadeLogger;
+import com.mackenziehigh.cascade.CascadeNode;
+import com.mackenziehigh.cascade.CascadePump;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -16,9 +18,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import com.mackenziehigh.cascade.CascadePlant;
-import com.mackenziehigh.cascade.CascadePipe;
-import com.mackenziehigh.cascade.CascadePump;
 
 /**
  * Concrete Implementation Of: Cascade.
@@ -32,19 +31,19 @@ public final class ConcreteCascade
 
     private final ImmutableSortedMap<String, CascadePump> powerplants;
 
-    private final ImmutableSortedMap<String, CascadePlant> actors;
+    private final ImmutableSortedMap<String, CascadeNode> actors;
 
-    private final ImmutableMap<CascadePlant, String> actorsToNames;
+    private final ImmutableMap<CascadeNode, String> actorsToNames;
 
-    private final ImmutableMap<CascadePlant, CascadePump> actorsToPowerplants;
+    private final ImmutableMap<CascadeNode, CascadePump> actorsToPowerplants;
 
-    private final ImmutableMap<CascadePlant, ImmutableSet<CascadePipe>> actorsToInputs;
+    private final ImmutableMap<CascadeNode, ImmutableSet<CascadeEdge>> actorsToInputs;
 
-    private final ImmutableMap<CascadePlant, ImmutableSet<CascadePipe>> actorsToOutputs;
+    private final ImmutableMap<CascadeNode, ImmutableSet<CascadeEdge>> actorsToOutputs;
 
-    private final ImmutableMap<CascadePlant, CascadeLogger> actorsToLoggers;
+    private final ImmutableMap<CascadeNode, CascadeLogger> actorsToLoggers;
 
-    private final ImmutableSet<CascadePipe> pipelines;
+    private final ImmutableSet<CascadeEdge> pipelines;
 
     private final AtomicReference<ExecutionPhase> phase = new AtomicReference<>(ExecutionPhase.INITIAL);
 
@@ -52,8 +51,8 @@ public final class ConcreteCascade
 
     public ConcreteCascade (final Map<String, CascadeAllocator> allocators,
                             final Map<String, CascadePump> powerplants,
-                            final Map<String, CascadePlant> actors,
-                            final Set<CascadePipe> pipelines)
+                            final Map<String, CascadeNode> actors,
+                            final Set<CascadeEdge> pipelines)
     {
         this.allocators = ImmutableSortedMap.copyOf(allocators);
         this.powerplants = ImmutableSortedMap.copyOf(powerplants);
@@ -77,67 +76,27 @@ public final class ConcreteCascade
     }
 
     @Override
-    public CascadeLogger loggerOf (final CascadePlant actor)
-    {
-        Preconditions.checkNotNull(actor, "actor");
-        Preconditions.checkArgument(actorsToPowerplants.containsKey(actor), "Wrong Cascade Object");
-        return actorsToLoggers.get(actor);
-    }
-
-    @Override
     public SortedMap<String, CascadeAllocator> allocators ()
     {
         return allocators;
     }
 
     @Override
-    public SortedMap<String, CascadePump> powerplants ()
+    public SortedMap<String, CascadePump> pumps ()
     {
         return powerplants;
     }
 
     @Override
-    public SortedMap<String, CascadePlant> actors ()
+    public SortedMap<String, CascadeNode> nodes ()
     {
         return actors;
     }
 
     @Override
-    public Set<CascadePipe> pipelines ()
+    public Set<CascadeEdge> edges ()
     {
         return pipelines;
-    }
-
-    @Override
-    public CascadePump powerplantOf (final CascadePlant actor)
-    {
-        Preconditions.checkNotNull(actor, "actor");
-        Preconditions.checkArgument(actorsToPowerplants.containsKey(actor), "Wrong Cascade Object");
-        return actorsToPowerplants.get(actor);
-    }
-
-    @Override
-    public String nameOf (final CascadePlant actor)
-    {
-        Preconditions.checkNotNull(actor, "actor");
-        Preconditions.checkArgument(actorsToNames.containsKey(actor), "Wrong Cascade Object");
-        return actorsToNames.get(actor);
-    }
-
-    @Override
-    public Set<CascadePipe> inputsOf (final CascadePlant actor)
-    {
-        Preconditions.checkNotNull(actor, "actor");
-        Preconditions.checkArgument(actorsToInputs.containsKey(actor), "Wrong Cascade Object");
-        return actorsToInputs.get(actor);
-    }
-
-    @Override
-    public Set<CascadePipe> outputsOf (final CascadePlant actor)
-    {
-        Preconditions.checkNotNull(actor, "actor");
-        Preconditions.checkArgument(actorsToOutputs.containsKey(actor), "Wrong Cascade Object");
-        return actorsToOutputs.get(actor);
     }
 
     @Override
@@ -186,19 +145,19 @@ public final class ConcreteCascade
                 }
                 else if (phase.get() == ExecutionPhase.SETUP)
                 {
-                    ((CascadePlant) element).onSetup(null);
+                    ((CascadeNode) element).eventHandler().onSetup(null);
                 }
                 else if (phase.get() == ExecutionPhase.START)
                 {
-                    ((CascadePlant) element).onStart(null);
+                    ((CascadeNode) element).eventHandler().onStart(null);
                 }
                 else if (phase.get() == ExecutionPhase.STOP)
                 {
-                    ((CascadePlant) element).onStop(null);
+                    ((CascadeNode) element).eventHandler().onStop(null);
                 }
                 else if (phase.get() == ExecutionPhase.DESTROY)
                 {
-                    ((CascadePlant) element).onDestroy(null);
+                    ((CascadeNode) element).eventHandler().onDestroy(null);
                 }
                 else if (phase.get() == ExecutionPhase.CLOSE)
                 {

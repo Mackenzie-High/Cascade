@@ -3,21 +3,21 @@ package com.mackenziehigh.cascade;
 import java.util.Set;
 
 /**
- * A power-plant powers the execution of an actor.
+ * A pump powers the execution of zero-or-more nodes.
  */
 public interface CascadePump
 {
     /**
      * Getter.
      *
-     * @return the system that this powerplant is part of.
+     * @return the system that this pump is part of.
      */
     public Cascade cascade ();
 
     /**
      * Getter.
      *
-     * @return the user-defined name of this power-plant.
+     * @return the user-defined name of this pump.
      */
     public String name ();
 
@@ -45,7 +45,7 @@ public interface CascadePump
     /**
      * Getter.
      *
-     * @return the actors that this power-plant powers.
+     * @return the nodes that this pump powers.
      */
-    public Set<CascadePlant> actors ();
+    public Set<CascadeNode> nodes ();
 }

@@ -3,36 +3,31 @@ package com.mackenziehigh.cascade.internal.pumps3;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.CascadeAllocator;
-import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.internal.messages.ConcreteAllocator;
-import com.mackenziehigh.cascade.internal.pumps3.BufferedConnector.BufferedConnection;
 import com.mackenziehigh.cascade.internal.pumps3.Connector.Connection;
+import com.mackenziehigh.cascade.internal.pumps3.IndependentConnector.IndependentConnection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- *
+ * This class implements the Engine interface using
+ * a single dedicated thread for message processing.
  */
-public final class ThreadedEngine
+public final class DedicatedEngine
         implements Engine
 {
-    private final BufferedConnector connector;
+    private final IndependentConnector connector;
 
     private final CascadeAllocator allocator;
-
-    private final int minimumThreads;
-
-    private final int maximumThreads;
 
     private final List<MessageConsumer> actions;
 
@@ -40,31 +35,23 @@ public final class ThreadedEngine
 
     private final Map<Connection, MessageConsumer> unmodConnections = Collections.unmodifiableMap(connections);
 
-    private final Set<Thread> permanentThreads = Sets.newConcurrentHashSet();
-
-    private final Set<Thread> threads = Sets.newConcurrentHashSet();
-
-    private final Set<Thread> unmodThreads = Collections.unmodifiableSet(threads);
+    private final Thread thread;
 
     private final AtomicBoolean started = new AtomicBoolean();
 
-    private final AtomicInteger running = new AtomicInteger();
+    private final AtomicBoolean running = new AtomicBoolean();
 
     private final AtomicBoolean stop = new AtomicBoolean();
 
-    public ThreadedEngine (final CascadeAllocator allocator,
-                           final int globalCapacity,
-                           final int[] localCapacity,
-                           final int minimumThreads,
-                           final int maximumThreads,
-                           final List<MessageConsumer> actions)
+    public DedicatedEngine (final ThreadFactory threadFactory,
+                            final CascadeAllocator allocator,
+                            final int[] localCapacity,
+                            final List<MessageConsumer> actions)
     {
         this.allocator = allocator;
-        this.minimumThreads = minimumThreads;
-        this.maximumThreads = maximumThreads;
         this.actions = new CopyOnWriteArrayList<>(actions);
-
-        this.connector = new BufferedConnector(allocator, globalCapacity, localCapacity);
+        this.connector = new IndependentConnector(allocator, localCapacity);
+        this.thread = threadFactory.newThread(() -> runTask());
 
         for (int i = 0; i < actions.size(); i++)
         {
@@ -73,19 +60,6 @@ public final class ThreadedEngine
             Preconditions.checkArgument(action.concurrentLimit() == 1);
             connections.put(connection, action);
         }
-
-        for (int i = 0; i < minimumThreads; i++)
-        {
-            final Thread thread = new Thread(() -> runTask());
-            thread.setDaemon(true);
-            permanentThreads.add(thread);
-            threads.add(thread);
-        }
-    }
-
-    public Set<Thread> threads ()
-    {
-        return unmodThreads;
     }
 
     @Override
@@ -97,7 +71,7 @@ public final class ThreadedEngine
     @Override
     public boolean isRunning ()
     {
-        return running.get() != 0;
+        return running.get();
     }
 
     @Override
@@ -105,7 +79,7 @@ public final class ThreadedEngine
     {
         if (started.getAndSet(true) == false)
         {
-            permanentThreads.forEach(x -> x.start());
+            thread.start();
         }
     }
 
@@ -117,25 +91,22 @@ public final class ThreadedEngine
 
     private void runTask ()
     {
-        running.incrementAndGet();
+        running.set(true);
 
-        int lastConnectionId = 0;
         MessageConsumer consumer = null;
 
-        try (OperandStack stack = allocator.newOperandStack())
+        try (CascadeAllocator.OperandStack stack = allocator.newOperandStack())
         {
             while (stop.get() == false)
             {
                 try
                 {
-                    final BufferedConnection connection = connector.roundRobinPoll(lastConnectionId, 1, TimeUnit.SECONDS);
+                    final IndependentConnection connection = connector.poll(1, TimeUnit.SECONDS);
 
                     if (connection == null)
                     {
                         continue;
                     }
-
-                    lastConnectionId = connection.id();
 
                     consumer = actions.get(connection.id());
 
@@ -162,7 +133,7 @@ public final class ThreadedEngine
         }
         finally
         {
-            running.decrementAndGet();
+            running.set(false);
         }
     }
 
@@ -170,8 +141,8 @@ public final class ThreadedEngine
             throws InterruptedException
     {
         final ConcreteAllocator alloc = new ConcreteAllocator();
-        final AllocationPool pool = alloc.addFixedPool("default", 0, 128, 100);
-        final OperandStack msg = alloc.newOperandStack();
+        final CascadeAllocator.AllocationPool pool = alloc.addFixedPool("default", 0, 128, 100);
+        final CascadeAllocator.OperandStack msg = alloc.newOperandStack();
 
         final int[] localCap = new int[1];
         localCap[0] = 128;
@@ -198,7 +169,8 @@ public final class ThreadedEngine
             }
         };
 
-        final ThreadedEngine pump = new ThreadedEngine(alloc, 8, localCap, 1, 1, ImmutableList.of(action));
+        final ThreadFactory threadFactory = new ThreadFactoryBuilder().build();
+        final DedicatedEngine pump = new DedicatedEngine(threadFactory, alloc, localCap, ImmutableList.of(action));
         pump.start();
 
         final OrderlyAtomicSender sender = new OrderlyAtomicSender(Lists.newArrayList(pump.connections.keySet()));
@@ -212,5 +184,4 @@ public final class ThreadedEngine
         }
 
     }
-
 }

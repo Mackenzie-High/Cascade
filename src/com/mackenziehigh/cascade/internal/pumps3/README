@@ -1,5 +1,6 @@
 
 TODO:
++ Make SendFailureException a top-level type???
 + Should we do away with Direct Pumps altogether due to the risk of deadlocks???
 + AtomicOrderlySender needs to always acquire the transaction lock!
 + Look into propagating InterruptedException in more places. Reset the interrupted flag???

@@ -25,13 +25,6 @@ public interface CascadeLogger
     }
 
     /**
-     * Getter.
-     *
-     * @return the system that this logger is part of.
-     */
-    public Cascade cascade ();
-
-    /**
      * Use this method to issue a log-message.
      *
      * @param level is the leg-level of the log-message.
