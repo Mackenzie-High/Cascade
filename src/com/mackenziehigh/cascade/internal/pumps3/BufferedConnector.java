@@ -40,6 +40,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class BufferedConnector
         implements Connector
 {
+    private final Connector SELF = this;
+
     // TODO: trimToSize
     private final List<Connection> connections = Collections.synchronizedList(new ArrayList<>());
 
@@ -183,6 +185,15 @@ public final class BufferedConnector
             this.id = id;
             this.buffer = new OperandStackStorage(allocator, queue.localCapacity());
             this.localQueue = queue;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Connector parent ()
+        {
+            return SELF;
         }
 
         /**

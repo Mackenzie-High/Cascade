@@ -2,6 +2,7 @@ package com.mackenziehigh.cascade.internal.pumps3;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.CascadeAllocator;
@@ -12,6 +13,7 @@ import com.mackenziehigh.cascade.internal.pumps3.IndependentConnector.Independen
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadFactory;
@@ -60,6 +62,12 @@ public final class DedicatedEngine
             Preconditions.checkArgument(action.concurrentLimit() == 1);
             connections.put(connection, action);
         }
+    }
+
+    @Override
+    public Set<Thread> threads ()
+    {
+        return ImmutableSet.of(thread);
     }
 
     @Override

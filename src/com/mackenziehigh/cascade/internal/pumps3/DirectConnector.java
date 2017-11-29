@@ -17,6 +17,8 @@ import java.util.function.Consumer;
 public final class DirectConnector
         implements Connector
 {
+    private final Connector SELF = this;
+
     private final List<Connection> connections = Collections.synchronizedList(new ArrayList<>());
 
     private final List<Connection> unmodConnections = Collections.unmodifiableList(connections);
@@ -103,6 +105,15 @@ public final class DirectConnector
          * {@inheritDoc}
          */
         @Override
+        public Connector parent ()
+        {
+            return SELF;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
         public int id ()
         {
             return id;
@@ -113,7 +124,7 @@ public final class DirectConnector
          */
         @Override
         public Object lock (final long timeout,
-                                final TimeUnit timeoutUnits)
+                            final TimeUnit timeoutUnits)
         {
             Preconditions.checkState(open.get(), "closed");
 

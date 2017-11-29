@@ -3,6 +3,7 @@ package com.mackenziehigh.cascade.internal.pumps3;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.internal.pumps3.Connector.Connection;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Instances of this class receive messages from connections
@@ -43,6 +44,13 @@ public interface Engine
         public int concurrentLimit ();
 
     }
+
+    /**
+     * Getter.
+     *
+     * @return the current threads of this engine.
+     */
+    public Set<Thread> threads ();
 
     /**
      * Getter.

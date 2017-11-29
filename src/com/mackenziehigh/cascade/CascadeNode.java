@@ -33,6 +33,16 @@ public interface CascadeNode
     }
 
     /**
+     * An instances of this interface can be used to instantiate
+     * instances of the business-logic event-handler,
+     * which provides the behavior of the node.
+     */
+    public interface CoreBuilder
+    {
+        public Core build ();
+    }
+
+    /**
      * Instances of this interface provide the business-logic of the node.
      *
      * <p>
@@ -40,7 +50,7 @@ public interface CascadeNode
      * if possible, in order to facilitate easy reflective instantiation.
      * </p>
      */
-    public interface EventHandler
+    public interface Core
     {
         /**
          * Getter.
@@ -579,5 +589,5 @@ public interface CascadeNode
      *
      * @return the event-handler that implements the business-logic.
      */
-    public EventHandler eventHandler ();
+    public Core core ();
 }

@@ -23,6 +23,8 @@ import java.util.concurrent.locks.ReentrantLock;
 public final class IndependentConnector
         implements Connector
 {
+    private final Connector SELF = this;
+
     // TODO: trimToSize
     private final List<Connection> connections = Collections.synchronizedList(new ArrayList<>());
 
@@ -157,6 +159,15 @@ public final class IndependentConnector
             this.buffer = new OperandStackStorage(allocator, capacity);
             this.localQueue = new LongSynchronizedQueue(capacity);
             this.permits = new Semaphore(capacity);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Connector parent ()
+        {
+            return SELF;
         }
 
         /**

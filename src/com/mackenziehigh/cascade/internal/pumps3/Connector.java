@@ -46,6 +46,13 @@ public interface Connector
         /**
          * Getter.
          *
+         * @return the enclosing object.
+         */
+        public Connector parent ();
+
+        /**
+         * Getter.
+         *
          * <p>
          * The value returned from this method is the index
          * of this connection within the connections() list

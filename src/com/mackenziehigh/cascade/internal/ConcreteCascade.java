@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
+import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
 import com.mackenziehigh.cascade.CascadeEdge;
 import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeNode;
@@ -76,9 +77,10 @@ public final class ConcreteCascade
     }
 
     @Override
-    public SortedMap<String, CascadeAllocator> allocators ()
+    public SortedMap<String, AllocationPool> pools ()
     {
-        return allocators;
+//        return allocators;
+        return null;
     }
 
     @Override
@@ -145,19 +147,19 @@ public final class ConcreteCascade
                 }
                 else if (phase.get() == ExecutionPhase.SETUP)
                 {
-                    ((CascadeNode) element).eventHandler().onSetup(null);
+                    ((CascadeNode) element).core().onSetup(null);
                 }
                 else if (phase.get() == ExecutionPhase.START)
                 {
-                    ((CascadeNode) element).eventHandler().onStart(null);
+                    ((CascadeNode) element).core().onStart(null);
                 }
                 else if (phase.get() == ExecutionPhase.STOP)
                 {
-                    ((CascadeNode) element).eventHandler().onStop(null);
+                    ((CascadeNode) element).core().onStop(null);
                 }
                 else if (phase.get() == ExecutionPhase.DESTROY)
                 {
-                    ((CascadeNode) element).eventHandler().onDestroy(null);
+                    ((CascadeNode) element).core().onDestroy(null);
                 }
                 else if (phase.get() == ExecutionPhase.CLOSE)
                 {

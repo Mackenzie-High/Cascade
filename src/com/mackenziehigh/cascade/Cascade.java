@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade;
 
+import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
 import java.util.Set;
 import java.util.SortedMap;
 
@@ -40,10 +41,10 @@ public interface Cascade
     /**
      * Getter.
      *
-     * @return an immutable map that maps the names of allocators
-     * to the allocators themselves.
+     * @return an immutable map that maps the names of allocation-pools
+     * to the allocation-pools themselves.
      */
-    public SortedMap<String, CascadeAllocator> allocators ();
+    public SortedMap<String, AllocationPool> pools ();
 
     /**
      * Getter.
