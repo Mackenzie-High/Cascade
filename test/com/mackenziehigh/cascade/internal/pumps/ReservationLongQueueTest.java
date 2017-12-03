@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.internal.pumps2;
+package com.mackenziehigh.cascade.internal.pumps;
 
 import static org.junit.Assert.*;
 import org.junit.Test;

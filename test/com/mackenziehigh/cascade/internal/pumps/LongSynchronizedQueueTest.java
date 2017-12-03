@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.internal.pumps2;
+package com.mackenziehigh.cascade.internal.pumps;
 
 import com.mackenziehigh.cascade.internal.pumps.LongSynchronizedQueue;
 import java.lang.reflect.Method;
