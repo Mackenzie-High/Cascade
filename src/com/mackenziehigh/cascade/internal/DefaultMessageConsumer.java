@@ -3,7 +3,7 @@ package com.mackenziehigh.cascade.internal;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.CascadeNode.Context;
 import com.mackenziehigh.cascade.CascadeNode.Core;
-import com.mackenziehigh.cascade.internal.pumps3.Engine;
+import com.mackenziehigh.cascade.internal.pumps.Engine;
 
 /**
  *
@@ -13,16 +13,12 @@ public final class DefaultMessageConsumer
 {
     private final Core kernel;
 
-    private final OperandStack stack;
-
     private final DerivedContext context;
 
     public DefaultMessageConsumer (final Context protoContext,
-                                   final Core kernel,
-                                   final OperandStack stack)
+                                   final Core kernel)
     {
         this.kernel = kernel;
-        this.stack = stack;
         this.context = new DerivedContext(protoContext);
     }
 
@@ -30,7 +26,7 @@ public final class DefaultMessageConsumer
     public void accept (final OperandStack message)
             throws Throwable
     {
-        context.message.set(stack);
+        context.message.set(message);
         context.exception.set(null);
 
         try

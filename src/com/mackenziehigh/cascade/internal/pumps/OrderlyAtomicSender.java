@@ -1,8 +1,8 @@
-package com.mackenziehigh.cascade.internal.pumps3;
+package com.mackenziehigh.cascade.internal.pumps;
 
 import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.internal.pumps3.Connector.Connection;
+import com.mackenziehigh.cascade.internal.pumps.Connector.Connection;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;

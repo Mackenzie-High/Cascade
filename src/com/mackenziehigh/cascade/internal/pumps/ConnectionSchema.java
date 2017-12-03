@@ -1,6 +1,6 @@
-package com.mackenziehigh.cascade.internal.pumps3;
+package com.mackenziehigh.cascade.internal.pumps;
 
-import com.mackenziehigh.cascade.internal.pumps3.Engine.MessageConsumer;
+import com.mackenziehigh.cascade.internal.pumps.Engine.MessageConsumer;
 
 /**
  *

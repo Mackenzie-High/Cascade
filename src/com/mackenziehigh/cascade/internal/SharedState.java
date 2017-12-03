@@ -12,8 +12,8 @@ import com.mackenziehigh.cascade.CascadeEdge;
 import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeNode;
 import com.mackenziehigh.cascade.CascadePump;
-import com.mackenziehigh.cascade.internal.pumps3.Connector.Connection;
-import com.mackenziehigh.cascade.internal.pumps3.Engine;
+import com.mackenziehigh.cascade.internal.pumps.Connector.Connection;
+import com.mackenziehigh.cascade.internal.pumps.Engine;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 

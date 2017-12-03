@@ -1,7 +1,7 @@
-package com.mackenziehigh.cascade.internal.pumps3;
+package com.mackenziehigh.cascade.internal.pumps;
 
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.internal.pumps3.Connector.Connection;
+import com.mackenziehigh.cascade.internal.pumps.Connector.Connection;
 import java.util.Map;
 import java.util.Set;
 

@@ -9,7 +9,6 @@ import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.NetworkBuilder;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
-import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.CascadeNode.Context;
 import com.mackenziehigh.cascade.CascadeNode.Core;
 import com.mackenziehigh.cascade.CascadeNode.CoreBuilder;
@@ -20,9 +19,9 @@ import com.mackenziehigh.cascade.internal.Controller;
 import com.mackenziehigh.cascade.internal.DefaultMessageConsumer;
 import com.mackenziehigh.cascade.internal.SharedState;
 import com.mackenziehigh.cascade.internal.messages.ConcreteAllocator;
-import com.mackenziehigh.cascade.internal.pumps3.ConnectionSchema;
-import com.mackenziehigh.cascade.internal.pumps3.DedicatedEngine;
-import com.mackenziehigh.cascade.internal.pumps3.Engine.MessageConsumer;
+import com.mackenziehigh.cascade.internal.pumps.ConnectionSchema;
+import com.mackenziehigh.cascade.internal.pumps.DedicatedEngine;
+import com.mackenziehigh.cascade.internal.pumps.Engine.MessageConsumer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -951,7 +950,7 @@ public final class CascadeSchema
 
         final CascadePump pump = new ConcretePump(schema.getName(), sharedState, minThreads, maxThreads);
 
-        final List<ConnectionSchema> inputs = Lists.newArrayList();
+        final List<ConnectionSchema> connections = Lists.newArrayList();
 
         // TODO: Speed up via a map!
         for (NodeSchema node : nodes.values().stream().filter(x -> x.getPump().equals(schema.getName())).collect(Collectors.toSet()))
@@ -964,17 +963,16 @@ public final class CascadeSchema
 
                 final Context context = sharedState.namesToNodes.get(node.getName()).protoContext();
                 final Core kernel = node.getBuilder().build(); // Should this have already been called????
-                final OperandStack stack = allocator.newOperandStack();
 
                 final int capacity = input.getQueueCapacity().orElse(16); // TODO: What should the default be????
-                final MessageConsumer action = new DefaultMessageConsumer(context, kernel, stack);
+                final MessageConsumer action = new DefaultMessageConsumer(context, kernel);
 
                 final ConnectionSchema connection = new ConnectionSchema(edge, capacity, action);
-                inputs.add(connection);
+                connections.add(connection);
             }
         }
 
-        final DedicatedEngine engine = new DedicatedEngine(schema.getThreadFactory(), allocator, inputs);
+        final DedicatedEngine engine = new DedicatedEngine(schema.getThreadFactory(), allocator, connections);
 
         sharedState.engines.put(schema.getName(), engine);
         sharedState.namesToPumps.put(schema.getName(), pump);

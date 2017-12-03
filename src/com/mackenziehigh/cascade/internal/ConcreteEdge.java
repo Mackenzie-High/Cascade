@@ -7,8 +7,8 @@ import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.CascadeEdge;
 import com.mackenziehigh.cascade.CascadeNode;
 import com.mackenziehigh.cascade.CascadeNode.SendFailureException;
-import com.mackenziehigh.cascade.internal.pumps3.Connector.Connection;
-import com.mackenziehigh.cascade.internal.pumps3.OrderlyAtomicSender;
+import com.mackenziehigh.cascade.internal.pumps.Connector.Connection;
+import com.mackenziehigh.cascade.internal.pumps.OrderlyAtomicSender;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 

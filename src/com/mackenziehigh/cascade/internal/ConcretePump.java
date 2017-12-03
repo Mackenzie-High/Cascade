@@ -5,7 +5,7 @@ import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeNode;
 import com.mackenziehigh.cascade.CascadePump;
-import com.mackenziehigh.cascade.internal.pumps3.Engine;
+import com.mackenziehigh.cascade.internal.pumps.Engine;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;

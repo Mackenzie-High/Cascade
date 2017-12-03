@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.internal.pumps3;
+package com.mackenziehigh.cascade.internal.pumps;
 
 import java.util.List;
 import java.util.concurrent.Semaphore;
