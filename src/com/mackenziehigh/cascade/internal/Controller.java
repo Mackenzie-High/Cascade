@@ -22,7 +22,7 @@ public final class Controller
         implements Cascade
 {
 
-    private final Kernel kernel;
+    private final SharedState sharedState;
 
     private final AtomicReference<ExecutionPhase> phase = new AtomicReference<>(ExecutionPhase.INITIAL);
 
@@ -36,11 +36,11 @@ public final class Controller
 
     private final LazyRef<ImmutableSet<CascadeEdge>> edges;
 
-    public Controller (final Kernel kernel)
+    public Controller (final SharedState sharedState)
     {
-        this.kernel = Objects.requireNonNull(kernel);
-        this.defaultLogger = LazyRef.create(() -> kernel.defaultLogger);
-        this.pools = LazyRef.create(() -> ImmutableSortedMap.copyOf(kernel.allocator.pools())); // TODO: Remove? Only allocator instead???
+        this.sharedState = Objects.requireNonNull(sharedState);
+        this.defaultLogger = LazyRef.create(() -> sharedState.defaultLogger);
+        this.pools = LazyRef.create(() -> ImmutableSortedMap.copyOf(sharedState.allocator.pools())); // TODO: Remove? Only allocator instead???
         this.pumps = LazyRef.create(() -> ImmutableSortedMap.copyOf(resolvePumps()));
         this.nodes = LazyRef.create(() -> ImmutableSortedMap.copyOf(resolveNodes()));
         this.edges = LazyRef.create(() -> ImmutableSet.copyOf(resolveEdges()));
@@ -106,7 +106,8 @@ public final class Controller
     @Override
     public Cascade start ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        sharedState.engines.values().forEach(x -> x.start());
+        return this;
     }
 
     /**
@@ -115,7 +116,7 @@ public final class Controller
     @Override
     public Cascade stop ()
     {
-        kernel.stop.set(true);
+        sharedState.stop.set(true);
         return this;
     }
 
@@ -123,9 +124,10 @@ public final class Controller
     {
         final SortedMap<String, CascadePump> map = Maps.newTreeMap(String.CASE_INSENSITIVE_ORDER);
 
-        for (CascadePump x : kernel.actorsToPumps.values())
+        for (String name : sharedState.nodesToPumps.values())
         {
-            map.put(x.name(), x);
+            final CascadePump pump = sharedState.namesToPumps.get(name);
+            map.put(name, pump);
         }
 
         return ImmutableSortedMap.copyOf(map);
@@ -135,7 +137,7 @@ public final class Controller
     {
         final SortedMap<String, CascadeNode> map = Maps.newTreeMap(String.CASE_INSENSITIVE_ORDER);
 
-        for (CascadeNode x : kernel.namesToNodes.values())
+        for (CascadeNode x : sharedState.namesToNodes.values())
         {
             map.put(x.name(), x);
         }
@@ -147,12 +149,12 @@ public final class Controller
     {
         final Set<CascadeEdge> set = Sets.newHashSet();
 
-        for (CascadeEdge x : kernel.actorsToInputs.values())
+        for (CascadeEdge x : sharedState.nodesToInputs.values())
         {
             set.add(x);
         }
 
-        for (CascadeEdge x : kernel.actorsToOutputs.values())
+        for (CascadeEdge x : sharedState.nodesToOutputs.values())
         {
             set.add(x);
         }

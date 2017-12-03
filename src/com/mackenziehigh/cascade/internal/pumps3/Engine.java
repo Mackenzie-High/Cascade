@@ -55,10 +55,9 @@ public interface Engine
     /**
      * Getter.
      *
-     * @return a map that maps connections to the consumers
-     * that will handle messages coming from those connections.
+     * @return a map that maps configurations to related connections.
      */
-    public Map<Connection, MessageConsumer> connections ();
+    public Map<ConnectionSchema, Connection> connections ();
 
     /**
      * Getter.

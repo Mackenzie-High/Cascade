@@ -12,6 +12,8 @@ public final class LazyRef<E>
 
     private final Supplier<E> supplier;
 
+    private final Object lockObject = new Object();
+
     private LazyRef (final Supplier<E> supplier)
     {
         this.supplier = Objects.requireNonNull(supplier, "supplier");

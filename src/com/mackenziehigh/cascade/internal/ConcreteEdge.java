@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 public final class ConcreteEdge
         implements CascadeEdge
 {
-    private final Kernel kernel;
+    private final SharedState sharedState;
 
     private final LazyRef<CascadeNode> supplier;
 
@@ -28,14 +28,14 @@ public final class ConcreteEdge
 
     private final LazyRef<OrderlyAtomicSender> transmitter;
 
-    public ConcreteEdge (final Kernel kernel,
+    public ConcreteEdge (final SharedState sharedState,
                          final String supplierName,
                          final String consumerName)
     {
-        this.kernel = Objects.requireNonNull(kernel);
-        this.supplier = LazyRef.create(() -> kernel.namesToNodes.get(supplierName));
-        this.consumer = LazyRef.create(() -> kernel.namesToNodes.get(consumerName));
-        this.connection = LazyRef.create(() -> kernel.nodesToConnections.get(this));
+        this.sharedState = Objects.requireNonNull(sharedState);
+        this.supplier = LazyRef.create(() -> sharedState.namesToNodes.get(supplierName));
+        this.consumer = LazyRef.create(() -> sharedState.namesToNodes.get(consumerName));
+        this.connection = LazyRef.create(() -> sharedState.connections.get(this));
         this.transmitter = LazyRef.create(() -> new OrderlyAtomicSender(ImmutableList.of(connection.get())));
     }
 
@@ -45,7 +45,7 @@ public final class ConcreteEdge
     @Override
     public Cascade cascade ()
     {
-        return Objects.requireNonNull(kernel.cascade);
+        return Objects.requireNonNull(sharedState.cascade);
     }
 
     /**
@@ -136,7 +136,7 @@ public final class ConcreteEdge
     public void send (final OperandStack message)
             throws SendFailureException
     {
-        while (kernel.stop.get() == false)
+        while (sharedState.stop.get() == false)
         {
             if (sync(message, 1, TimeUnit.SECONDS))
             {

@@ -14,10 +14,10 @@ public final class ConcreteNode
     private final Core core;
 
     public ConcreteNode (final String name,
-                         final Kernel kernel,
+                         final SharedState sharedState,
                          final Core core)
     {
-        this.context = new ProtoContext(name, this, kernel);
+        this.context = new ProtoContext(name, sharedState);
         this.core = Objects.requireNonNull(core, "core");
     }
 

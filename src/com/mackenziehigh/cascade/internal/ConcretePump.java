@@ -1,6 +1,7 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeNode;
 import com.mackenziehigh.cascade.CascadePump;
@@ -15,11 +16,9 @@ import java.util.Set;
 public final class ConcretePump
         implements CascadePump
 {
-    private final Kernel kernel;
+    private final SharedState sharedState;
 
     private final String name;
-
-    private final Engine engine;
 
     private final int minimumThreads;
 
@@ -27,18 +26,19 @@ public final class ConcretePump
 
     private final LazyRef<ImmutableSet<CascadeNode>> nodes;
 
+    private final LazyRef<Engine> engine;
+
     public ConcretePump (final String name,
-                         final Kernel kernel,
-                         final Engine engine,
+                         final SharedState sharedState,
                          final int minThreads,
                          final int maxThreads)
     {
         this.name = Objects.requireNonNull(name);
-        this.kernel = Objects.requireNonNull(kernel);
-        this.engine = Objects.requireNonNull(engine);
+        this.sharedState = Objects.requireNonNull(sharedState);
         this.minimumThreads = minThreads;
         this.maximumThreads = maxThreads;
-        this.nodes = LazyRef.create(() -> ImmutableSet.copyOf(kernel.pumpsToNodes.get(this)));
+        this.nodes = LazyRef.create(() -> resolveNodes());
+        this.engine = LazyRef.create(() -> sharedState.engines.get(name));
     }
 
     /**
@@ -47,7 +47,7 @@ public final class ConcretePump
     @Override
     public Cascade cascade ()
     {
-        return Objects.requireNonNull(kernel.cascade);
+        return Objects.requireNonNull(sharedState.cascade);
     }
 
     /**
@@ -83,7 +83,7 @@ public final class ConcretePump
     @Override
     public Set<Thread> threads ()
     {
-        return Collections.unmodifiableSet(engine.threads());
+        return Collections.unmodifiableSet(engine.get().threads());
     }
 
     /**
@@ -93,5 +93,18 @@ public final class ConcretePump
     public Set<CascadeNode> nodes ()
     {
         return nodes.get();
+    }
+
+    private ImmutableSet<CascadeNode> resolveNodes ()
+    {
+        final Set<CascadeNode> set = Sets.newHashSet();
+
+        for (String nodeName : sharedState.pumpsToNodes.get(name))
+        {
+            final CascadeNode node = sharedState.namesToNodes.get(nodeName);
+            set.add(node);
+        }
+
+        return ImmutableSet.copyOf(set);
     }
 }

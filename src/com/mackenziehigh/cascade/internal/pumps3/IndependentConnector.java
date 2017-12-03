@@ -41,7 +41,7 @@ public final class IndependentConnector
     private final BlockingQueue<IndependentConnection> globalQueue;
 
     public IndependentConnector (final CascadeAllocator allocator,
-                                 final int[] localCapacity)
+                                 final List<Integer> localCapacity)
     {
         Preconditions.checkNotNull(allocator, "allocator");
 
@@ -51,11 +51,11 @@ public final class IndependentConnector
          * Create the connections.
          */
         int globalCap = 0;
-        for (int i = 0; i < localCapacity.length; i++)
+        for (int i = 0; i < localCapacity.size(); i++)
         {
-            globalCap += localCapacity[i];
-            Preconditions.checkArgument(localCapacity[i] >= 0);
-            final IndependentConnection connection = new IndependentConnection(i, localCapacity[i]);
+            globalCap += localCapacity.get(i);
+            Preconditions.checkArgument(localCapacity.get(i) >= 0);
+            final IndependentConnection connection = new IndependentConnection(i, localCapacity.get(i));
             connections.add(connection);
         }
 

@@ -1,22 +1,37 @@
 package com.mackenziehigh.cascade;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.NetworkBuilder;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
+import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
+import com.mackenziehigh.cascade.CascadeNode.Context;
+import com.mackenziehigh.cascade.CascadeNode.Core;
 import com.mackenziehigh.cascade.CascadeNode.CoreBuilder;
 import com.mackenziehigh.cascade.internal.ConcreteEdge;
 import com.mackenziehigh.cascade.internal.ConcreteNode;
-import com.mackenziehigh.cascade.internal.Kernel;
+import com.mackenziehigh.cascade.internal.ConcretePump;
+import com.mackenziehigh.cascade.internal.Controller;
+import com.mackenziehigh.cascade.internal.DefaultMessageConsumer;
+import com.mackenziehigh.cascade.internal.SharedState;
 import com.mackenziehigh.cascade.internal.messages.ConcreteAllocator;
+import com.mackenziehigh.cascade.internal.pumps3.ConnectionSchema;
+import com.mackenziehigh.cascade.internal.pumps3.DedicatedEngine;
+import com.mackenziehigh.cascade.internal.pumps3.Engine.MessageConsumer;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.Stack;
 import java.util.TreeSet;
 import java.util.concurrent.ThreadFactory;
+import java.util.stream.Collectors;
 
 /**
  * Use an instance of this class to create a Cascade object.
@@ -41,7 +56,7 @@ public final class CascadeSchema
 
     private final Map<String, NodeSchema> nodes = Maps.newHashMap();
 
-    private final MutableNetwork<String, EdgeSchema> network = NetworkBuilder.directed().allowsSelfLoops(true).build();
+    private final MutableNetwork<String, EdgeSchema> network = NetworkBuilder.directed().allowsParallelEdges(false).allowsSelfLoops(true).build();
 
     private final Stack<String> namespaces = new Stack<>();
 
@@ -53,7 +68,7 @@ public final class CascadeSchema
 
     private final ConcreteAllocator allocator = new ConcreteAllocator();
 
-    private final Kernel kernel = new Kernel();
+    private final SharedState sharedState = new SharedState();
 
     /**
      * Builder.
@@ -198,7 +213,7 @@ public final class CascadeSchema
     {
         private final String name;
 
-        private ThreadFactory threadFactory;
+        private ThreadFactory threadFactory = new ThreadFactoryBuilder().setDaemon(false).build();
 
         private OptionalInt backlogCapacity;
 
@@ -344,6 +359,8 @@ public final class CascadeSchema
 
         private String pool;
 
+        private String pump;
+
         private NodeSchema (final String name,
                             final CoreBuilder builder)
         {
@@ -365,17 +382,19 @@ public final class CascadeSchema
 
         public NodeSchema<T> setPump (final String name)
         {
+            pump = name;
             return this;
         }
 
         public NodeSchema<T> setPump (final PumpSchema value)
         {
+            pump = value.getName();
             return this;
         }
 
-        public PumpSchema getPump ()
+        public String getPump ()
         {
-            return null;
+            return pump;
         }
 
         public CascadeLogger getLogger ()
@@ -786,7 +805,12 @@ public final class CascadeSchema
     public Cascade build ()
     {
         /**
-         * Static Validation.
+         * Initialize.
+         */
+        sharedState.allocator = allocator;
+
+        /**
+         * Pass #1.
          */
         dynamicPools.values().forEach(x -> validate(x));
         fixedPools.values().forEach(x -> validate(x));
@@ -799,7 +823,13 @@ public final class CascadeSchema
         network.edges().forEach(x -> validate(x));
 
         /**
-         * Compilation.
+         * Pass #2.
+         */
+        nodes.values().forEach(x -> declare(x));
+        network.edges().forEach(x -> declare(x));
+
+        /**
+         * Pass #3.
          */
         dynamicPools.values().forEach(x -> compile(x));
         fixedPools.values().forEach(x -> compile(x));
@@ -811,7 +841,11 @@ public final class CascadeSchema
         nodes.values().forEach(x -> compile(x));
         network.edges().forEach(x -> compile(x));
 
-        return null;
+        verifySharedState();
+
+        final Cascade result = new Controller(sharedState);
+
+        return result;
     }
 
     private void report (final String message,
@@ -865,6 +899,29 @@ public final class CascadeSchema
 
     }
 
+    private void declare (final NodeSchema schema)
+    {
+        final ConcreteNode node = new ConcreteNode(schema.getName(), sharedState, schema.getBuilder().build()); // TODO: Should build have already been called???
+        sharedState.namesToNodes.put(schema.getName(), node);
+//        sharedState.nodesToLoggers.put(schema.getName(), schema.getLogger());
+        sharedState.nodesToPools.put(schema.getName(), schema.getPool());
+        sharedState.nodesToPumps.put(schema.getName(), schema.getPump());
+        sharedState.pumpsToNodes.put(schema.getPump(), schema.getName());
+        sharedState.network.addNode(node);
+    }
+
+    private void declare (final EdgeSchema schema)
+    {
+        final CascadeNode supplier = sharedState.namesToNodes.get(schema.getSupplier());
+        final CascadeNode consumer = sharedState.namesToNodes.get(schema.getConsumer());
+
+        final ConcreteEdge edge = new ConcreteEdge(sharedState, schema.getSupplier(), schema.getConsumer());
+        sharedState.nodesToInputs.put(schema.getConsumer(), edge);
+        sharedState.nodesToOutputs.put(schema.getSupplier(), edge);
+
+        sharedState.network.addEdge(supplier, consumer, edge);
+    }
+
     private void compile (final DynamicPoolSchema schema)
     {
         final int min = schema.getMinAllocationSize().getAsInt();
@@ -889,7 +946,43 @@ public final class CascadeSchema
 
     private void compile (final DedicatedPumpSchema schema)
     {
-        // final DedicatedEngine engine = new DedicatedEngine(schema.getThreadFactory(), allocator, localCapacity, actions)
+        final int minThreads = 1;
+        final int maxThreads = 1;
+
+        final CascadePump pump = new ConcretePump(schema.getName(), sharedState, minThreads, maxThreads);
+
+        final List<ConnectionSchema> inputs = Lists.newArrayList();
+
+        // TODO: Speed up via a map!
+        for (NodeSchema node : nodes.values().stream().filter(x -> x.getPump().equals(schema.getName())).collect(Collectors.toSet()))
+        {
+            for (EdgeSchema input : network.inEdges(node.getName()))
+            {
+                final CascadeNode supplier = sharedState.namesToNodes.get(input.getSupplier());
+                final CascadeNode consumer = sharedState.namesToNodes.get(input.getConsumer());
+                final CascadeEdge edge = ImmutableList.copyOf(sharedState.network.edgesConnecting(supplier, consumer)).get(0);
+
+                final Context context = sharedState.namesToNodes.get(node.getName()).protoContext();
+                final Core kernel = node.getBuilder().build(); // Should this have already been called????
+                final OperandStack stack = allocator.newOperandStack();
+
+                final int capacity = input.getQueueCapacity().orElse(16); // TODO: What should the default be????
+                final MessageConsumer action = new DefaultMessageConsumer(context, kernel, stack);
+
+                final ConnectionSchema connection = new ConnectionSchema(edge, capacity, action);
+                inputs.add(connection);
+            }
+        }
+
+        final DedicatedEngine engine = new DedicatedEngine(schema.getThreadFactory(), allocator, inputs);
+
+        sharedState.engines.put(schema.getName(), engine);
+        sharedState.namesToPumps.put(schema.getName(), pump);
+
+        /**
+         * Map the edges to the connections.
+         */
+        engine.connections().entrySet().forEach(entry -> sharedState.connections.put((CascadeEdge) entry.getKey().correlationId, entry.getValue()));
     }
 
     private void compile (final DirectPumpSchema schema)
@@ -909,32 +1002,111 @@ public final class CascadeSchema
 
     private void compile (final NodeSchema schema)
     {
-        final ConcreteNode node = new ConcreteNode(schema.getName(), kernel, schema.getBuilder().build()); // TODO: Should build have already been called???
-        kernel.namesToNodes.put(schema.getName(), node);
+
     }
 
     private void compile (final EdgeSchema schema)
     {
-        final ConcreteEdge edge = new ConcreteEdge(kernel, schema.getSupplier(), schema.getConsumer());
-        final CascadeNode supplier = kernel.namesToNodes.get(schema.getSupplier());
-        final CascadeNode consumer = kernel.namesToNodes.get(schema.getConsumer());
-        kernel.actorsToInputs.put(consumer, edge);
-        kernel.actorsToOutputs.put(supplier, edge);
+
+    }
+
+    private void verifySharedState ()
+    {
+        /**
+         * Verify the nodes.
+         */
+        for (String name : nodes.keySet())
+        {
+            Verify.verify(sharedState.namesToNodes.containsKey(name));
+            final CascadeNode node = sharedState.namesToNodes.get(name);
+            final NodeSchema schema = nodes.get(name);
+            Verify.verify(node.name().equals(name));
+            Verify.verify(node.name().equals(schema.getName()));
+            Verify.verify(node.protoContext().name().equals(name));
+            Verify.verify(node.protoContext().allocator().equals(allocator));
+            Verify.verify(node.protoContext().message() == null);
+            Verify.verify(node.protoContext().exception() == null);
+//            Verify.verify(node.protoContext().logger().equals(schema.getLogger()));
+//            Objects.requireNonNull(schema.getLogger());
+            Verify.verify(node.protoContext().pool().name().equals(schema.getPool()));
+            Verify.verify(node.protoContext().pump().name().equals(schema.getPump()));
+            Verify.verify(node.protoContext().pump().nodes().contains(node));
+            Verify.verify(node.protoContext().inputs().size() == network.inDegree(name));
+            Verify.verify(node.protoContext().outputs().size() == network.outDegree(name));
+            Verify.verify(node.protoContext().node() == (Object) node); // Identity Equals
+            node.protoContext().inputs().forEach(edge -> Verify.verify(node.equals(edge.consumer())));
+            node.protoContext().outputs().forEach(edge -> Verify.verify(node.equals(edge.supplier())));
+        }
     }
 
     public static void main (String[] args)
     {
+        final CoreBuilder a = () -> new CascadeNode.Core()
+        {
+            @Override
+            public void onMessage (final Context context)
+                    throws Throwable
+            {
+                System.out.println("A = " + System.currentTimeMillis());
+                context.async(null);
+                Thread.sleep(1000);
+            }
+        };
+
+        final CoreBuilder b = () -> new CascadeNode.Core()
+        {
+            @Override
+            public void onMessage (final Context context)
+                    throws Throwable
+            {
+                System.out.println("B");
+                context.async(null);
+            }
+        };
+
+        final CoreBuilder c = () -> new CascadeNode.Core()
+        {
+            @Override
+            public void onMessage (final Context context)
+                    throws Throwable
+            {
+                System.out.println("C");
+                context.async(null);
+            }
+        };
+
+        final CoreBuilder d = () -> new CascadeNode.Core()
+        {
+            @Override
+            public void onMessage (final Context context)
+                    throws Throwable
+            {
+                System.out.println("D");
+                context.async(null);
+            }
+        };
+
         final CascadeSchema cs = new CascadeSchema();
         cs.enter("mackenziehigh");
-        cs.usingPump("DiesalLoco");
+        cs.usingPump("P1");
         cs.usingPool("default");
-        cs.usingLogger(null);
-        cs.addDedicatedPump("SteamLoco");
-        cs.addDynamicPool("default").setMaxAllocationSize(0);
-        cs.addNode("recorder", null).setPump("SteamLoco").end();
+        cs.addDedicatedPump("P1");
+        cs.addDynamicPool("default").setMaxAllocationSize(128);
+        cs.addNode("a", a).setPump("P1").end();
+        cs.addNode("b", b).setPump("P1").end();
+        cs.addNode("c", c).setPump("P1").end();
+        cs.addNode("d", d).setPump("P1").end();
         cs.exit();
 
-        cs.connect("liver", "adder");
-//        cs.build().start();
+        cs.connect("a", "b");
+        cs.connect("b", "c");
+        cs.connect("c", "d");
+        cs.connect("d", "a");
+
+        final Cascade cas = cs.build();
+        cas.start();
+
+        cas.nodes().get("a").protoContext().outputs().get(0).async(null);
+
     }
 }

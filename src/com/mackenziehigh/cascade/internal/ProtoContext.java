@@ -11,11 +11,13 @@ import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeNode;
 import com.mackenziehigh.cascade.CascadeNode.SendFailureException;
 import com.mackenziehigh.cascade.CascadePump;
+import com.mackenziehigh.cascade.internal.pumps3.Connector.Connection;
 import com.mackenziehigh.cascade.internal.pumps3.OrderlyAtomicSender;
 import java.util.List;
 import java.util.Objects;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -25,9 +27,9 @@ public final class ProtoContext
 {
     private final String name;
 
-    private final CascadeNode node;
+    private final LazyRef<CascadeNode> node;
 
-    private final Kernel kernel;
+    private final SharedState sharedState;
 
     private final LazyRef<OrderlyAtomicSender> transmitter;
 
@@ -44,17 +46,16 @@ public final class ProtoContext
     private final LazyRef<List<CascadeEdge>> outputs;
 
     public ProtoContext (final String name,
-                         final CascadeNode node,
-                         final Kernel kernel)
+                         final SharedState sharedState)
     {
         this.name = Objects.requireNonNull(name);
-        this.node = Objects.requireNonNull(node);
-        this.kernel = Objects.requireNonNull(kernel);
-        this.transmitter = LazyRef.create(() -> new OrderlyAtomicSender(kernel.actorsToOutputConnections.get(node)));
-        this.logger = LazyRef.create(() -> kernel.actorsToLoggers.get(node));
-        this.allocator = LazyRef.create(() -> kernel.allocator);
-        this.pool = LazyRef.create(() -> kernel.actorsToPools.get(node));
-        this.pump = LazyRef.create(() -> kernel.actorsToPumps.get(node));
+        this.node = LazyRef.create(() -> sharedState.namesToNodes.get(name));
+        this.sharedState = Objects.requireNonNull(sharedState);
+        this.transmitter = LazyRef.create(() -> createTransmitter());
+        this.logger = LazyRef.create(() -> sharedState.nodesToLoggers.get(name));
+        this.allocator = LazyRef.create(() -> sharedState.allocator);
+        this.pool = LazyRef.create(() -> sharedState.allocator.pools().get(sharedState.nodesToPools.get(name)));
+        this.pump = LazyRef.create(() -> sharedState.namesToPumps.get(sharedState.nodesToPumps.get(name)));
         this.inputs = LazyRef.create(() -> resolveInputs());
         this.outputs = LazyRef.create(() -> resolveOutputs());
     }
@@ -65,7 +66,7 @@ public final class ProtoContext
     @Override
     public Cascade cascade ()
     {
-        return Objects.requireNonNull(kernel.cascade);
+        return Objects.requireNonNull(sharedState.cascade);
     }
 
     /**
@@ -90,7 +91,7 @@ public final class ProtoContext
      * {@inheritDoc}
      */
     @Override
-    public CascadeAllocator.AllocationPool pool ()
+    public AllocationPool pool ()
     {
         return pool.get();
     }
@@ -110,7 +111,7 @@ public final class ProtoContext
     @Override
     public CascadeNode node ()
     {
-        return node;
+        return node.get();
     }
 
     /**
@@ -192,7 +193,7 @@ public final class ProtoContext
     public void send (final OperandStack message)
             throws SendFailureException
     {
-        while (kernel.stop.get() == false)
+        while (sharedState.stop.get() == false)
         {
             if (sync(message, 1, TimeUnit.SECONDS))
             {
@@ -216,7 +217,7 @@ public final class ProtoContext
     {
         final SortedMap<String, CascadeEdge> map = Maps.newTreeMap(String.CASE_INSENSITIVE_ORDER);
 
-        for (CascadeEdge x : kernel.actorsToInputs.get(node()))
+        for (CascadeEdge x : sharedState.nodesToInputs.get(name()))
         {
             map.put(x.supplier().name(), x);
         }
@@ -230,7 +231,7 @@ public final class ProtoContext
     {
         final SortedMap<String, CascadeEdge> map = Maps.newTreeMap(String.CASE_INSENSITIVE_ORDER);
 
-        for (CascadeEdge x : kernel.actorsToOutputs.get(node()))
+        for (CascadeEdge x : sharedState.nodesToOutputs.get(name()))
         {
             map.put(x.supplier().name(), x);
         }
@@ -238,6 +239,17 @@ public final class ProtoContext
         final List<CascadeEdge> edges = ImmutableList.copyOf(map.values());
 
         return edges;
+    }
+
+    private OrderlyAtomicSender createTransmitter ()
+    {
+        final List<Connection> connections = outputs
+                .get()
+                .stream()
+                .map(edge -> sharedState.connections.get(edge))
+                .collect(Collectors.toList());
+
+        return new OrderlyAtomicSender(connections);
     }
 
 }
