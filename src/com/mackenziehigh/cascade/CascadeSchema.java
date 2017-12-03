@@ -9,6 +9,7 @@ import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.NetworkBuilder;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
+import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.CascadeNode.Context;
 import com.mackenziehigh.cascade.CascadeNode.Core;
 import com.mackenziehigh.cascade.CascadeNode.CoreBuilder;
@@ -156,6 +157,7 @@ public final class CascadeSchema
         private FixedPoolSchema (final String name)
         {
             super(name);
+            setMinAllocationSize(0);
         }
 
         public OptionalInt getBufferCount ()
@@ -1042,12 +1044,28 @@ public final class CascadeSchema
         final CoreBuilder a = () -> new CascadeNode.Core()
         {
             @Override
+            public void onSetup (Context context)
+                    throws Throwable
+            {
+                System.out.println("A = SETUP");
+            }
+
+            @Override
+            public void onStart (Context context)
+                    throws Throwable
+            {
+                System.out.println("A = START");
+            }
+
+            @Override
             public void onMessage (final Context context)
                     throws Throwable
             {
-                System.out.println("A = " + System.currentTimeMillis());
-                context.async(null);
-                Thread.sleep(1000);
+                final int value = context.message().asInt();
+                context.message().pop().push(value + 1);
+//                System.out.println("A = " + value);
+                context.async(context.message());
+//                Thread.sleep(1000);
             }
         };
 
@@ -1057,8 +1075,13 @@ public final class CascadeSchema
             public void onMessage (final Context context)
                     throws Throwable
             {
-                System.out.println("B");
-                context.async(null);
+                final int value = context.message().asInt();
+                context.message().pop().push(value + 1);
+                if (value % 1_000_000 == 0)
+                {
+                    System.out.println("B = " + value);
+                }
+                context.async(context.message());
             }
         };
 
@@ -1068,8 +1091,10 @@ public final class CascadeSchema
             public void onMessage (final Context context)
                     throws Throwable
             {
-                System.out.println("C");
-                context.async(null);
+                final int value = context.message().asInt();
+                context.message().pop().push(value + 1);
+//                System.out.println("C = " + value);
+                context.async(context.message());
             }
         };
 
@@ -1079,8 +1104,13 @@ public final class CascadeSchema
             public void onMessage (final Context context)
                     throws Throwable
             {
-                System.out.println("D");
-                context.async(null);
+                final int value = context.message().asInt();
+                context.message().pop().push(value + 1);
+                if (value % 1_000_000 == 0)
+                {
+                    System.out.println("D = " + value);
+                }
+                context.async(context.message());
             }
         };
 
@@ -1089,22 +1119,31 @@ public final class CascadeSchema
         cs.usingPump("P1");
         cs.usingPool("default");
         cs.addDedicatedPump("P1");
-        cs.addDynamicPool("default").setMaxAllocationSize(128);
+        cs.addDedicatedPump("P2");
+        cs.addDedicatedPump("P3");
+        cs.addDedicatedPump("P4");
+        cs.addFixedPool("default").setBufferCount(100).setMaxAllocationSize(128);
+//        cs.addDynamicPool("default").setMaxAllocationSize(128);
         cs.addNode("a", a).setPump("P1").end();
-        cs.addNode("b", b).setPump("P1").end();
-        cs.addNode("c", c).setPump("P1").end();
-        cs.addNode("d", d).setPump("P1").end();
+        cs.addNode("b", b).setPump("P2").end();
+        cs.addNode("c", c).setPump("P3").end();
+        cs.addNode("d", d).setPump("P4").end();
         cs.exit();
 
-        cs.connect("a", "b");
-        cs.connect("b", "c");
-        cs.connect("c", "d");
-        cs.connect("d", "a");
+        cs.connect("a", "a");
+        cs.connect("b", "b");
+        cs.connect("c", "c");
+        cs.connect("d", "d");
 
         final Cascade cas = cs.build();
         cas.start();
 
-        cas.nodes().get("a").protoContext().outputs().get(0).async(null);
+        final OperandStack stack = cas.pools().get("default").allocator().newOperandStack();
+        stack.push(100);
 
+        cas.nodes().get("a").protoContext().outputs().get(0).async(stack);
+        cas.nodes().get("b").protoContext().outputs().get(0).async(stack);
+        cas.nodes().get("c").protoContext().outputs().get(0).async(stack);
+        cas.nodes().get("d").protoContext().outputs().get(0).async(stack);
     }
 }

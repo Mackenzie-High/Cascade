@@ -233,7 +233,7 @@ public final class ProtoContext
 
         for (CascadeEdge x : sharedState.nodesToOutputs.get(name()))
         {
-            map.put(x.supplier().name(), x);
+            map.put(x.consumer().name(), x);
         }
 
         final List<CascadeEdge> edges = ImmutableList.copyOf(map.values());

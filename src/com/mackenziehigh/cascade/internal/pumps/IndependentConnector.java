@@ -236,7 +236,7 @@ public final class IndependentConnector
             {
                 final int elementKey = buffer.set(message);
                 localQueue.offer(elementKey);
-                globalQueue.add(this);
+                globalQueue.offer(this);
             }
         }
 
@@ -304,6 +304,7 @@ public final class IndependentConnector
             Preconditions.checkNotNull(out);
             final int index = (int) localQueue.poll();
             buffer.get(index, out);
+            permits.release();
         }
 
     }

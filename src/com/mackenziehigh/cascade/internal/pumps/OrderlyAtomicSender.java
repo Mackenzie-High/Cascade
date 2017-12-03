@@ -3,7 +3,6 @@ package com.mackenziehigh.cascade.internal.pumps;
 import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.internal.pumps.Connector.Connection;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -52,17 +51,15 @@ public final class OrderlyAtomicSender
      */
     private final Lock transactionLock = new ReentrantLock();
 
-    private final ArrayList<Connection> outputs;
+    private final Connection[] outputs;
 
-    private final ArrayList<Object> keys;
+    private final Object[] keys;
 
     public OrderlyAtomicSender (final Collection<Connection> outputs)
     {
-        this.outputs = new ArrayList<>(outputs);
-        this.keys = new ArrayList<>(outputs.size());
-        IntStream.range(0, outputs.size()).forEach(i -> keys.add(null));
-        this.keys.trimToSize();
-        this.outputs.trimToSize();
+        this.outputs = outputs.toArray(new Connection[0]);
+        this.keys = new Object[outputs.size()];
+        IntStream.range(0, outputs.size()).forEach(i -> keys[i] = null);
     }
 
     public int broadcast (final OperandStack message)
@@ -93,31 +90,31 @@ public final class OrderlyAtomicSender
             /**
              * Acquire the locks.
              */
-            for (int i = 0; i < keys.size(); i++)
+            for (int i = 0; i < keys.length; i++)
             {
-                final Object key = outputs.get(i).lock();
+                final Object key = outputs[i].lock();
                 hasAllLocks &= key != null;
-                keys.set(i, key);
+                keys[i] = key;
             }
 
             /**
              * If we successfully obtained the locks,
              * then commit the message to each output.
              */
-            for (int i = 0; hasAllLocks && i < keys.size(); i++)
+            for (int i = 0; hasAllLocks && i < keys.length; i++)
             {
-                final Object key = keys.get(i);
-                outputs.get(i).commit(key, message);
+                final Object key = keys[i];
+                outputs[i].commit(key, message);
                 ++commitCount;
             }
 
             /**
              * Release the locks.
              */
-            for (int i = 0; i < keys.size(); i++)
+            for (int i = 0; i < keys.length; i++)
             {
-                outputs.get(i).unlock(keys.get(i));
-                keys.set(i, null);
+                outputs[i].unlock(keys[i]);
+                keys[i] = null;
             }
         }
         finally
@@ -125,7 +122,7 @@ public final class OrderlyAtomicSender
             transactionLock.unlock();
         }
 
-        final boolean result = commitCount == keys.size();
+        final boolean result = commitCount == keys.length;
         return result;
     }
 
@@ -175,7 +172,7 @@ public final class OrderlyAtomicSender
             /**
              * Acquire the locks.
              */
-            for (int i = 0; i < keys.size(); i++)
+            for (int i = 0; i < keys.length; i++)
             {
                 final long elapsedTime = System.nanoTime() - startTime;
                 final long diffTime = timeoutNanos - elapsedTime; // Limit (diffTime) -> 0
@@ -186,42 +183,42 @@ public final class OrderlyAtomicSender
                     break;
                 }
 
-                final Object key = outputs.get(i).lock(remainingTime, TimeUnit.NANOSECONDS);
+                final Object key = outputs[i].lock(remainingTime, TimeUnit.NANOSECONDS);
                 if (key == null)
                 {
                     break;
                 }
                 else
                 {
-                    keys.set(i, outputs.get(i).lock());
+                    keys[i] = outputs[i].lock();
                     ++lockCount;
                 }
             }
 
-            final boolean hasAllLocks = lockCount == keys.size();
+            final boolean hasAllLocks = lockCount == keys.length;
 
             /**
              * If we successfully obtained the locks,
              * then commit the message to each output.
              */
             int commitCount = 0;
-            for (int i = 0; hasAllLocks && i < keys.size(); i++)
+            for (int i = 0; hasAllLocks && i < keys.length; i++)
             {
-                final Object key = keys.get(i);
-                outputs.get(i).commit(key, message);
+                final Object key = keys[i];
+                outputs[i].commit(key, message);
                 ++commitCount;
             }
 
             /**
              * Release the locks.
              */
-            for (int i = 0; i < keys.size(); i++)
+            for (int i = 0; i < keys.length; i++)
             {
-                outputs.get(i).unlock(keys.get(i));
-                keys.set(i, null);
+                outputs[i].unlock(keys[i]);
+                keys[i] = null;
             }
 
-            final boolean result = commitCount == keys.size();
+            final boolean result = commitCount == keys.length;
             return result;
         }
         finally

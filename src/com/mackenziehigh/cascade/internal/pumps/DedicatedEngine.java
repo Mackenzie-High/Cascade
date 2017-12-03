@@ -115,7 +115,7 @@ public final class DedicatedEngine
             {
                 try
                 {
-                    final IndependentConnection connection = connector.poll(1, TimeUnit.SECONDS);
+                    IndependentConnection connection = connector.poll(1, TimeUnit.SECONDS);
 
                     if (connection == null)
                     {
@@ -151,51 +151,4 @@ public final class DedicatedEngine
         }
     }
 
-    public static void main (String[] args)
-            throws InterruptedException
-    {
-//        final ConcreteAllocator alloc = new ConcreteAllocator();
-//        final CascadeAllocator.AllocationPool pool = alloc.addFixedPool("default", 0, 128, 100);
-//        final CascadeAllocator.OperandStack msg = alloc.newOperandStack();
-//
-//        final int[] localCap = new int[1];
-//        localCap[0] = 128;
-//
-//        final MessageConsumer action = new MessageConsumer()
-//        {
-//            @Override
-//            public void accept (OperandStack message)
-//            {
-////                throw new Error();
-//                System.out.println("X = #" + message.asString() + ", Thread = " + Thread.currentThread().getId());
-//            }
-//
-//            @Override
-//            public void handle (Throwable exception)
-//            {
-//                System.out.println("Error: " + exception.getClass());
-//            }
-//
-//            @Override
-//            public int concurrentLimit ()
-//            {
-//                return 1;
-//            }
-//        };
-//
-//        final ThreadFactory threadFactory = new ThreadFactoryBuilder().build();
-//        final DedicatedEngine pump = new DedicatedEngine(threadFactory, alloc, localCap, ImmutableList.of(action));
-//        pump.start();
-//
-//        final OrderlyAtomicSender sender = new OrderlyAtomicSender(Lists.newArrayList(pump.connections.keySet()));
-//
-//        for (int i = 0; i < 16; i++)
-//        {
-//            msg.push("E #" + i);
-//            sender.sendAsync(msg);
-//            msg.pop();
-//            Thread.sleep(1000);
-//        }
-
-    }
 }

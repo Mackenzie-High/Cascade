@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade.internal;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Maps;
@@ -104,9 +105,26 @@ public final class Controller
      * {@inheritDoc}
      */
     @Override
-    public Cascade start ()
+    public synchronized Cascade start ()
     {
-        sharedState.engines.values().forEach(x -> x.start());
+        Preconditions.checkState(phase.get().equals(ExecutionPhase.INITIAL), "Already Started!");
+
+        /**
+         * Since this method is going to return immediately,
+         * we must change the phase here, rather than in the
+         * startup task in order to prevent a race-condition.
+         * If this method gets called again, then we want
+         * the already-started exception to be thrown!
+         */
+        phase.set(ExecutionPhase.SETUP);
+
+        /**
+         * Use a non-daemon thread to startup; otherwise, the program may close too soon.
+         */
+        final Thread thread = new Thread(() -> startupTask(), "Cascade Startup Task");
+        thread.setDaemon(false);
+        thread.start();
+
         return this;
     }
 
@@ -114,7 +132,7 @@ public final class Controller
      * {@inheritDoc}
      */
     @Override
-    public Cascade stop ()
+    public synchronized Cascade stop ()
     {
         sharedState.stop.set(true);
         return this;
@@ -162,4 +180,85 @@ public final class Controller
         return ImmutableSet.copyOf(set);
     }
 
+    private void startupTask ()
+    {
+        /**
+         * Setup each node.
+         */
+        for (CascadeNode node : sharedState.namesToNodes.values())
+        {
+            final DerivedContext context = new DerivedContext(node.protoContext());
+
+            try
+            {
+                context.message.set(null);
+                context.exception.set(null);
+                node.core().onSetup(context);
+            }
+            catch (Throwable ex1)
+            {
+                context.message.set(null);
+                context.exception.set(ex1);
+
+                try
+                {
+                    node.core().onException(context);
+                }
+                catch (Throwable ex2)
+                {
+                    defaultLogger().error(ex2);
+                }
+            }
+        }
+
+        /**
+         * Transition to the next execution-phase.
+         * We must set this before starting the pumps;
+         * otherwise, a race-condition could occur,
+         * such that a node starts fast and then
+         * processes a message while the phase is
+         * still officially SETUP.
+         */
+        phase.set(ExecutionPhase.START);
+
+        /**
+         * Start the pumps, which will in-turn start the asynchronous message processing.
+         */
+        sharedState.engines.values().forEach(x -> x.start());
+
+        /**
+         * Notify each node of startup.
+         */
+        for (CascadeNode node : sharedState.namesToNodes.values())
+        {
+            final DerivedContext context = new DerivedContext(node.protoContext());
+
+            try
+            {
+                context.message.set(null);
+                context.exception.set(null);
+                node.core().onStart(context);
+            }
+            catch (Throwable ex1)
+            {
+                context.message.set(null);
+                context.exception.set(ex1);
+
+                try
+                {
+                    node.core().onException(context);
+                }
+                catch (Throwable ex2)
+                {
+                    defaultLogger().error(ex2);
+                }
+            }
+        }
+
+        /**
+         * The system is now running, so the startup thread will exit.
+         * The threads in the pumps will continue, unless they are daemons.
+         */
+        phase.set(ExecutionPhase.RUN);
+    }
 }
