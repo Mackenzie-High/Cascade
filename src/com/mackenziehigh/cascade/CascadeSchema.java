@@ -6,6 +6,10 @@ import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.NetworkBuilder;
 import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
 import com.mackenziehigh.cascade.CascadeNode.CoreBuilder;
+import com.mackenziehigh.cascade.internal.ConcreteEdge;
+import com.mackenziehigh.cascade.internal.ConcreteNode;
+import com.mackenziehigh.cascade.internal.Kernel;
+import com.mackenziehigh.cascade.internal.messages.ConcreteAllocator;
 import java.util.Collections;
 import java.util.Map;
 import java.util.OptionalInt;
@@ -46,6 +50,10 @@ public final class CascadeSchema
     private Stack<String> implicitPool = new Stack<>();
 
     private Stack<String> implicitPump = new Stack<>();
+
+    private final ConcreteAllocator allocator = new ConcreteAllocator();
+
+    private final Kernel kernel = new Kernel();
 
     /**
      * Builder.
@@ -611,7 +619,7 @@ public final class CascadeSchema
      */
     public CascadeSchema enter (final String name)
     {
-        Preconditions.checkArgument(name.matches("[A-Z0-9_$]+"));
+        Preconditions.checkArgument(name.matches("[A-Za-z0-9_$]+"));
         namespaces.push(name);
 
         if (implicitLogger.isEmpty() == false)
@@ -624,7 +632,7 @@ public final class CascadeSchema
             implicitPool.push(implicitPool.peek());
         }
 
-        if (implicitPump.isEmpty())
+        if (implicitPump.isEmpty() == false)
         {
             implicitPump.push(implicitPump.peek());
         }
@@ -639,10 +647,10 @@ public final class CascadeSchema
      */
     public CascadeSchema exit ()
     {
-        namespaces.pop();
-        implicitLogger.pop();
-        implicitPool.pop();
-        implicitPump.pop();
+//        namespaces.pop();
+//        implicitLogger.pop();
+//        implicitPool.pop();
+//        implicitPump.pop();
         return this;
     }
 
@@ -777,13 +785,147 @@ public final class CascadeSchema
      */
     public Cascade build ()
     {
+        /**
+         * Static Validation.
+         */
+        dynamicPools.values().forEach(x -> validate(x));
+        fixedPools.values().forEach(x -> validate(x));
+        compositePools.values().forEach(x -> validate(x));
+        dedicatedPumps.values().forEach(x -> validate(x));
+        directPumps.values().forEach(x -> validate(x));
+        pooledPumps.values().forEach(x -> validate(x));
+        spawningPumps.values().forEach(x -> validate(x));
+        nodes.values().forEach(x -> validate(x));
+        network.edges().forEach(x -> validate(x));
+
+        /**
+         * Compilation.
+         */
+        dynamicPools.values().forEach(x -> compile(x));
+        fixedPools.values().forEach(x -> compile(x));
+        compositePools.values().forEach(x -> compile(x));
+        dedicatedPumps.values().forEach(x -> compile(x));
+        directPumps.values().forEach(x -> compile(x));
+        pooledPumps.values().forEach(x -> compile(x));
+        spawningPumps.values().forEach(x -> compile(x));
+        nodes.values().forEach(x -> compile(x));
+        network.edges().forEach(x -> compile(x));
+
         return null;
+    }
+
+    private void report (final String message,
+                         final Object... args)
+    {
+        throw new RuntimeException(String.format(message, args));
+    }
+
+    private void validate (final DynamicPoolSchema schema)
+    {
+
+    }
+
+    private void validate (final FixedPoolSchema schema)
+    {
+
+    }
+
+    private void validate (final CompositePoolSchema schema)
+    {
+        // TODO: Topological Dependency Checking
+    }
+
+    private void validate (final DedicatedPumpSchema schema)
+    {
+
+    }
+
+    private void validate (final DirectPumpSchema schema)
+    {
+
+    }
+
+    private void validate (final PooledPumpSchema schema)
+    {
+
+    }
+
+    private void validate (final SpawningPumpSchema schema)
+    {
+
+    }
+
+    private void validate (final NodeSchema schema)
+    {
+
+    }
+
+    private void validate (final EdgeSchema schema)
+    {
+
+    }
+
+    private void compile (final DynamicPoolSchema schema)
+    {
+        final int min = schema.getMinAllocationSize().getAsInt();
+        final int max = schema.getMaxAllocationSize().getAsInt();
+        final String name = schema.getName();
+        allocator.addDynamicPool(name, min, max);
+    }
+
+    private void compile (final FixedPoolSchema schema)
+    {
+        final int min = schema.getMinAllocationSize().getAsInt();
+        final int max = schema.getMaxAllocationSize().getAsInt();
+        final int cap = schema.getBufferCount().getAsInt();
+        final String name = schema.getName();
+        allocator.addFixedPool(name, min, max, cap);
+    }
+
+    private void compile (final CompositePoolSchema schema)
+    {
+        // Dependencies must be linearized first!
+    }
+
+    private void compile (final DedicatedPumpSchema schema)
+    {
+        // final DedicatedEngine engine = new DedicatedEngine(schema.getThreadFactory(), allocator, localCapacity, actions)
+    }
+
+    private void compile (final DirectPumpSchema schema)
+    {
+
+    }
+
+    private void compile (final PooledPumpSchema schema)
+    {
+
+    }
+
+    private void compile (final SpawningPumpSchema schema)
+    {
+
+    }
+
+    private void compile (final NodeSchema schema)
+    {
+        final ConcreteNode node = new ConcreteNode(schema.getName(), kernel, schema.getBuilder().build()); // TODO: Should build have already been called???
+        kernel.namesToNodes.put(schema.getName(), node);
+    }
+
+    private void compile (final EdgeSchema schema)
+    {
+        final ConcreteEdge edge = new ConcreteEdge(kernel, schema.getSupplier(), schema.getConsumer());
+        final CascadeNode supplier = kernel.namesToNodes.get(schema.getSupplier());
+        final CascadeNode consumer = kernel.namesToNodes.get(schema.getConsumer());
+        kernel.actorsToInputs.put(consumer, edge);
+        kernel.actorsToOutputs.put(supplier, edge);
     }
 
     public static void main (String[] args)
     {
         final CascadeSchema cs = new CascadeSchema();
-        cs.enter("com.mackenziehigh");
+        cs.enter("mackenziehigh");
         cs.usingPump("DiesalLoco");
         cs.usingPool("default");
         cs.usingLogger(null);
@@ -793,6 +935,6 @@ public final class CascadeSchema
         cs.exit();
 
         cs.connect("liver", "adder");
-        cs.build().start();
+//        cs.build().start();
     }
 }

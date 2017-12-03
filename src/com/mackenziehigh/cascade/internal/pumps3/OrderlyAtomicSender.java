@@ -4,7 +4,7 @@ import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.internal.pumps3.Connector.Connection;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -56,13 +56,18 @@ public final class OrderlyAtomicSender
 
     private final ArrayList<Object> keys;
 
-    public OrderlyAtomicSender (final List<Connection> outputs)
+    public OrderlyAtomicSender (final Collection<Connection> outputs)
     {
         this.outputs = new ArrayList<>(outputs);
         this.keys = new ArrayList<>(outputs.size());
         IntStream.range(0, outputs.size()).forEach(i -> keys.add(null));
         this.keys.trimToSize();
         this.outputs.trimToSize();
+    }
+
+    public int broadcast (final OperandStack message)
+    {
+        return 0; // TODO
     }
 
     /**
