@@ -9,3 +9,5 @@ TODO:
 + The ThreadedEngine needs to be extra careful to not execute the same actor concurrently, unless allowed.
 + LongTransactionalMultiQueue needs to use LongSynchronizedMultiQueue internally, rather than LongSynchronizedQueue.
 + Finsih the globalSize() method in LongTransactionalMultiQueue.
++ Make sure that uses of ReentrantLock do not inadvertently allow violations of concurrentLimit() via cyclic Direct pumps.
++ Rename setQueueCapacity() to setEdgeCapacity() ??? (etc)

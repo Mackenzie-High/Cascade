@@ -62,9 +62,62 @@ public final class OrderlyAtomicSender
         IntStream.range(0, outputs.size()).forEach(i -> keys[i] = null);
     }
 
+    /**
+     * Use this method to *non* atomically send a message to all of the outputs,
+     * without blocking if any of the outputs are unable to accept the message.
+     *
+     * @param message is the message to send.
+     * @return the number of outputs that enqueued the message.
+     */
     public int broadcast (final OperandStack message)
     {
-        return 0; // TODO
+        if (transactionLock.tryLock() == false)
+        {
+            return 0;
+        }
+
+        int commitCount = 0;
+
+        try
+        {
+            /**
+             * Acquire the locks.
+             */
+            for (int i = 0; i < keys.length; i++)
+            {
+                final Object key = outputs[i].lock();
+                keys[i] = key;
+            }
+
+            /**
+             * If we successfully obtained the locks,
+             * then commit the message to each output.
+             */
+            for (int i = 0; i < keys.length; i++)
+            {
+                final Object key = keys[i];
+                if (key != null)
+                {
+                    outputs[i].commit(key, message);
+                    ++commitCount;
+                }
+            }
+
+            /**
+             * Release the locks.
+             */
+            for (int i = 0; i < keys.length; i++)
+            {
+                outputs[i].unlock(keys[i]);
+                keys[i] = null;
+            }
+        }
+        finally
+        {
+            transactionLock.unlock();
+        }
+
+        return commitCount;
     }
 
     /**

@@ -52,6 +52,15 @@ public final class ConcreteEdge
      * {@inheritDoc}
      */
     @Override
+    public EdgeStats stats ()
+    {
+        return null; // TODO
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public CascadeNode supplier ()
     {
         return supplier.get();

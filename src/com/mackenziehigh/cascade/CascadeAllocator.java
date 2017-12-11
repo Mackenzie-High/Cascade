@@ -101,9 +101,16 @@ public interface CascadeAllocator
         /**
          * Getter.
          *
-         * @return the user-defined name of this pool.
+         * @return the user-defined full-name of this pool.
          */
         public String name ();
+
+        /**
+         * Getter.
+         *
+         * @return the user-defined simple-name of this pool.
+         */
+        public String simpleName ();
 
         /**
          * Getter.
@@ -782,7 +789,7 @@ public interface CascadeAllocator
      * The map will include the default-pool.
      * </p>
      *
-     * @return a map that maps the names of pools to the pools themselves.
+     * @return a map that maps the full-names of pools to the pools themselves.
      */
     public Map<String, AllocationPool> pools ();
 

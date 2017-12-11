@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
+import com.mackenziehigh.cascade.internal.Utils;
 import com.mackenziehigh.cascade.internal.messages.PositiveIntRangeMap.RangeEntry;
 import java.util.Collections;
 import java.util.List;
@@ -355,8 +356,8 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public OperandArray set (final int index,
-                                 final OperandStack value)
+        public synchronized OperandArray set (final int index,
+                                              final OperandStack value)
         {
             if (index < 0)
             {
@@ -394,7 +395,7 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public void close ()
+        public synchronized void close ()
         {
             for (int i = 0; i < array.length; i++)
             {
@@ -413,6 +414,8 @@ public final class ConcreteAllocator
     {
         private final String name;
 
+        private final String simpleName;
+
         private final int minimumSize;
 
         private final int maximumSize;
@@ -422,6 +425,7 @@ public final class ConcreteAllocator
                                       final int maximumSize)
         {
             this.name = name;
+            this.simpleName = Utils.getSimpleName(name);
             this.minimumSize = minimumSize;
             this.maximumSize = maximumSize;
         }
@@ -430,6 +434,12 @@ public final class ConcreteAllocator
         public String name ()
         {
             return name;
+        }
+
+        @Override
+        public String simpleName ()
+        {
+            return simpleName;
         }
 
         @Override
@@ -487,6 +497,8 @@ public final class ConcreteAllocator
     {
         private final String name;
 
+        private final String simpleName;
+
         private final int minimumSize;
 
         private final int maximumSize;
@@ -503,6 +515,7 @@ public final class ConcreteAllocator
                                     final int capacity)
         {
             this.name = name;
+            this.simpleName = Utils.getSimpleName(name);
             this.minimumSize = minimumSize;
             this.maximumSize = maximumSize;
             this.capacity = capacity;
@@ -529,6 +542,12 @@ public final class ConcreteAllocator
 
         @Override
         public String name ()
+        {
+            return name;
+        }
+
+        @Override
+        public String simpleName ()
         {
             return name;
         }
@@ -587,6 +606,8 @@ public final class ConcreteAllocator
     {
         private final String name;
 
+        private final String simpleName;
+
         private final int minimumSize;
 
         private final int maximumSize;
@@ -604,6 +625,8 @@ public final class ConcreteAllocator
                                         final List<AllocationPool> pools)
         {
             this.name = name;
+            this.simpleName = Utils.getSimpleName(name);
+
             this.fallback = fallback;
 
             final int min1 = fallback == null ? Integer.MAX_VALUE : fallback.minimumAllocationSize();
@@ -621,6 +644,12 @@ public final class ConcreteAllocator
         public String name ()
         {
             return name;
+        }
+
+        @Override
+        public String simpleName ()
+        {
+            return simpleName;
         }
 
         @Override

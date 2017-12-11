@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Cascade;
+import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
 import com.mackenziehigh.cascade.CascadeEdge;
 import com.mackenziehigh.cascade.CascadeLogger;
@@ -60,9 +61,9 @@ public final class Controller
      * {@inheritDoc}
      */
     @Override
-    public SortedMap<String, AllocationPool> pools ()
+    public CascadeAllocator allocator ()
     {
-        return pools.get();
+        return sharedState.allocator;
     }
 
     /**

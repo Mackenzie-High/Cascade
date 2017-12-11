@@ -20,6 +20,8 @@ public final class ConcretePump
 
     private final String name;
 
+    private final String simpleName;
+
     private final int minimumThreads;
 
     private final int maximumThreads;
@@ -34,6 +36,7 @@ public final class ConcretePump
                          final int maxThreads)
     {
         this.name = Objects.requireNonNull(name);
+        this.simpleName = Utils.getSimpleName(name);
         this.sharedState = Objects.requireNonNull(sharedState);
         this.minimumThreads = minThreads;
         this.maximumThreads = maxThreads;
@@ -57,6 +60,15 @@ public final class ConcretePump
     public String name ()
     {
         return name;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String simpleName ()
+    {
+        return simpleName;
     }
 
     /**

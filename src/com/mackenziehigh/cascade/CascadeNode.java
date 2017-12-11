@@ -60,7 +60,7 @@ public interface CascadeNode
          * </p>
          *
          * @return the maximum number of threads that can concurrently
-         * using the event-handler of this node to process events.
+         * using the event-handlers of this node to process events.
          */
         public default int concurrentCapacity ()
         {
@@ -345,9 +345,25 @@ public interface CascadeNode
          * This method never returns null.
          * </p>
          *
-         * @return the name of this node.
+         * @return the full-name of this node.
          */
         public String name ();
+
+        /**
+         * Getter.
+         *
+         * <p>
+         * For a given node instance, this method always returns the same object.
+         * Thus, the node can safely use the result between event-handler invocations.
+         * </p>
+         *
+         * <p>
+         * This method never returns null.
+         * </p>
+         *
+         * @return the simple-name of this node.
+         */
+        public String simpleName ();
 
         /**
          * Getter.
@@ -570,11 +586,21 @@ public interface CascadeNode
     /**
      * Getter.
      *
-     * @return the name of this node.
+     * @return the full-name of this node.
      */
     public default String name ()
     {
         return protoContext().name();
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the simple-name of this node.
+     */
+    public default String simpleName ()
+    {
+        return protoContext().simpleName();
     }
 
     /**

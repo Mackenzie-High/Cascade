@@ -1,8 +1,10 @@
 package com.mackenziehigh.cascade;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.graph.MutableNetwork;
@@ -19,18 +21,26 @@ import com.mackenziehigh.cascade.internal.ConcretePump;
 import com.mackenziehigh.cascade.internal.Controller;
 import com.mackenziehigh.cascade.internal.DefaultMessageConsumer;
 import com.mackenziehigh.cascade.internal.SharedState;
+import com.mackenziehigh.cascade.internal.StandardLogger;
+import com.mackenziehigh.cascade.internal.Utils;
 import com.mackenziehigh.cascade.internal.messages.ConcreteAllocator;
 import com.mackenziehigh.cascade.internal.pumps.ConnectionSchema;
 import com.mackenziehigh.cascade.internal.pumps.DedicatedEngine;
+import com.mackenziehigh.cascade.internal.pumps.DirectEngine;
 import com.mackenziehigh.cascade.internal.pumps.Engine.MessageConsumer;
-import java.util.Collections;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.Stack;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -40,11 +50,15 @@ public final class CascadeSchema
 {
     private final CascadeSchema SELF = this;
 
+    private final Map<String, PoolSchema> pools = Maps.newHashMap();
+
     private final Map<String, DynamicPoolSchema> dynamicPools = Maps.newHashMap();
 
     private final Map<String, FixedPoolSchema> fixedPools = Maps.newHashMap();
 
     private final Map<String, CompositePoolSchema> compositePools = Maps.newHashMap();
+
+    private final Map<String, PumpSchema> pumps = Maps.newHashMap();
 
     private final Map<String, DirectPumpSchema> directPumps = Maps.newHashMap();
 
@@ -60,15 +74,17 @@ public final class CascadeSchema
 
     private final Stack<String> namespaces = new Stack<>();
 
-    private Stack<CascadeLogger> implicitLogger = new Stack<>();
+    private final Stack<CascadeLogger> implicitLogger = new Stack<>();
 
-    private Stack<String> implicitPool = new Stack<>();
+    private final Stack<String> implicitPool = new Stack<>();
 
-    private Stack<String> implicitPump = new Stack<>();
+    private final Stack<String> implicitPump = new Stack<>();
 
     private final ConcreteAllocator allocator = new ConcreteAllocator();
 
     private final SharedState sharedState = new SharedState();
+
+    private CascadeLogger defaultLogger = new StandardLogger("default");
 
     /**
      * Builder.
@@ -91,43 +107,92 @@ public final class CascadeSchema
     {
         private final String name;
 
+        private final String simpleName;
+
         private OptionalInt minAllocationSize = OptionalInt.empty();
 
         private OptionalInt maxAllocationSize = OptionalInt.empty();
 
         private PoolSchema (final String name)
         {
-            Preconditions.checkNotNull(name, "name");
-            this.name = name;
+            Preconditions.checkState(getNamespace().isEmpty() == false, "No Namespace");
+            Utils.checkSimpleName(name);
+            final String key = getNamespace() + '.' + name;
+            this.name = key;
+            this.simpleName = name;
+
+            Preconditions.checkState(pools.containsKey(key) == false, "Duplicate Pool: " + key);
+            pools.put(key, this);
         }
 
+        /**
+         * Getter.
+         *
+         * @return the full-name of this allocation-pool.
+         */
         public String getName ()
         {
             return name;
         }
 
+        /**
+         * Getter.
+         *
+         * @return the simple-name of this allocation-pool.
+         */
+        public String getSimpleName ()
+        {
+            return simpleName;
+        }
+
+        /**
+         * Getter.
+         *
+         * @return the minimum size of each operand allocated in the pool,
+         * if a minimum has been specified.
+         */
         public OptionalInt getMinAllocationSize ()
         {
             return minAllocationSize;
         }
 
-        public PoolSchema<T> setMinAllocationSize (final int value)
+        /**
+         * Setter.
+         *
+         * @param value will be the minimum size of each operand allocated in the pool.
+         * @return this.
+         */
+        @SuppressWarnings ("unchecked")
+        public T setMinAllocationSize (final int value)
         {
             Preconditions.checkArgument(value >= 0, "value < 0");
             this.minAllocationSize = OptionalInt.of(value);
-            return this;
+            return (T) this;
         }
 
+        /**
+         * Getter.
+         *
+         * @return the maximum size of each operand allocated in the pool,
+         * if a maximum has been specified.
+         */
         public OptionalInt getMaxAllocationSize ()
         {
             return maxAllocationSize;
         }
 
-        public PoolSchema<T> setMaxAllocationSize (final int value)
+        /**
+         * Setter.
+         *
+         * @param value will be the maximum size of each operand allocated in the pool.
+         * @return this.
+         */
+        @SuppressWarnings ("unchecked")
+        public T setMaxAllocationSize (final int value)
         {
             Preconditions.checkArgument(value >= 0, "value < 0");
             this.maxAllocationSize = OptionalInt.of(value);
-            return this;
+            return (T) this;
         }
 
     }
@@ -136,13 +201,14 @@ public final class CascadeSchema
      * Builder.
      */
     public final class DynamicPoolSchema
-            extends PoolSchema<DynamicPoolSchema>
+            extends PoolSchema
     {
         private DynamicPoolSchema (final String name)
         {
             super(name);
             setMinAllocationSize(0);
             setMaxAllocationSize(Integer.MAX_VALUE);
+            dynamicPools.put(getName(), this);
         }
     }
 
@@ -158,13 +224,26 @@ public final class CascadeSchema
         {
             super(name);
             setMinAllocationSize(0);
+            fixedPools.put(getName(), this);
         }
 
+        /**
+         * Getter.
+         *
+         * @return the number of preallocated buffers in the pool,
+         * if the value has been specified already.
+         */
         public OptionalInt getBufferCount ()
         {
             return bufferCount;
         }
 
+        /**
+         * Setter.
+         *
+         * @param value will be the number of preallocated buffers in the pool.
+         * @return this.
+         */
         public FixedPoolSchema setBufferCount (final int value)
         {
             Preconditions.checkArgument(value >= 0, "value < 0");
@@ -181,26 +260,63 @@ public final class CascadeSchema
     {
         private final Set<String> members = new TreeSet<>();
 
+        private Optional<String> fallback = Optional.empty();
+
         private CompositePoolSchema (final String name)
         {
             super(name);
+            compositePools.put(getName(), this);
         }
 
-        public CompositePoolSchema addMember (final String name)
+        /**
+         * Use this method to add a pool to this conglomeration of pools.
+         *
+         * @param name is either the simple-name or full-name of a pool.
+         * @return this.
+         */
+        public CompositePoolSchema addMemberPool (final String name)
         {
+            Preconditions.checkNotNull(name);
             members.add(name);
             return this;
         }
 
-        public CompositePoolSchema addMember (final PoolSchema member)
+        /**
+         * Getter.
+         *
+         * <p>
+         * This excludes the name of the fallback pool, if any.
+         * </p>
+         *
+         * @return the names of the members herein.
+         */
+        public Set<String> getMemberPools ()
         {
-            members.add(member.getName());
+            return ImmutableSet.copyOf(members);
+        }
+
+        /**
+         * Use this method to specify the pool to use,
+         * if will not fit into another pool,
+         * or the relevant pool is already full.
+         *
+         * @param name is either the simple-name or full-name of a pool.
+         * @return this.
+         */
+        public CompositePoolSchema setFallbackPool (final String name)
+        {
+            fallback = Optional.of(name);
             return this;
         }
 
-        public Set<String> getMembers ()
+        /**
+         * Getter.
+         *
+         * @return the name of the fallback pool, if any.
+         */
+        public Optional<String> getFallbackPool ()
         {
-            return Collections.unmodifiableSet(members);
+            return fallback;
         }
     }
 
@@ -214,39 +330,95 @@ public final class CascadeSchema
     {
         private final String name;
 
-        private ThreadFactory threadFactory = new ThreadFactoryBuilder().setDaemon(false).build();
+        private final String simpleName;
+
+        private ThreadFactory threadFactory;
 
         private OptionalInt backlogCapacity;
 
         private PumpSchema (final String name)
         {
-            Preconditions.checkNotNull(name);
-            this.name = name;
+            Preconditions.checkState(getNamespace().isEmpty() == false, "No Namespace");
+            Utils.checkSimpleName(name);
+            final String key = getNamespace() + '.' + name;
+            this.name = key;
+            this.simpleName = name;
+
+            this.threadFactory = new ThreadFactoryBuilder()
+                    .setDaemon(false)
+                    .setNameFormat(this.name + "[%d]-" + UUID.randomUUID().toString())
+                    .build();
+
+            Preconditions.checkState(pumps.containsKey(key) == false, "Duplicate Pump: " + key);
+            pumps.put(key, this);
         }
 
+        /**
+         * Getter.
+         *
+         * @return the full-name of the pump.
+         */
         public String getName ()
         {
             return name;
         }
 
+        /**
+         * Getter.
+         *
+         * @return the simple-name of the pump.
+         */
+        public String getSimpleName ()
+        {
+            return simpleName;
+        }
+
+        /**
+         * Getter.
+         *
+         * @return the thread-factory used to create threads, if any.
+         */
         public ThreadFactory getThreadFactory ()
         {
             return threadFactory;
         }
 
-        public PumpSchema<T> setThreadFactory (final ThreadFactory threadFactory)
+        /**
+         * Setter.
+         *
+         * @param value will be the thread-factory used to create threads, if any.
+         * @return this.
+         */
+        @SuppressWarnings ("unchecked")
+        public T setThreadFactory (final ThreadFactory value)
         {
-            Preconditions.checkNotNull(threadFactory, "threadFactory");
-            this.threadFactory = threadFactory;
-            return this;
+            Preconditions.checkNotNull(threadFactory, "value");
+            this.threadFactory = value;
+            return (T) this;
         }
 
-        public PumpSchema<T> setBacklogCapacity (final int value)
+        /**
+         * Getter.
+         *
+         * @param value will be the maximum number of messages that can be, enqueued
+         * in edges incident into the nodes managed by the pump, awaiting processing.
+         * @return this.
+         */
+        @SuppressWarnings ("unchecked")
+        public T setBacklogCapacity (final int value)
         {
+            Preconditions.checkArgument(value >= 0, "value < 0");
             this.backlogCapacity = OptionalInt.of(value);
-            return this;
+            return (T) this;
         }
 
+        /**
+         * Getter.
+         *
+         * @return the maximum number of messages that can be,
+         * enqueued in edges incident into the nodes managed by the pump,
+         * awaiting processing, if the capacity has been specified.
+         */
         public OptionalInt getBacklogCapacity ()
         {
             return backlogCapacity;
@@ -262,19 +434,208 @@ public final class CascadeSchema
         private DirectPumpSchema (final String name)
         {
             super(name);
+            directPumps.put(getName(), this);
+        }
+    }
+
+    /**
+     * Builder.
+     *
+     * @param <T>
+     */
+    public abstract class IndirectPumpSchema<T extends IndirectPumpSchema<T>>
+            extends PumpSchema<T>
+    {
+        private boolean sharedQueues = false;
+
+        private IndirectPumpSchema (final String name)
+        {
+            super(name);
         }
 
+        /**
+         * Use this method to cause the pump to use a single
+         * underlying fixed-size data-structure to provide
+         * storage for messages enqueued in the edges.
+         *
+         * <p>
+         * This option has the advantage of allowing you
+         * to preallocate less memory for use by edge queues.
+         * More specifically, the amount of preallocated memory
+         * will be directly proportional to the backlog-capacity
+         * of the pump. In cases were there are a significant
+         * number of edges incident to the nodes managed by this pump,
+         * this option can potentially offer considerable memory savings,
+         * while providing ample backlog-capacity, by allowing edges
+         * to share capacity that would be allocated but usually unused.
+         * </p>
+         *
+         * <p>
+         * This option has the disadvantage of introducing an
+         * increased risk of queue exhaustion in the edges.
+         * If the total number of messages enqueued in a subset
+         * of the edges reaches the capacity of the shared
+         * underlying data-structure, then the rest of the edges
+         * will be unable to enqueue any messages, because
+         * the underlying data-structure is full.
+         * </p>
+         *
+         * <p>
+         * This option has the disadvantage of introducing
+         * additional opportunity for lock-contention.
+         * Under this option, whenever a message is enqueued
+         * in an edge, the shared underlying data-structure
+         * must be synchronized. Since many threads may
+         * be enqueuing messages at the same time into
+         * different edges that share the same underlying
+         * data-structure, there is potential for contention.
+         * </p>
+         *
+         * @return this.
+         */
+        @SuppressWarnings ("unchecked")
+        public T useSharedQueues ()
+        {
+            sharedQueues = true;
+            return (T) this;
+        }
+
+        /**
+         * Getter.
+         *
+         * @return true, if the edges will use a shared underlying data-structure.
+         */
+        public boolean isUsingSharedQueues ()
+        {
+            Verify.verify(isUsingIndependentQueues() != isUsingSharedQueues());
+            return sharedQueues;
+        }
+
+        /**
+         * Use this method to cause the pump to use a independent
+         * underlying fixed-size data-structures to provide
+         * storage for messages enqueued in the edges.
+         *
+         * <p>
+         * This option has the advantage of ensuring that
+         * the edge queues are completely independent
+         * of one another. Thus, filling up one queue
+         * does not risk exhausting the capacity of
+         * all of the queues due to shared resources.
+         * Likewise, each queue is independent; therefore,
+         * less synchronization is needed in order to
+         * enqueue messages.
+         * </p>
+         *
+         * <p>
+         * This option has the disadvantage of usually
+         * requiring more preallocated memory,
+         * which may usually be non-utilized.
+         * For example, if message processing is usually fast,
+         * but can occasionally hiccup, then you will need
+         * to ensure that the queue-capacity of each edge
+         * is large enough to absorb the hiccups.
+         * In that case, the queues will usually be near empty,
+         * whenever processing is actually moving quickly.
+         * Thus, you will have memory sitting around doing
+         * nothing most of the time.
+         * </p>
+         *
+         * @return this.
+         */
+        @SuppressWarnings ("unchecked")
+        public T useIndependentQueues ()
+        {
+            sharedQueues = false;
+            return (T) this;
+        }
+
+        /**
+         * Getter.
+         *
+         * @return true, if the edges will independent of one another.
+         */
+        public boolean isUsingIndependentQueues ()
+        {
+            Verify.verify(isUsingIndependentQueues() != isUsingSharedQueues());
+            return !sharedQueues;
+        }
     }
 
     /**
      * Builder.
      */
     public final class DedicatedPumpSchema
-            extends PumpSchema<DedicatedPumpSchema>
+            extends IndirectPumpSchema<DedicatedPumpSchema>
     {
+        private boolean fifo;
+
         private DedicatedPumpSchema (final String name)
         {
             super(name);
+            dedicatedPumps.put(getName(), this);
+        }
+
+        /**
+         * Use this method to cause the pump to use a FIFO
+         * scheduling strategy for handling incoming messages.
+         *
+         * <p>
+         * Under this strategy, the pump will dequeue the
+         * least-recently-received message from the highest-priority
+         * non-empty edge and then execute the onMessage(*) event-handler
+         * in the node incident to that edge.
+         * </p>
+         *
+         * @return this.
+         */
+        public DedicatedPumpSchema useFirstComeFirstServe ()
+        {
+            fifo = true;
+            return this;
+        }
+
+        /**
+         * Getter.
+         *
+         * @return true, if the pump will use FIFO scheduling.
+         */
+        public boolean isFirstComeFirstServe ()
+        {
+            Verify.verify(isFirstComeFirstServe() != isRoundRobin());
+            return fifo;
+        }
+
+        /**
+         * Use this method to cause the pump to use a round-robin
+         * scheduling strategy for handling incoming messages.
+         *
+         * <p>
+         * Under this strategy, the pump will iterate across
+         * the highest-priority non-empty edges.
+         * At each non-empty edge, the pump will dequeue exactly
+         * one message, execute the onMessage(*) event-handler in
+         * the node that is incident to the edge, and then the pump
+         * will move onto the next non-empty edge.
+         * </p>
+         *
+         * @return this.
+         */
+        public DedicatedPumpSchema useRoundRobin ()
+        {
+            fifo = false;
+            return this;
+        }
+
+        /**
+         * Getter.
+         *
+         * @return true, if the pump will use round-robin scheduling.
+         */
+        public boolean isRoundRobin ()
+        {
+            Verify.verify(isFirstComeFirstServe() != isRoundRobin());
+            return !fifo;
         }
     }
 
@@ -289,8 +650,15 @@ public final class CascadeSchema
         private PooledPumpSchema (final String name)
         {
             super(name);
+            pooledPumps.put(getName(), this);
         }
 
+        /**
+         * Setter.
+         *
+         * @param count will be the number of threads in the thread-pool.
+         * @return this.
+         */
         public PooledPumpSchema setThreadCount (final int count)
         {
             Preconditions.checkArgument(count >= 1, "count < 1");
@@ -298,6 +666,12 @@ public final class CascadeSchema
             return this;
         }
 
+        /**
+         * Getter.
+         *
+         * @return the number of threads in the thread-pool,
+         * if the the number has been specified already.
+         */
         public OptionalInt getThreadCount ()
         {
             return threadCount;
@@ -314,11 +688,22 @@ public final class CascadeSchema
 
         private OptionalInt maximumThreadCount = OptionalInt.empty();
 
+        private OptionalLong spawnDelayNanos = OptionalLong.empty();
+
+        private OptionalLong keepAliveNanos = OptionalLong.empty();
+
         private SpawningPumpSchema (final String name)
         {
             super(name);
+            spawningPumps.put(getName(), this);
         }
 
+        /**
+         * Setter.
+         *
+         * @param count will be the minimum number of threads simultaneously in the thread-pool.
+         * @return this.
+         */
         public SpawningPumpSchema setMinThreadCount (final int count)
         {
             Preconditions.checkArgument(count >= 1, "count < 1");
@@ -326,11 +711,22 @@ public final class CascadeSchema
             return this;
         }
 
+        /**
+         * Getter.
+         *
+         * @return the minimum number of threads simultaneously in the thread-pool.
+         */
         public OptionalInt getMinThreadCount ()
         {
             return minimumThreadCount;
         }
 
+        /**
+         * Setter.
+         *
+         * @param count will be the maximum number of threads simultaneously in the thread-pool.
+         * @return this.
+         */
         public SpawningPumpSchema setMaxThreadCount (final int count)
         {
             Preconditions.checkArgument(count >= 1, "count < 1");
@@ -338,9 +734,66 @@ public final class CascadeSchema
             return this;
         }
 
+        /**
+         * Getter.
+         *
+         * @return the maximum number of threads simultaneously in the thread-pool.
+         */
         public OptionalInt getMaxThreadCount ()
         {
             return maximumThreadCount;
+        }
+
+        /**
+         * Setter.
+         *
+         * @param value is the length of time that must pass between spawning threads.
+         * @param unit describes the value.
+         * @return this.
+         */
+        public SpawningPumpSchema setSpawnDelay (final long value,
+                                                 final TimeUnit unit)
+        {
+            Preconditions.checkNotNull(unit, "unit");
+            spawnDelayNanos = OptionalLong.of(unit.toNanos(value));
+            return this;
+        }
+
+        /**
+         * Getter.
+         *
+         * @return the length of time that must pass between spawning threads.
+         */
+        public Optional<Duration> getSpawnDelay ()
+        {
+            return null; // TODO
+        }
+
+        /**
+         * Setter.
+         *
+         * @param value is the length of time that must pass before
+         * a thread becomes eligible for reclamation.
+         * @param unit describes the value.
+         * @return this.
+         */
+        public SpawningPumpSchema setKeepAliveTime (final long value,
+                                                    final TimeUnit unit)
+        {
+            Preconditions.checkNotNull(unit, "unit");
+            keepAliveNanos = OptionalLong.of(unit.toNanos(value));
+            return this;
+        }
+
+        /**
+         * Getter.
+         *
+         * @return the length of time that must pass before
+         * a thread becomes eligible for reclamation.
+         */
+        public Optional<Duration> getKeepAliveTime ()
+        {
+            return null; // TODO
         }
     }
 
@@ -356,11 +809,17 @@ public final class CascadeSchema
 
         private final CoreBuilder builder;
 
-        private CascadeLogger logger;
+        private CascadeLogger explicitLogger;
 
-        private String pool;
+        private CascadeLogger implicitLogger;
 
-        private String pump;
+        private String explicitPool;
+
+        private String implicitPool;
+
+        private String explicitPump;
+
+        private String implicitPump;
 
         private NodeSchema (final String name,
                             final CoreBuilder builder)
@@ -383,46 +842,46 @@ public final class CascadeSchema
 
         public NodeSchema<T> setPump (final String name)
         {
-            pump = name;
+            explicitPump = name;
             return this;
         }
 
         public NodeSchema<T> setPump (final PumpSchema value)
         {
-            pump = value.getName();
+            explicitPump = value.getName();
             return this;
         }
 
         public String getPump ()
         {
-            return pump;
+            return explicitPump;
         }
 
         public CascadeLogger getLogger ()
         {
-            return logger;
+            return explicitLogger;
         }
 
         public NodeSchema<T> setLogger (final CascadeLogger value)
         {
-            this.logger = value;
+            this.explicitLogger = value;
             return this;
         }
 
         public String getPool ()
         {
-            return pool;
+            return explicitPool;
         }
 
         public NodeSchema<T> setPool (final AllocationPool value)
         {
-            this.pool = value.name();
+            this.explicitPool = value.name();
             return this;
         }
 
         public NodeSchema<T> setPool (final String name)
         {
-            this.pool = name;
+            this.explicitPool = name;
             return this;
         }
 
@@ -439,6 +898,8 @@ public final class CascadeSchema
         private final String consumer;
 
         private OptionalInt queueCapacity = OptionalInt.empty();
+
+        private OptionalInt priority = OptionalInt.empty();
 
         private EdgeSchema (final String supplier,
                             final String consumer)
@@ -514,7 +975,7 @@ public final class CascadeSchema
     public DirectPumpSchema addDirectPump (final String name)
     {
         Preconditions.checkNotNull(name);
-        Preconditions.checkArgument(directPumps.containsKey(name) == false, "Duplicate Powerplant: " + name);
+        Preconditions.checkArgument(directPumps.containsKey(name) == false, "Duplicate Pump: " + name);
         final DirectPumpSchema result = new DirectPumpSchema(name);
         directPumps.put(name, result);
         return result;
@@ -530,7 +991,7 @@ public final class CascadeSchema
     public DedicatedPumpSchema addDedicatedPump (final String name)
     {
         Preconditions.checkNotNull(name);
-        Preconditions.checkArgument(dedicatedPumps.containsKey(name) == false, "Duplicate Powerplant: " + name);
+        Preconditions.checkArgument(dedicatedPumps.containsKey(name) == false, "Duplicate Pump: " + name);
         final DedicatedPumpSchema result = new DedicatedPumpSchema(name);
         dedicatedPumps.put(name, result);
         return result;
@@ -546,7 +1007,7 @@ public final class CascadeSchema
     public PooledPumpSchema addPooledPump (final String name)
     {
         Preconditions.checkNotNull(name);
-        Preconditions.checkArgument(pooledPumps.containsKey(name) == false, "Duplicate Powerplant: " + name);
+        Preconditions.checkArgument(pooledPumps.containsKey(name) == false, "Duplicate Pump: " + name);
         final PooledPumpSchema result = new PooledPumpSchema(name);
         pooledPumps.put(name, result);
         return result;
@@ -562,7 +1023,7 @@ public final class CascadeSchema
     public SpawningPumpSchema addSpawningPump (final String name)
     {
         Preconditions.checkNotNull(name);
-        Preconditions.checkArgument(spawningPumps.containsKey(name) == false, "Duplicate Powerplant: " + name);
+        Preconditions.checkArgument(spawningPumps.containsKey(name) == false, "Duplicate Pump: " + name);
         final SpawningPumpSchema result = new SpawningPumpSchema(name);
         spawningPumps.put(name, result);
         return result;
@@ -687,6 +1148,8 @@ public final class CascadeSchema
      */
     public CascadeSchema setDefaultLogger (final CascadeLogger logger)
     {
+        Preconditions.checkNotNull(logger);
+        this.defaultLogger = logger;
         return this;
     }
 
@@ -697,7 +1160,7 @@ public final class CascadeSchema
      */
     public CascadeLogger getDefaultLogger ()
     {
-        return null;
+        return defaultLogger;
     }
 
     /**
@@ -987,7 +1450,37 @@ public final class CascadeSchema
 
     private void compile (final DirectPumpSchema schema)
     {
+        final CascadePump pump = new ConcretePump(schema.getName(), sharedState, 0, 0);
 
+        final List<ConnectionSchema> connections = Lists.newArrayList();
+
+        final NodeSchema node = nodes.values().stream().filter(x -> x.getPump().equals(schema.getName())).collect(Collectors.toList()).get(0);
+
+        final Core kernel = node.getBuilder().build(); // Should this have already been called????
+        final Context context = sharedState.namesToNodes.get(node.getName()).protoContext();
+        final MessageConsumer action = new DefaultMessageConsumer(context, kernel);
+
+        for (EdgeSchema input : network.inEdges(node.getName()))
+        {
+            final CascadeNode supplier = sharedState.namesToNodes.get(input.getSupplier());
+            final CascadeNode consumer = sharedState.namesToNodes.get(input.getConsumer());
+            final CascadeEdge edge = ImmutableList.copyOf(sharedState.network.edgesConnecting(supplier, consumer)).get(0);
+
+            final int capacity = input.getQueueCapacity().orElse(16); // TODO: What should the default be????
+
+            final ConnectionSchema connection = new ConnectionSchema(edge, capacity, action);
+            connections.add(connection);
+        }
+
+        final DirectEngine engine = new DirectEngine(connections, action);
+
+        sharedState.engines.put(schema.getName(), engine);
+        sharedState.namesToPumps.put(schema.getName(), pump);
+
+        /**
+         * Map the edges to the connections.
+         */
+        engine.connections().entrySet().forEach(entry -> sharedState.connections.put((CascadeEdge) entry.getKey().correlationId, entry.getValue()));
     }
 
     private void compile (final PooledPumpSchema schema)
@@ -1041,6 +1534,9 @@ public final class CascadeSchema
 
     public static void main (String[] args)
     {
+
+        final Stopwatch watch = Stopwatch.createUnstarted();
+
         final CoreBuilder a = () -> new CascadeNode.Core()
         {
             @Override
@@ -1062,10 +1558,8 @@ public final class CascadeSchema
                     throws Throwable
             {
                 final int value = context.message().asInt();
-                context.message().pop().push(value + 1);
-//                System.out.println("A = " + value);
-                context.async(context.message());
-//                Thread.sleep(1000);
+                context.message().pop().push(value);
+                context.send(context.message());
             }
         };
 
@@ -1075,13 +1569,16 @@ public final class CascadeSchema
             public void onMessage (final Context context)
                     throws Throwable
             {
-                final int value = context.message().asInt();
-                context.message().pop().push(value + 1);
-                if (value % 1_000_000 == 0)
+                for (int i = 1; i <= 1_000_000; i++)
                 {
-                    System.out.println("B = " + value);
+                    context.message().clear().push(i);
+//                    System.out.println("A = " + i);
+                    context.async(context.message());
+//                Thread.sleep(1000);
                 }
-                context.async(context.message());
+
+                watch.start();
+                System.out.println("Sent All");
             }
         };
 
@@ -1091,12 +1588,17 @@ public final class CascadeSchema
             public void onMessage (final Context context)
                     throws Throwable
             {
-                final int value = context.message().asInt();
-                context.message().pop().push(value + 1);
-//                System.out.println("C = " + value);
+//                final int value = context.message().asInt();
+//                context.message().pop().push(value);
+//                if (value % 100_000 == 0)
+//                {
+////                    System.out.println("C = " + value);
+//                }
                 context.async(context.message());
             }
         };
+
+        final AtomicInteger counter1 = new AtomicInteger(1);
 
         final CoreBuilder d = () -> new CascadeNode.Core()
         {
@@ -1104,11 +1606,31 @@ public final class CascadeSchema
             public void onMessage (final Context context)
                     throws Throwable
             {
-                final int value = context.message().asInt();
-                context.message().pop().push(value + 1);
-                if (value % 1_000_000 == 0)
+//                watch.start();
+
+//                final int value = context.message().asInt();
+//                context.message().pop().push(value);
+                if (counter1.incrementAndGet() == 1_000_000)
                 {
-                    System.out.println("D = " + value);
+                    System.out.println("D = " + counter1.get());
+                    System.out.println("Watch = " + watch.stop().elapsed(TimeUnit.MILLISECONDS));
+//                    System.exit(0);
+                }
+                context.async(context.message());
+            }
+        };
+
+        final AtomicInteger counter2 = new AtomicInteger(1);
+
+        final CoreBuilder z = () -> new CascadeNode.Core()
+        {
+            @Override
+            public void onMessage (final Context context)
+                    throws Throwable
+            {
+                if (counter2.incrementAndGet() == 1_000_000)
+                {
+                    System.out.println("Z = " + counter2.get());
                 }
                 context.async(context.message());
             }
@@ -1121,29 +1643,27 @@ public final class CascadeSchema
         cs.addDedicatedPump("P1");
         cs.addDedicatedPump("P2");
         cs.addDedicatedPump("P3");
-        cs.addDedicatedPump("P4");
-        cs.addFixedPool("default").setBufferCount(100).setMaxAllocationSize(128);
-//        cs.addDynamicPool("default").setMaxAllocationSize(128);
-        cs.addNode("a", a).setPump("P1").end();
-        cs.addNode("b", b).setPump("P2").end();
-        cs.addNode("c", c).setPump("P3").end();
-        cs.addNode("d", d).setPump("P4").end();
+        cs.addDirectPump("D1");
+//        cs.addFixedPool("default").setBufferCount(100).setMaxAllocationSize(128);
+        cs.addDynamicPool("default").setMaxAllocationSize(128);
+        cs.addNode("a", a).setPump("P2").end();
+        cs.addNode("b", b).setPump("P1").end();
+        cs.addNode("c", c).setPump("P2").end();
+        cs.addNode("d", d).setPump("P1").end();
+        cs.addNode("z", z).setPump("D1").end();
         cs.exit();
 
-        cs.connect("a", "a");
-        cs.connect("b", "b");
-        cs.connect("c", "c");
-        cs.connect("d", "d");
+        cs.connect("a", "b");
+        cs.connect("b", "c").setQueueCapacity(1000 * 1000 * 1);
+        cs.connect("b", "d").setQueueCapacity(1000 * 1000 * 1);
+        cs.connect("b", "z");
 
         final Cascade cas = cs.build();
         cas.start();
 
-        final OperandStack stack = cas.pools().get("default").allocator().newOperandStack();
+        final OperandStack stack = cas.allocator().pools().get("default").allocator().newOperandStack();
         stack.push(100);
 
         cas.nodes().get("a").protoContext().outputs().get(0).async(stack);
-        cas.nodes().get("b").protoContext().outputs().get(0).async(stack);
-        cas.nodes().get("c").protoContext().outputs().get(0).async(stack);
-        cas.nodes().get("d").protoContext().outputs().get(0).async(stack);
     }
 }

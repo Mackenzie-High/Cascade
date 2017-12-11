@@ -60,7 +60,7 @@ public final class IndependentConnector
         }
 
         this.globalCapacity = globalCap;
-        this.globalQueue = new ArrayBlockingQueue<>(globalCapacity);
+        this.globalQueue = new ArrayBlockingQueue<>(globalCapacity == 0 ? 1 : globalCapacity);
     }
 
     /**

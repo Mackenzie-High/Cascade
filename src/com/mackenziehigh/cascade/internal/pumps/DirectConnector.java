@@ -1,6 +1,7 @@
 package com.mackenziehigh.cascade.internal.pumps;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,16 +24,26 @@ public final class DirectConnector
 
     private final List<Connection> unmodConnections = Collections.unmodifiableList(connections);
 
-    private final AtomicInteger globalCapacity = new AtomicInteger();
+    private final int globalCapacity;
 
     private final AtomicInteger globalSize = new AtomicInteger();
 
-    public Connection add (final Consumer<OperandStack> action,
-                           final int permits)
+    private final Semaphore globalPermits;
+
+    private final Consumer<OperandStack> action;
+
+    public DirectConnector (final Consumer<OperandStack> action,
+                            final int concurrentLimit)
     {
-        globalCapacity.addAndGet(permits);
+        this.globalCapacity = concurrentLimit;
+        this.globalPermits = new Semaphore(concurrentLimit);
+        this.action = action;
+    }
+
+    public Connection addConnection (final int capacity)
+    {
         final int id = connections.size();
-        final Connection result = new DirectConnection(id, permits, action);
+        final Connection result = new DirectConnection(id, capacity);
         connections.add(result);
         return result;
     }
@@ -61,7 +72,7 @@ public final class DirectConnector
     @Override
     public int globalCapacity ()
     {
-        return globalCapacity.get();
+        return globalCapacity;
     }
 
     /**
@@ -79,26 +90,25 @@ public final class DirectConnector
 
         private final int id;
 
-        private final Semaphore permits;
+        private final Semaphore localPermits;
+
+        private final SemaphoreSeries transactionLock;
 
         private final int localCapacity;
 
         private final AtomicInteger localSize = new AtomicInteger();
-
-        private final Consumer<OperandStack> action;
 
         private final Object accessKey = new Object();
 
         private final AtomicBoolean open = new AtomicBoolean(true);
 
         public DirectConnection (final int id,
-                                 final int capacity,
-                                 final Consumer<OperandStack> action)
+                                 final int capacity)
         {
             this.id = id;
             this.localCapacity = capacity;
-            this.permits = new Semaphore(capacity);
-            this.action = action;
+            this.localPermits = new Semaphore(capacity);
+            this.transactionLock = new SemaphoreSeries(ImmutableList.of(localPermits, globalPermits));
         }
 
         /**
@@ -128,24 +138,14 @@ public final class DirectConnector
         {
             Preconditions.checkState(open.get(), "closed");
 
-            boolean acquired;
-
             try
             {
-                acquired = permits.tryAcquire(timeout, timeoutUnits);
+                final boolean acquired = transactionLock.tryAcquire(timeout, timeoutUnits);
+                return acquired ? accessKey : null;
             }
             catch (InterruptedException ex)
             {
-                acquired = false;
-            }
-
-            if (acquired)
-            {
-                return accessKey;
-            }
-            else
-            {
-                return null;
+                return null; // TODO: Propagate instead????
             }
         }
 
@@ -157,16 +157,8 @@ public final class DirectConnector
         {
             Preconditions.checkState(open.get(), "closed");
 
-            final boolean acquired = permits.tryAcquire();
-
-            if (acquired)
-            {
-                return accessKey;
-            }
-            else
-            {
-                return null;
-            }
+            final boolean acquired = transactionLock.tryAcquire();
+            return acquired ? accessKey : null;
         }
 
         /**
@@ -186,18 +178,16 @@ public final class DirectConnector
             {
                 globalSize.incrementAndGet();
                 localSize.incrementAndGet();
+
+                try
                 {
-                    try
-                    {
-                        action.accept(message);
-                    }
-                    catch (Throwable ex)
-                    {
-                        ex.printStackTrace(System.out);
-                    }
+                    action.accept(message);
                 }
-                globalSize.decrementAndGet();
-                localSize.decrementAndGet();
+                finally
+                {
+                    globalSize.decrementAndGet();
+                    localSize.decrementAndGet();
+                }
             }
         }
 
@@ -219,7 +209,7 @@ public final class DirectConnector
             }
             else
             {
-                permits.release();
+                transactionLock.release();
             }
         }
 

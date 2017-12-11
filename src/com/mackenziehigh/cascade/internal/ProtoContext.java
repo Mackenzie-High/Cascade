@@ -27,6 +27,8 @@ public final class ProtoContext
 {
     private final String name;
 
+    private final String simpleName;
+
     private final LazyRef<CascadeNode> node;
 
     private final SharedState sharedState;
@@ -49,6 +51,7 @@ public final class ProtoContext
                          final SharedState sharedState)
     {
         this.name = Objects.requireNonNull(name);
+        this.simpleName = Utils.getSimpleName(name);
         this.node = LazyRef.create(() -> sharedState.namesToNodes.get(name));
         this.sharedState = Objects.requireNonNull(sharedState);
         this.transmitter = LazyRef.create(() -> createTransmitter());
@@ -121,6 +124,15 @@ public final class ProtoContext
     public String name ()
     {
         return name;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String simpleName ()
+    {
+        return simpleName;
     }
 
     /**

@@ -17,9 +17,16 @@ public interface CascadePump
     /**
      * Getter.
      *
-     * @return the user-defined name of this pump.
+     * @return the user-defined full-name of this pump.
      */
     public String name ();
+
+    /**
+     * Getter.
+     *
+     * @return the user-defined simple-name of this pump.
+     */
+    public String simpleName ();
 
     /**
      * Getter.

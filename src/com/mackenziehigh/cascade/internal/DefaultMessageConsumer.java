@@ -2,8 +2,8 @@ package com.mackenziehigh.cascade.internal;
 
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.CascadeNode.Context;
-import com.mackenziehigh.cascade.CascadeNode.Core;
 import com.mackenziehigh.cascade.internal.pumps.Engine;
+import com.mackenziehigh.cascade.CascadeNode.Core;
 
 /**
  *

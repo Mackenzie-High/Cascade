@@ -97,6 +97,15 @@ public final class DerivedContext
      * {@inheritDoc}
      */
     @Override
+    public String simpleName ()
+    {
+        return context.simpleName();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public List<CascadeEdge> inputs ()
     {
         return context.inputs();

@@ -128,15 +128,16 @@ public final class DedicatedEngine
 
                     consumer.accept(stack);
                 }
-                catch (Throwable ex)
+                catch (Throwable ex1)
                 {
-                    if (consumer == null)
+                    try
                     {
-                        ex.printStackTrace(System.out); // TODO. Also, what about InterruptedException.
+                        assert consumer != null;
+                        consumer.handle(ex1);
                     }
-                    else
+                    catch (Throwable ex2)
                     {
-                        consumer.handle(ex);
+                        // TODO: Pass??
                     }
                 }
                 finally
