@@ -7,6 +7,7 @@ Pump, Pipe, and Plant
 
 
 Cascade Notes:
++ Direct Byte Buffers for fixed allocation-pools?
 + MessageStack operations need to verify that free is not needed. Right?
 + Rename MessageStack to Message. Rename Message to something else.
 
