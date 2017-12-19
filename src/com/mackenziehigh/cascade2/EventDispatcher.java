@@ -5,10 +5,11 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
-import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  *
@@ -16,101 +17,24 @@ import java.util.concurrent.TimeUnit;
 public final class EventDispatcher
 {
     /**
-     * Conceptually, this is a transmission queue.
-     *
-     * <p>
-     * The transaction-lock described herein is a conceptual entity.
-     * In reality, the transaction-lock may consist of multiple
-     * locks that must be obtained in sequence, etc.
-     * </p>
-     *
-     * <p>
-     * The transaction methods herein return or use an access-key.
-     * The access-key is simply passed around in order to promote
-     * proper usage of instances of this class, by requiring
-     * that only the thread holding the access-key can manipulate
-     * the transaction.
-     * </p>
+     * (subscriber) -> (connection)
      */
-    public interface Connection
-    {
-        /**
-         * Use this method to attempt to obtain the transaction-lock,
-         * blocking if necessary upto the given timeout.
-         *
-         * <p>
-         * At some point after successfully obtaining an access-key
-         * from this method, you must invoke either unlock(*).
-         * </p>
-         *
-         * @param timeout is the maximum amount of time to wait.
-         * @param timeoutUnits describes the timeout.
-         * @return an access-key, if the lock was obtained; otherwise, return null.
-         */
-        public Object lock (long timeout,
-                            TimeUnit timeoutUnits);
-
-        /**
-         * Use this method to attempt to obtain the transaction-lock,
-         * without blocking if the lock cannot immediately be obtained.
-         *
-         * <p>
-         * At some point after successfully obtaining an access-key
-         * from this method, you must invoke either unlock(*).
-         * </p>
-         *
-         * @return an access-key, if the lock was obtained; otherwise, return null.
-         */
-        public Object lock ();
-
-        /**
-         * Use this method to enqueue a message in this connection queue
-         * after successfully obtaining the transaction-lock.
-         *
-         * @param key is the access-key obtained from lock().
-         * @param message will be enqueued herein.
-         */
-        public void commit (Object key,
-                            OperandStack message);
-
-        /**
-         * Use this method to release the transaction-lock.
-         *
-         * <p>
-         * If the given key is null, then this method is a no-op.
-         * </p>
-         *
-         * @param key is the access-key obtained from lock(), or null.
-         */
-        public void unlock (Object key);
-
-        /**
-         * Getter.
-         *
-         * @return the number of messages that are currently enqueued herein.
-         */
-        public int localSize ();
-
-        /**
-         * Getter.
-         *
-         * @return the maximum number of messages that can be enqueued herein.
-         */
-        public int localCapacity ();
-
-        /**
-         * Safely release any special resources herein.
-         *
-         * <p>
-         * This method never throws any exceptions.
-         * </p>
-         */
-        public void close ();
-    }
-
     private final ImmutableSortedMap<Token, Connection> queues;
 
+    /**
+     * (event) -> [ (connection) ]
+     */
     private final ListMultimap<Token, Connection> subscriptions = Multimaps.newListMultimap(Maps.newConcurrentMap(), () -> Lists.newCopyOnWriteArrayList());
+
+    /**
+     * (publisher) -> (sender)
+     */
+    private final Map<Token, ConcurrentEventSender> senders = Maps.newConcurrentMap();
+
+    /**
+     * This lock is used to ensure that registrations, de-registrations, and look-ups are synchronous.
+     */
+    private final Lock lock = new ReentrantLock();
 
     /**
      * Sole constructor.
@@ -131,15 +55,33 @@ public final class EventDispatcher
     public void register (final Token subscriberId,
                           final Token eventId)
     {
+        lock.lock();
+
+        try
+        {
+            performRegister(subscriberId, eventId);
+        }
+        finally
+        {
+            lock.unlock();
+        }
+    }
+
+    private void performRegister (final Token subscriberId,
+                                  final Token eventId)
+    {
         final Connection handler = queues.get(subscriberId);
 
         if (handler != null)
         {
+            /**
+             * Subscribe the subscriber to the event channel.
+             */
             subscriptions.put(eventId, handler);
         }
         else
         {
-            throw new IllegalArgumentException("No Such Handler: " + subscriberId);
+            throw new IllegalArgumentException("No Such Subscriber: " + subscriberId);
         }
     }
 
@@ -152,33 +94,99 @@ public final class EventDispatcher
     public void deregister (final Token subscriberId,
                             final Token eventId)
     {
+        lock.lock();
+
+        try
+        {
+            performDeregister(subscriberId, eventId);
+        }
+        finally
+        {
+            lock.unlock();
+        }
+    }
+
+    private void performDeregister (final Token subscriberId,
+                                    final Token eventId)
+    {
+        /**
+         * If no one was subscribed to the event,
+         * then an this should simply be a no-op.
+         */
+        if (subscriptions.containsKey(eventId) == false)
+        {
+            return;
+        }
+
+        /**
+         * Unsubscribe the subscriber to the event channel.
+         */
         subscriptions.remove(eventId, subscriberId);
     }
 
-    public boolean sendAsync (final Token eventId,
-                              final OperandStack message)
+    /**
+     * Use this method to lookup the special object that event-producers shall use to dispatch events.
+     *
+     * <p>
+     * Per use-site, this method should be called once and then the result cached.
+     * </p>
+     *
+     * @param publisherId identifies the logical entity that will dispatch-events.
+     * @return the API for sending events.
+     */
+    public ConcurrentEventSender lookup (final Token publisherId)
     {
-        return false;
-    }
+        lock.lock();
 
-    public boolean sendSync (final Token eventId,
-                             final OperandStack message,
-                             final long timeout,
-                             final TimeUnit timeoutUnit)
-    {
-        return false;
-    }
-
-    public boolean broadcast (final Token eventId,
-                              final OperandStack message)
-    {
-        final List<Connection> subscribers = subscriptions.get(eventId);
-
-        for (int i = 0; i < subscribers.size(); i++)
+        try
         {
-            subscribers.get(i).lock();
+            return performLookup(publisherId);
+        }
+        finally
+        {
+            lock.unlock();
+        }
+    }
+
+    private ConcurrentEventSender performLookup (final Token publisherId)
+    {
+        if (senders.containsKey(publisherId) == false)
+        {
+            senders.put(publisherId, new ConcurrentEventSender());
         }
 
-        return false;
+        final ConcurrentEventSender result = senders.get(publisherId);
+
+        return result;
+    }
+
+    /**
+     * Use this API to send events.
+     */
+    public final class ConcurrentEventSender
+            extends OrderlyAtomicSender
+    {
+
+        /**
+         * Private.
+         *
+         * @param eventId identifies the event being sent.
+         * @param out will receive the connections to the subscribers that are interested in the event.
+         */
+        @Override
+        public void resolveConnections (final Token eventId,
+                                        final ArrayList<Connection> out)
+        {
+            out.clear();
+
+            final List<Connection> connections = subscriptions.get(eventId); // Never Null
+
+            for (int i = 0; i < connections.size(); i++)
+            {
+                // TODO: NOT THREAD SAFE!!!!!!!!
+                final Connection connection = connections.get(i); // TODO: Is this really thread-safe??? Can the size() change during iteration like this???
+                out.add(connection);
+            }
+        }
     }
 }
