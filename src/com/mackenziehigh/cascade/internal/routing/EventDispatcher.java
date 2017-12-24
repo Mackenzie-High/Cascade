@@ -1,12 +1,11 @@
-package com.mackenziehigh.cascade2;
+package com.mackenziehigh.cascade.internal.routing;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedMap;
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Multimaps;
+import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.internal.engines.Connection;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -19,17 +18,17 @@ public final class EventDispatcher
     /**
      * (subscriber) -> (connection)
      */
-    private final ImmutableSortedMap<Token, Connection> queues;
+    private final ImmutableSortedMap<CascadeToken, Connection> queues;
 
     /**
      * (event) -> [ (connection) ]
      */
-    private final ListMultimap<Token, Connection> subscriptions = Multimaps.newListMultimap(Maps.newConcurrentMap(), () -> Lists.newCopyOnWriteArrayList());
+    private final Map<CascadeToken, ImmutableList<Connection>> subscriptions = Maps.newConcurrentMap();
 
     /**
      * (publisher) -> (sender)
      */
-    private final Map<Token, ConcurrentEventSender> senders = Maps.newConcurrentMap();
+    private final Map<CascadeToken, ConcurrentEventSender> senders = Maps.newConcurrentMap();
 
     /**
      * This lock is used to ensure that registrations, de-registrations, and look-ups are synchronous.
@@ -41,7 +40,7 @@ public final class EventDispatcher
      *
      * @param queues
      */
-    public EventDispatcher (final Map<Token, Connection> queues)
+    public EventDispatcher (final Map<CascadeToken, Connection> queues)
     {
         this.queues = ImmutableSortedMap.copyOf(queues);
     }
@@ -52,8 +51,8 @@ public final class EventDispatcher
      * @param subscriberId will now receive messages for (eventId).
      * @param eventId identifies the event to listen for.
      */
-    public void register (final Token subscriberId,
-                          final Token eventId)
+    public void register (final CascadeToken subscriberId,
+                          final CascadeToken eventId)
     {
         lock.lock();
 
@@ -67,8 +66,8 @@ public final class EventDispatcher
         }
     }
 
-    private void performRegister (final Token subscriberId,
-                                  final Token eventId)
+    private void performRegister (final CascadeToken subscriberId,
+                                  final CascadeToken eventId)
     {
         final Connection handler = queues.get(subscriberId);
 
@@ -76,8 +75,11 @@ public final class EventDispatcher
         {
             /**
              * Subscribe the subscriber to the event channel.
+             * This is slow, but we need an immutable list during sends.
              */
-            subscriptions.put(eventId, handler);
+            final ImmutableList<Connection> original = subscriptions.getOrDefault(eventId, ImmutableList.of());
+            final ImmutableList<Connection> modified = ImmutableList.<Connection>builder().addAll(original).add(handler).build();
+            subscriptions.put(eventId, modified);
         }
         else
         {
@@ -91,8 +93,8 @@ public final class EventDispatcher
      * @param subscriberId will no longer receive messages for (eventId).
      * @param eventId identifies the event to no longer listen for.
      */
-    public void deregister (final Token subscriberId,
-                            final Token eventId)
+    public void deregister (final CascadeToken subscriberId,
+                            final CascadeToken eventId)
     {
         lock.lock();
 
@@ -106,8 +108,8 @@ public final class EventDispatcher
         }
     }
 
-    private void performDeregister (final Token subscriberId,
-                                    final Token eventId)
+    private void performDeregister (final CascadeToken subscriberId,
+                                    final CascadeToken eventId)
     {
         /**
          * If no one was subscribed to the event,
@@ -134,7 +136,7 @@ public final class EventDispatcher
      * @param publisherId identifies the logical entity that will dispatch-events.
      * @return the API for sending events.
      */
-    public ConcurrentEventSender lookup (final Token publisherId)
+    public ConcurrentEventSender lookup (final CascadeToken publisherId)
     {
         lock.lock();
 
@@ -148,7 +150,7 @@ public final class EventDispatcher
         }
     }
 
-    private ConcurrentEventSender performLookup (final Token publisherId)
+    private ConcurrentEventSender performLookup (final CascadeToken publisherId)
     {
         if (senders.containsKey(publisherId) == false)
         {
@@ -174,17 +176,16 @@ public final class EventDispatcher
          * @param out will receive the connections to the subscribers that are interested in the event.
          */
         @Override
-        public void resolveConnections (final Token eventId,
+        public void resolveConnections (final CascadeToken eventId,
                                         final ArrayList<Connection> out)
         {
             out.clear();
 
-            final List<Connection> connections = subscriptions.get(eventId); // Never Null
+            final ImmutableList<Connection> connections = subscriptions.getOrDefault(eventId, ImmutableList.of());
 
             for (int i = 0; i < connections.size(); i++)
             {
-                // TODO: NOT THREAD SAFE!!!!!!!!
-                final Connection connection = connections.get(i); // TODO: Is this really thread-safe??? Can the size() change during iteration like this???
+                final Connection connection = connections.get(i);
                 out.add(connection);
             }
         }

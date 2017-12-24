@@ -3,15 +3,16 @@ package com.mackenziehigh.cascade.internal;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.CascadeEdge;
 import com.mackenziehigh.cascade.CascadeLogger;
-import com.mackenziehigh.cascade.CascadeNode;
-import com.mackenziehigh.cascade.CascadeNode.Context;
-import com.mackenziehigh.cascade.CascadePump;
-import java.util.List;
+import com.mackenziehigh.cascade.CascadeReactor.Context;
+import com.mackenziehigh.cascade.CascadeToken;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import com.mackenziehigh.cascade.CascadePump;
+import com.mackenziehigh.cascade.CascadeReactor;
+import com.mackenziehigh.cascade.CascadeProcessor;
 
 /**
  *
@@ -20,6 +21,8 @@ public final class DerivedContext
         implements Context
 {
     private final Context context;
+
+    public final AtomicReference<CascadeToken> event = new AtomicReference<>();
 
     public final AtomicReference<OperandStack> message = new AtomicReference<>();
 
@@ -70,16 +73,16 @@ public final class DerivedContext
      * {@inheritDoc}
      */
     @Override
-    public CascadePump pump ()
+    public CascadePump engine ()
     {
-        return context.pump();
+        return context.engine();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public CascadeNode node ()
+    public CascadeReactor node ()
     {
         return context.node();
     }
@@ -88,7 +91,7 @@ public final class DerivedContext
      * {@inheritDoc}
      */
     @Override
-    public String name ()
+    public CascadeToken name ()
     {
         return context.name();
     }
@@ -97,27 +100,18 @@ public final class DerivedContext
      * {@inheritDoc}
      */
     @Override
-    public String simpleName ()
+    public CascadeProcessor input ()
     {
-        return context.simpleName();
+        return context.input();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public List<CascadeEdge> inputs ()
+    public CascadeToken event ()
     {
-        return context.inputs();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public List<CascadeEdge> outputs ()
-    {
-        return context.outputs();
+        return event.get();
     }
 
     /**
@@ -142,39 +136,70 @@ public final class DerivedContext
      * {@inheritDoc}
      */
     @Override
-    public boolean async (final OperandStack message)
+    public boolean async (final CascadeToken event,
+                          final OperandStack message)
     {
-        return context.async(message);
+        return context.async(event, message);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public boolean sync (final OperandStack message,
+    public boolean sync (final CascadeToken event,
+                         final OperandStack message,
                          final long timeout,
                          final TimeUnit timeoutUnits)
     {
-        return context.sync(message, timeout, timeoutUnits);
+        return context.sync(event, message, timeout, timeoutUnits);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void send (final OperandStack message)
-            throws CascadeNode.SendFailureException
+    public void send (final CascadeToken event,
+                      final OperandStack message)
+            throws CascadeReactor.SendFailureException
     {
-        context.send(message);
+        context.send(event, message);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public int broadcast (final OperandStack message)
+    public int broadcast (final CascadeToken event,
+                          final OperandStack message)
     {
-        return context.broadcast(message);
+        return context.broadcast(event, message);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Set<CascadeToken> subscriptions ()
+    {
+        return context.subscriptions();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Context subscribe (final CascadeToken event)
+    {
+        return context.subscribe(event);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Context unsubscribe (final CascadeToken event)
+    {
+        return context.unsubscribe(event);
     }
 
 }

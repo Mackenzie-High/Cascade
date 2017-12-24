@@ -2,9 +2,29 @@ package com.mackenziehigh.cascade;
 
 /**
  * Use this interface to issue log-messages.
+ *
+ * <p>
+ * Many of the logging methods herein support argument substitution.
+ * The substitutions will be performed using the <code>String.format(*)</code> method.
+ * </p>
  */
 public interface CascadeLogger
 {
+    /**
+     * An instance of this interface creates a new
+     * logger for an entity with a given name.
+     */
+    public interface Factory
+    {
+        /**
+         * Getter.
+         *
+         * @param name is the name of the usage site().
+         * @return a newly created logger.
+         */
+        public CascadeLogger create (CascadeToken name);
+    }
+
     /**
      * Log Levels.
      *
@@ -25,9 +45,16 @@ public interface CascadeLogger
     }
 
     /**
+     * Getter.
+     *
+     * @return the name of the entity that this logger applies to.
+     */
+    public CascadeToken site ();
+
+    /**
      * Use this method to issue a log-message.
      *
-     * @param level is the leg-level of the log-message.
+     * @param level is the log-level of the log-message.
      * @param message is the log-message to issue.
      * @param args will be substituted into the log-message.
      * @return this.
@@ -39,7 +66,7 @@ public interface CascadeLogger
     /**
      * Use this method to issue a log-message.
      *
-     * @param level is the leg-level of the log-message.
+     * @param level is the log-level of the log-message.
      * @param message is the log-message to issue.
      * @return this.
      */

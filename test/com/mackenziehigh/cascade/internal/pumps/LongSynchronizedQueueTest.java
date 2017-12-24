@@ -1,6 +1,6 @@
 package com.mackenziehigh.cascade.internal.pumps;
 
-import com.mackenziehigh.cascade.internal.pumps.LongSynchronizedQueue;
+import com.mackenziehigh.cascade.internal.routing.LongSynchronizedQueue;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.concurrent.ArrayBlockingQueue;

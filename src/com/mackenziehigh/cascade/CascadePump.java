@@ -19,14 +19,7 @@ public interface CascadePump
      *
      * @return the user-defined full-name of this pump.
      */
-    public String name ();
-
-    /**
-     * Getter.
-     *
-     * @return the user-defined simple-name of this pump.
-     */
-    public String simpleName ();
+    public CascadeToken name ();
 
     /**
      * Getter.
@@ -52,7 +45,7 @@ public interface CascadePump
     /**
      * Getter.
      *
-     * @return the nodes that this pump powers.
+     * @return the reactors that this pump powers.
      */
-    public Set<CascadeNode> nodes ();
+    public Set<CascadeReactor> reactors ();
 }

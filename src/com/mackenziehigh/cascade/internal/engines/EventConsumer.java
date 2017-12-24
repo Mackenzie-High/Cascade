@@ -1,5 +1,6 @@
-package com.mackenziehigh.cascade2;
+package com.mackenziehigh.cascade.internal.engines;
 
+import com.mackenziehigh.cascade.CascadeToken;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 
 /**
@@ -7,7 +8,7 @@ import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
  */
 public interface EventConsumer
 {
-    public void onMessage (Token event,
+    public void onMessage (CascadeToken event,
                            OperandStack message)
             throws Throwable;
 

@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade2;
+package com.mackenziehigh.cascade;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * A token is a series of one or more textual keys, which ideally are human-readable.
+ * A token is a series of one or more textual keys, which form a name.
  *
  * <p>
  * Tokens are optimized for efficient equality testing via the use of MD5 hashing.
@@ -25,8 +25,8 @@ import java.util.Optional;
  * This class is optimized for speed, rather than memory, efficiency.
  * </p>
  */
-public final class Token
-        implements Comparable<Token>
+public final class CascadeToken
+        implements Comparable<CascadeToken>
 {
 
     private final ImmutableList<String> keys;
@@ -37,7 +37,7 @@ public final class Token
 
     private final String name;
 
-    private final Optional<Token> parent;
+    private final Optional<CascadeToken> parent;
 
     private final long highMD5;
 
@@ -49,8 +49,8 @@ public final class Token
 
     private final int hashCode;
 
-    private Token (final Token parent,
-                   final String suffix)
+    private CascadeToken (final CascadeToken parent,
+                          final String suffix)
     {
         this.parent = Optional.ofNullable(parent);
         this.prefix = parent == null ? "" : parent.name();
@@ -79,11 +79,11 @@ public final class Token
      * @param key will become the new suffix.
      * @return the new token.
      */
-    public Token append (final String key)
+    public CascadeToken append (final String key)
     {
         Preconditions.checkNotNull(key, "key");
         Preconditions.checkArgument(key.contains(".") == false, "Invalid Key: " + key);
-        return new Token(this, key);
+        return new CascadeToken(this, key);
     }
 
     /**
@@ -101,7 +101,7 @@ public final class Token
      *
      * @return the prefix token.
      */
-    public Optional<Token> parent ()
+    public Optional<CascadeToken> parent ()
     {
         return parent;
     }
@@ -152,10 +152,30 @@ public final class Token
      * @param out will receive the binary representation of the MD5 hash.
      * @return this.
      */
-    public Token hashBytes (final byte[] out)
+    public CascadeToken hashBytes (final byte[] out)
     {
         System.arraycopy(hashBytes, 0, out, 0, hashBytes.length);
         return this;
+    }
+
+    /**
+     * Getter.
+     *
+     * @return true, if this token denotes a full-name.
+     */
+    public boolean isFull ()
+    {
+        return !isSimple();
+    }
+
+    /**
+     * Getter.
+     *
+     * @return true, if this token denotes a simple-name.
+     */
+    public boolean isSimple ()
+    {
+        return prefix.isEmpty();
     }
 
     /**
@@ -164,7 +184,7 @@ public final class Token
      * @param other may be covered by this token.
      * @return true, iff this token is a prefix of the other token.
      */
-    public boolean isPrefixOf (final Token other)
+    public boolean isPrefixOf (final CascadeToken other)
     {
         if (other == null)
         {
@@ -194,7 +214,7 @@ public final class Token
      * @param other may equal this token.
      * @return true, iff this token is definitely equal to the the other token.
      */
-    public boolean isStrictlyEqualTo (final Token other)
+    public boolean isStrictlyEqualTo (final CascadeToken other)
     {
         return isWeaklyEqualTo(other) && name.equals(other.name);
     }
@@ -206,7 +226,7 @@ public final class Token
      * @return true, iff this token is equal to the other token,
      * unless a hash-collision has silently occurred (extremely unlikely).
      */
-    public boolean isWeaklyEqualTo (final Token other)
+    public boolean isWeaklyEqualTo (final CascadeToken other)
     {
         return (other != null) && (lowMD5 == other.lowMD5) && (highMD5 == other.highMD5);
     }
@@ -234,13 +254,13 @@ public final class Token
         {
             return false;
         }
-        else if (other instanceof Token == false)
+        else if (other instanceof CascadeToken == false)
         {
             return false;
         }
         else
         {
-            return isWeaklyEqualTo((Token) other); // Very Fast and Good Enough!
+            return isWeaklyEqualTo((CascadeToken) other); // Very Fast and *Good Enough*!
         }
     }
 
@@ -248,7 +268,7 @@ public final class Token
      * {@inheritDoc}
      */
     @Override
-    public int compareTo (final Token other)
+    public int compareTo (final CascadeToken other)
     {
         Preconditions.checkNotNull(other, "other");
         return name.compareTo(other.name);
@@ -275,17 +295,17 @@ public final class Token
      * @param name is a dot-delimited list of keys that will be converted to a token.
      * @return the newly created token object based on the given full-name.
      */
-    public static Token create (final String name)
+    public static CascadeToken create (final String name)
     {
         Preconditions.checkNotNull(name);
         Preconditions.checkArgument(name.matches("([^.]+[.])*[^.]+"), "Invalid Name: " + name);
 
         final String[] parts = name.split("\\.");
-        Token token = null;
+        CascadeToken token = null;
 
         for (String part : parts)
         {
-            token = new Token(token, part);
+            token = new CascadeToken(token, part);
         }
 
         return token;

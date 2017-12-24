@@ -1,13 +1,13 @@
-package com.mackenziehigh.cascade.internal.pumps;
+package com.mackenziehigh.cascade.internal.routing;
 
+import com.mackenziehigh.cascade.CascadeToken;
 import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.internal.pumps.Connector.Connection;
-import java.util.Collection;
+import com.mackenziehigh.cascade.internal.engines.Connection;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.IntStream;
 
 /**
  * This class provides the algorithms needed to send
@@ -42,8 +42,11 @@ import java.util.stream.IntStream;
  * of this object!
  * </p>
  */
-public final class OrderlyAtomicSender
+public abstract class OrderlyAtomicSender
 {
+    public abstract void resolveConnections (CascadeToken event,
+                                             ArrayList<Connection> out);
+
     /**
      * This lock ensures that no two send attempts
      * are modifying the underlying outputs simultaneously,
@@ -51,29 +54,28 @@ public final class OrderlyAtomicSender
      */
     private final Lock transactionLock = new ReentrantLock();
 
-    private final Connection[] outputs;
+    private final ArrayList<Connection> outputs = new ArrayList<>(16);
 
-    private final Object[] keys;
-
-    public OrderlyAtomicSender (final Collection<Connection> outputs)
-    {
-        this.outputs = outputs.toArray(new Connection[0]);
-        this.keys = new Object[outputs.size()];
-        IntStream.range(0, outputs.size()).forEach(i -> keys[i] = null);
-    }
+    private final ArrayList<Object> keys = new ArrayList<>(16);
 
     /**
      * Use this method to *non* atomically send a message to all of the outputs,
      * without blocking if any of the outputs are unable to accept the message.
      *
+     * @param event identifies the event-channel that the message will be sent to.
      * @param message is the message to send.
      * @return the number of outputs that enqueued the message.
      */
-    public int broadcast (final OperandStack message)
+    public int broadcast (final CascadeToken event,
+                          final OperandStack message)
     {
         if (transactionLock.tryLock() == false)
         {
             return 0;
+        }
+        else
+        {
+            resolveConnections(event);
         }
 
         int commitCount = 0;
@@ -83,22 +85,22 @@ public final class OrderlyAtomicSender
             /**
              * Acquire the locks.
              */
-            for (int i = 0; i < keys.length; i++)
+            for (int i = 0; i < outputs.size(); i++)
             {
-                final Object key = outputs[i].lock();
-                keys[i] = key;
+                final Object key = outputs.get(i).lock();
+                keys.add(key);
             }
 
             /**
              * If we successfully obtained the locks,
              * then commit the message to each output.
              */
-            for (int i = 0; i < keys.length; i++)
+            for (int i = 0; i < keys.size(); i++)
             {
-                final Object key = keys[i];
+                final Object key = keys.get(i);
                 if (key != null)
                 {
-                    outputs[i].commit(key, message);
+                    outputs.get(i).commit(key, event, message);
                     ++commitCount;
                 }
             }
@@ -106,10 +108,10 @@ public final class OrderlyAtomicSender
             /**
              * Release the locks.
              */
-            for (int i = 0; i < keys.length; i++)
+            for (int i = 0; i < keys.size(); i++)
             {
-                outputs[i].unlock(keys[i]);
-                keys[i] = null;
+                outputs.get(i).unlock(keys.get(i));
+                keys.set(i, null);
             }
         }
         finally
@@ -124,14 +126,20 @@ public final class OrderlyAtomicSender
      * Use this method to atomically send a message to all of the outputs,
      * without blocking if any of the outputs are unable to accept the message.
      *
+     * @param event identifies the event-channel that the message will be sent to.
      * @param message is the message to send.
      * @return true, if the message was sent.
      */
-    public boolean sendAsync (final OperandStack message)
+    public boolean sendAsync (final CascadeToken event,
+                              final OperandStack message)
     {
         if (transactionLock.tryLock() == false)
         {
             return false;
+        }
+        else
+        {
+            resolveConnections(event);
         }
 
         int commitCount = 0;
@@ -143,31 +151,31 @@ public final class OrderlyAtomicSender
             /**
              * Acquire the locks.
              */
-            for (int i = 0; i < keys.length; i++)
+            for (int i = 0; i < outputs.size(); i++)
             {
-                final Object key = outputs[i].lock();
+                final Object key = outputs.get(i).lock();
                 hasAllLocks &= key != null;
-                keys[i] = key;
+                keys.set(i, key);
             }
 
             /**
              * If we successfully obtained the locks,
              * then commit the message to each output.
              */
-            for (int i = 0; hasAllLocks && i < keys.length; i++)
+            for (int i = 0; hasAllLocks && i < keys.size(); i++)
             {
-                final Object key = keys[i];
-                outputs[i].commit(key, message);
+                final Object key = keys.get(i);
+                outputs.get(i).commit(key, event, message);
                 ++commitCount;
             }
 
             /**
              * Release the locks.
              */
-            for (int i = 0; i < keys.length; i++)
+            for (int i = 0; i < keys.size(); i++)
             {
-                outputs[i].unlock(keys[i]);
-                keys[i] = null;
+                outputs.get(i).unlock(keys.get(i));
+                keys.set(i, null);
             }
         }
         finally
@@ -175,7 +183,7 @@ public final class OrderlyAtomicSender
             transactionLock.unlock();
         }
 
-        final boolean result = commitCount == keys.length;
+        final boolean result = commitCount == keys.size();
         return result;
     }
 
@@ -188,13 +196,15 @@ public final class OrderlyAtomicSender
      * The timeout is a goal, not a real-time guarantee.
      * </p>
      *
+     * @param event identifies the event-channel that the message will be sent to.
      * @param message is the message to send.
      * @param timeout is the maximum amount of time to wait.
      * @param timeoutUnits describes the timeout.
      * @return true, if the message was sent.
      * @throws java.lang.InterruptedException
      */
-    public boolean sendSync (final OperandStack message,
+    public boolean sendSync (final CascadeToken event,
+                             final OperandStack message,
                              final long timeout,
                              final TimeUnit timeoutUnits)
             throws InterruptedException
@@ -206,7 +216,7 @@ public final class OrderlyAtomicSender
          * because fewer system-calls are needed, etc; therefore,
          * we will try that method first in hopes of getting lucky.
          */
-        if (sendAsync(message))
+        if (sendAsync(event, message))
         {
             return true;
         }
@@ -219,13 +229,17 @@ public final class OrderlyAtomicSender
         {
             return false;
         }
+        else
+        {
+            resolveConnections(event);
+        }
 
         try
         {
             /**
              * Acquire the locks.
              */
-            for (int i = 0; i < keys.length; i++)
+            for (int i = 0; i < outputs.size(); i++)
             {
                 final long elapsedTime = System.nanoTime() - startTime;
                 final long diffTime = timeoutNanos - elapsedTime; // Limit (diffTime) -> 0
@@ -236,48 +250,55 @@ public final class OrderlyAtomicSender
                     break;
                 }
 
-                final Object key = outputs[i].lock(remainingTime, TimeUnit.NANOSECONDS);
+                final Object key = outputs.get(i).lock(remainingTime, TimeUnit.NANOSECONDS);
                 if (key == null)
                 {
                     break;
                 }
                 else
                 {
-                    keys[i] = outputs[i].lock();
+                    keys.set(i, outputs.get(i).lock());
                     ++lockCount;
                 }
             }
 
-            final boolean hasAllLocks = lockCount == keys.length;
+            final boolean hasAllLocks = lockCount == keys.size();
 
             /**
              * If we successfully obtained the locks,
              * then commit the message to each output.
              */
             int commitCount = 0;
-            for (int i = 0; hasAllLocks && i < keys.length; i++)
+            for (int i = 0; hasAllLocks && i < keys.size(); i++)
             {
-                final Object key = keys[i];
-                outputs[i].commit(key, message);
+                final Object key = keys.get(i);
+                outputs.get(i).commit(key, event, message);
                 ++commitCount;
             }
 
             /**
              * Release the locks.
              */
-            for (int i = 0; i < keys.length; i++)
+            for (int i = 0; i < keys.size(); i++)
             {
-                outputs[i].unlock(keys[i]);
-                keys[i] = null;
+                outputs.get(i).unlock(keys.size());
+                keys.set(i, null);
             }
 
-            final boolean result = commitCount == keys.length;
+            final boolean result = commitCount == keys.size();
             return result;
         }
         finally
         {
             transactionLock.lock();
         }
+    }
+
+    private void resolveConnections (final CascadeToken event)
+    {
+        resolveConnections(event, outputs);
+        keys.ensureCapacity(outputs.size());
+        keys.clear();
     }
 
 }

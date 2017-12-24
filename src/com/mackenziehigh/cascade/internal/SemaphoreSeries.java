@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.internal.pumps;
+package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;

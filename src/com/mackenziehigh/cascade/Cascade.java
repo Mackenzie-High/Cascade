@@ -1,13 +1,15 @@
 package com.mackenziehigh.cascade;
 
-import java.util.Set;
 import java.util.SortedMap;
+import java.util.UUID;
 
 /**
- * An instance of this class is a concurrent network of nodes that pass
- * stacks of messages to one another for processing via edges (queues).
- * Each node is powered by a pump, which may be shared amongst multiple
- * nodes or dedicated to a single node.
+ * An instance of this class is a concurrent network of reactors
+ * that pass stacks of event-messages to one another for processing.
+ * Each reactor is powered by a pump, which may be shared amongst
+ * multiple reactors or dedicated to a single reactor.
+ * Each reactor contains a queue of pending event-messages
+ * that are awaiting processing by the reactor.
  */
 public interface Cascade
 {
@@ -17,10 +19,15 @@ public interface Cascade
      * Execution will progress to the TERMINATED phase.
      * Once the TERMINATED phase is reached,
      * no further phase transitions will occur.
+     *
+     * <p>
+     * More phases may be added in the future.
+     * </p>
      */
     public static enum ExecutionPhase
     {
         INITIAL,
+        SUBSCRIBE,
         SETUP,
         START,
         RUN,
@@ -29,6 +36,20 @@ public interface Cascade
         CLOSE,
         TERMINATED,
     }
+
+    /**
+     * Getter.
+     *
+     * @return the name of this object.
+     */
+    public CascadeToken name ();
+
+    /**
+     * Getter.
+     *
+     * @return a UUID that uniquely identifies this object.
+     */
+    public UUID uuid ();
 
     /**
      * Getter.
@@ -49,21 +70,14 @@ public interface Cascade
      *
      * @return an immutable map that maps the full-names of pumps to the pumps themselves.
      */
-    public SortedMap<String, CascadePump> pumps ();
+    public SortedMap<CascadeToken, CascadePump> pumps ();
 
     /**
      * Getter.
      *
-     * @return an immutable map that maps the full-names of nodes to the nodes themselves.
+     * @return an immutable map that maps the full-names of reactors to the reactors themselves.
      */
-    public SortedMap<String, CascadeNode> nodes ();
-
-    /**
-     * Getter.
-     *
-     * @return all of the edges between all of the nodes.
-     */
-    public Set<CascadeEdge> edges ();
+    public SortedMap<CascadeToken, CascadeReactor> reactors ();
 
     /**
      * Getter.
@@ -75,6 +89,14 @@ public interface Cascade
     /**
      * Use this method to start the execution of the system.
      *
+     * <p>
+     * This method does *not* block (returns immediately).
+     * </p>
+     *
+     * <p>
+     * Subsequent invocations of this method are no-ops.
+     * </p>
+     *
      * @return this.
      */
     public Cascade start ();
@@ -83,14 +105,19 @@ public interface Cascade
      * Use this method to stop the execution of the system.
      *
      * <p>
-     * An arbitrary amount of time may be needed in order to stop.
-     * If all nodes() have well-behaved implementations,
-     * then this method will return quickly, but the stopping
-     * of all threads may still be in-progress.
+     * This method does *not* block (returns immediately).
      * </p>
      *
      * <p>
-     * If any node has a non well-behaved implementation,
+     * Subsequent invocations of this method are no-ops.
+     * </p>
+     *
+     * <p>
+     * An arbitrary amount of time may be needed in order to stop.
+     * </p>
+     *
+     * <p>
+     * If any reactor has a non well-behaved implementation,
      * such as creating threads that do not get notified
      * of stop requests, then it may not be possible to
      * entirely clean up the system. Thus, this method

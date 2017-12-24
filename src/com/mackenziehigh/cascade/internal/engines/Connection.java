@@ -1,6 +1,7 @@
-package com.mackenziehigh.cascade2;
+package com.mackenziehigh.cascade.internal.engines;
 
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
+import com.mackenziehigh.cascade.CascadeToken;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -22,9 +23,6 @@ import java.util.concurrent.TimeUnit;
  */
 public interface Connection
 {
-    public void start ();
-
-    public void stop ();
 
     /**
      * Use this method to attempt to obtain the transaction-lock,
@@ -64,7 +62,7 @@ public interface Connection
      * @param message will be enqueued herein.
      */
     public void commit (Object key,
-                        Token event,
+                        CascadeToken event,
                         OperandStack message);
 
     /**

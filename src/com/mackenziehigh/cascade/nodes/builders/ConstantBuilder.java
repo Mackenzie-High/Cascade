@@ -1,8 +1,8 @@
 package com.mackenziehigh.cascade.nodes.builders;
 
-import com.mackenziehigh.cascade.CascadeNode;
 import com.mackenziehigh.cascade.nodes.NodeBuilder;
 import java.util.Arrays;
+import com.mackenziehigh.cascade.CascadeReactor;
 
 /**
  *
@@ -33,12 +33,12 @@ public final class ConstantBuilder
     }
 
     @Override
-    public CascadeNode.Core build ()
+    public CascadeReactor.Core build ()
     {
-        return new CascadeNode.Core()
+        return new CascadeReactor.Core()
         {
             @Override
-            public void onMessage (final CascadeNode.Context context)
+            public void onMessage (final CascadeReactor.Context context)
                     throws Throwable
             {
                 if (clearStack)
@@ -48,7 +48,7 @@ public final class ConstantBuilder
 
                 context.message().push(constant);
 
-                context.send(context.message());
+//                context.send(context.message());
             }
         };
     }

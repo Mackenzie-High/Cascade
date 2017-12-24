@@ -1,6 +1,6 @@
 package com.mackenziehigh.cascade.nodes;
 
-import com.mackenziehigh.cascade.CascadeNode;
+import com.mackenziehigh.cascade.CascadeReactor;
 
 /**
  *
@@ -8,5 +8,5 @@ import com.mackenziehigh.cascade.CascadeNode;
  */
 public interface NodeBuilder<T extends NodeBuilder<T>>
 {
-    public CascadeNode.Core build ();
+    public CascadeReactor.Core build ();
 }

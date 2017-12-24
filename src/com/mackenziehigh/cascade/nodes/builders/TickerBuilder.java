@@ -1,12 +1,12 @@
 package com.mackenziehigh.cascade.nodes.builders;
 
-import com.mackenziehigh.cascade.CascadeNode;
 import com.mackenziehigh.cascade.nodes.NodeBuilder;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import com.mackenziehigh.cascade.CascadeReactor;
 
 /**
  *
@@ -72,12 +72,12 @@ public final class TickerBuilder
     }
 
     @Override
-    public CascadeNode.Core build ()
+    public CascadeReactor.Core build ()
     {
-        return new CascadeNode.Core()
+        return new CascadeReactor.Core()
         {
             @Override
-            public void onSetup (final CascadeNode.Context context)
+            public void onSetup (final CascadeReactor.Context context)
                     throws Throwable
             {
                 final Runnable task = () -> run();
@@ -85,7 +85,7 @@ public final class TickerBuilder
             }
 
             @Override
-            public void onDestroy (final CascadeNode.Context context)
+            public void onDestroy (final CascadeReactor.Context context)
                     throws Throwable
             {
                 final boolean interrupt = false;

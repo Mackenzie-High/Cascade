@@ -7,15 +7,15 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
-import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
-import com.mackenziehigh.cascade.CascadeEdge;
 import com.mackenziehigh.cascade.CascadeLogger;
-import com.mackenziehigh.cascade.CascadeNode;
-import com.mackenziehigh.cascade.CascadePump;
+import com.mackenziehigh.cascade.CascadeToken;
 import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.concurrent.atomic.AtomicReference;
+import com.mackenziehigh.cascade.CascadePump;
+import com.mackenziehigh.cascade.CascadeReactor;
+import com.mackenziehigh.cascade.CascadeProcessor;
 
 /**
  *
@@ -30,19 +30,16 @@ public final class Controller
 
     private final LazyRef<CascadeLogger> defaultLogger;
 
-    private final LazyRef<ImmutableSortedMap<String, AllocationPool>> pools;
-
     private final LazyRef<ImmutableSortedMap<String, CascadePump>> pumps;
 
-    private final LazyRef<ImmutableSortedMap<String, CascadeNode>> nodes;
+    private final LazyRef<ImmutableSortedMap<String, CascadeReactor>> nodes;
 
-    private final LazyRef<ImmutableSet<CascadeEdge>> edges;
+    private final LazyRef<ImmutableSet<CascadeProcessor>> edges;
 
     public Controller (final SharedState sharedState)
     {
         this.sharedState = Objects.requireNonNull(sharedState);
         this.defaultLogger = LazyRef.create(() -> sharedState.defaultLogger);
-        this.pools = LazyRef.create(() -> ImmutableSortedMap.copyOf(sharedState.allocator.pools())); // TODO: Remove? Only allocator instead???
         this.pumps = LazyRef.create(() -> ImmutableSortedMap.copyOf(resolvePumps()));
         this.nodes = LazyRef.create(() -> ImmutableSortedMap.copyOf(resolveNodes()));
         this.edges = LazyRef.create(() -> ImmutableSet.copyOf(resolveEdges()));
@@ -70,7 +67,7 @@ public final class Controller
      * {@inheritDoc}
      */
     @Override
-    public SortedMap<String, CascadePump> pumps ()
+    public SortedMap<CascadeToken, CascadePump> engines ()
     {
         return pumps.get();
     }
@@ -79,7 +76,7 @@ public final class Controller
      * {@inheritDoc}
      */
     @Override
-    public SortedMap<String, CascadeNode> nodes ()
+    public SortedMap<CascadeToken, CascadeReactor> nodes ()
     {
         return nodes.get();
     }
@@ -88,7 +85,7 @@ public final class Controller
      * {@inheritDoc}
      */
     @Override
-    public Set<CascadeEdge> edges ()
+    public Set<CascadeProcessor> edges ()
     {
         return edges.get();
     }
@@ -152,11 +149,11 @@ public final class Controller
         return ImmutableSortedMap.copyOf(map);
     }
 
-    private SortedMap<String, CascadeNode> resolveNodes ()
+    private SortedMap<String, CascadeReactor> resolveNodes ()
     {
-        final SortedMap<String, CascadeNode> map = Maps.newTreeMap(String.CASE_INSENSITIVE_ORDER);
+        final SortedMap<String, CascadeReactor> map = Maps.newTreeMap(String.CASE_INSENSITIVE_ORDER);
 
-        for (CascadeNode x : sharedState.namesToNodes.values())
+        for (CascadeReactor x : sharedState.namesToNodes.values())
         {
             map.put(x.name(), x);
         }
@@ -164,16 +161,16 @@ public final class Controller
         return ImmutableSortedMap.copyOf(map);
     }
 
-    private Set<CascadeEdge> resolveEdges ()
+    private Set<CascadeProcessor> resolveEdges ()
     {
-        final Set<CascadeEdge> set = Sets.newHashSet();
+        final Set<CascadeProcessor> set = Sets.newHashSet();
 
-        for (CascadeEdge x : sharedState.nodesToInputs.values())
+        for (CascadeProcessor x : sharedState.nodesToInputs.values())
         {
             set.add(x);
         }
 
-        for (CascadeEdge x : sharedState.nodesToOutputs.values())
+        for (CascadeProcessor x : sharedState.nodesToOutputs.values())
         {
             set.add(x);
         }
@@ -186,7 +183,7 @@ public final class Controller
         /**
          * Setup each node.
          */
-        for (CascadeNode node : sharedState.namesToNodes.values())
+        for (CascadeReactor node : sharedState.namesToNodes.values())
         {
             final DerivedContext context = new DerivedContext(node.protoContext());
 
@@ -230,7 +227,7 @@ public final class Controller
         /**
          * Notify each node of startup.
          */
-        for (CascadeNode node : sharedState.namesToNodes.values())
+        for (CascadeReactor node : sharedState.namesToNodes.values())
         {
             final DerivedContext context = new DerivedContext(node.protoContext());
 

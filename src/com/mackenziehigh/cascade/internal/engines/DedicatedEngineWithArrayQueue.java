@@ -1,9 +1,10 @@
-package com.mackenziehigh.cascade2;
+package com.mackenziehigh.cascade.internal.engines;
 
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.internal.pumps.LongSynchronizedQueue;
-import com.mackenziehigh.cascade.internal.pumps.OperandStackStorage;
+import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.internal.routing.LongSynchronizedQueue;
+import com.mackenziehigh.cascade.internal.routing.OperandStackStorage;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -14,8 +15,9 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Single Queue, Single Node, Single Thread.
  */
-public final class DedicatedConnection
-        implements Connection
+public final class DedicatedEngineWithArrayQueue
+        implements Connection,
+                   Engine
 {
     private final int capacity;
 
@@ -25,7 +27,7 @@ public final class DedicatedConnection
 
     private final Object transactionKey = new Object();
 
-    private final ArrayBlockingQueue<Token> eventQueue;
+    private final ArrayBlockingQueue<CascadeToken> eventQueue;
 
     private final LongSynchronizedQueue messageQueue;
 
@@ -49,9 +51,9 @@ public final class DedicatedConnection
 
     private final EventConsumer consumer;
 
-    public DedicatedConnection (final CascadeAllocator allocator,
-                                final int capacity,
-                                final EventConsumer consumer)
+    public DedicatedEngineWithArrayQueue (final CascadeAllocator allocator,
+                            final int capacity,
+                            final EventConsumer consumer)
     {
         this.capacity = capacity;
         this.producerPermits = new Semaphore(capacity);
@@ -117,7 +119,7 @@ public final class DedicatedConnection
 
     @Override
     public void commit (final Object key,
-                        final Token event,
+                        final CascadeToken event,
                         final CascadeAllocator.OperandStack message)
     {
         if (key == transactionKey)
@@ -186,7 +188,7 @@ public final class DedicatedConnection
                     /**
                      * Get the event and message from the queue.
                      */
-                    final Token eventId = eventQueue.poll();
+                    final CascadeToken eventId = eventQueue.poll();
                     final int messageIdx = (int) messageQueue.poll();
                     messageStorage.get(messageIdx, stack);
 

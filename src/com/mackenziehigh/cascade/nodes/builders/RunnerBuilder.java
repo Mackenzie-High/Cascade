@@ -1,7 +1,7 @@
 package com.mackenziehigh.cascade.nodes.builders;
 
-import com.mackenziehigh.cascade.CascadeNode;
 import com.mackenziehigh.cascade.nodes.NodeBuilder;
+import com.mackenziehigh.cascade.CascadeReactor;
 
 /**
  *
@@ -11,9 +11,9 @@ public final class RunnerBuilder
 {
 
     @Override
-    public CascadeNode.Core build ()
+    public CascadeReactor.Core build ()
     {
-        return new CascadeNode.Core()
+        return new CascadeReactor.Core()
         {
         };
     }

@@ -1,5 +1,7 @@
 package com.mackenziehigh.cascade.internal;
 
+
+
 import com.mackenziehigh.cascade.CascadeLogger;
 import java.util.logging.Logger;
 

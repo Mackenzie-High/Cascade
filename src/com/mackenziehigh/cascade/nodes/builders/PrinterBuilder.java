@@ -1,9 +1,9 @@
 package com.mackenziehigh.cascade.nodes.builders;
 
-import com.mackenziehigh.cascade.CascadeNode;
 import com.mackenziehigh.cascade.nodes.NodeBuilder;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
+import com.mackenziehigh.cascade.CascadeReactor;
 
 /**
  * Node Builder for Printer nodes.
@@ -21,12 +21,12 @@ public final class PrinterBuilder
      * {@inheritDoc}
      */
     @Override
-    public CascadeNode.Core build ()
+    public CascadeReactor.Core build ()
     {
-        return new CascadeNode.Core()
+        return new CascadeReactor.Core()
         {
             @Override
-            public void onMessage (final CascadeNode.Context context)
+            public void onMessage (final CascadeReactor.Context context)
                     throws Throwable
             {
                 final byte[] bytes = context.message().asByteArray();
