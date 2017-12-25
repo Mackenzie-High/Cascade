@@ -52,8 +52,8 @@ public final class DedicatedEngineWithArrayQueue
     private final EventConsumer consumer;
 
     public DedicatedEngineWithArrayQueue (final CascadeAllocator allocator,
-                            final int capacity,
-                            final EventConsumer consumer)
+                                          final int capacity,
+                                          final EventConsumer consumer)
     {
         this.capacity = capacity;
         this.producerPermits = new Semaphore(capacity);

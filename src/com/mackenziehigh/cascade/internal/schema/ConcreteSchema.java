@@ -1,14 +1,20 @@
 package com.mackenziehigh.cascade.internal.schema;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
+import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
 import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadePump;
 import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeSchema;
 import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.internal.engines.Connection;
+import com.mackenziehigh.cascade.internal.messages.ConcreteAllocator;
+import com.mackenziehigh.cascade.nodes.Nodes;
+import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.concurrent.ThreadFactory;
@@ -32,6 +38,13 @@ public final class ConcreteSchema
     private final Set<PumpSchemaImp> pumps = Sets.newHashSet();
 
     private final Set<ReactorSchemaImp> reactors = Sets.newHashSet();
+
+    private final ConcreteAllocator allocator = new ConcreteAllocator();
+
+    /**
+     * Maps the name of a reactor to the corresponding connection.
+     */
+    final Map<CascadeToken, Connection> reactorConnections = Maps.newConcurrentMap();
 
     @Override
     public CascadeSchema named (final String name)
@@ -219,12 +232,17 @@ public final class ConcreteSchema
 
     private void compile (final DynamicPoolSchemaImp object)
     {
-
+        object.pool = allocator.addDynamicPool(object.name.name(),
+                                               object.minimumSize,
+                                               object.maximumSize);
     }
 
     private void compile (final FixedPoolSchemaImp object)
     {
-
+        object.pool = allocator.addFixedPool(object.name.name(),
+                                             object.minimumSize,
+                                             object.maximumSize,
+                                             object.bufferCount);
     }
 
     private void compile (final CompositePoolSchemaImp object)
@@ -263,11 +281,13 @@ public final class ConcreteSchema
     private final class DynamicPoolSchemaImp
             implements DynamicPoolSchema
     {
-        private CascadeToken name;
+        public CascadeToken name;
 
-        private Integer minimumSize;
+        public Integer minimumSize;
 
-        private Integer maximumSize;
+        public Integer maximumSize;
+
+        public AllocationPool pool;
 
         @Override
         public DynamicPoolSchema named (final String name)
@@ -297,13 +317,15 @@ public final class ConcreteSchema
     private final class FixedPoolSchemaImp
             implements FixedPoolSchema
     {
-        private CascadeToken name;
+        public CascadeToken name;
 
-        private Integer minimumSize;
+        public Integer minimumSize;
 
-        private Integer maximumSize;
+        public Integer maximumSize;
 
-        private Integer bufferCount;
+        public Integer bufferCount;
+
+        public AllocationPool pool;
 
         @Override
         public FixedPoolSchema named (final String name)
@@ -342,11 +364,13 @@ public final class ConcreteSchema
     private final class CompositePoolSchemaImp
             implements CompositePoolSchema
     {
-        private CascadeToken name;
+        public CascadeToken name;
 
-        private CascadeToken fallback;
+        public CascadeToken fallback;
 
-        private final Set<CascadeToken> members = Sets.newHashSet();
+        public final Set<CascadeToken> members = Sets.newHashSet();
+
+        public AllocationPool pool;
 
         @Override
         public CompositePoolSchema named (final String name)
@@ -378,11 +402,11 @@ public final class ConcreteSchema
             implements PumpSchema
     {
 
-        private CascadeToken name;
+        public CascadeToken name;
 
-        private ThreadFactory threadFactory;
+        public ThreadFactory threadFactory;
 
-        private Integer threadCount;
+        public Integer threadCount;
 
         @Override
         public PumpSchema named (final String name)
@@ -410,12 +434,28 @@ public final class ConcreteSchema
 
     };
 
+    private enum QueueType
+    {
+        LINEAR_LINKED,
+        LINEAR_ARRAY,
+        LINEAR_SHARED,
+        CIRCULAR_LINKED,
+        CIRCULAR_ARRAY,
+    }
+
     private final class ReactorSchemaImp
             implements ReactorSchema
     {
-        private CascadeToken name;
 
-        private final SortedSet<CascadeToken> subscriptions = Sets.newTreeSet();
+        public CascadeToken name;
+
+        public QueueType queueType;
+
+        public Integer queueCapacity;
+
+        public Integer backlogCapacity;
+
+        public final SortedSet<CascadeToken> subscriptions = Sets.newTreeSet();
 
         @Override
         public ReactorSchema named (final String name)
@@ -467,25 +507,37 @@ public final class ConcreteSchema
         @Override
         public ReactorSchema withLinearArrayQueue (final int queueCapacity)
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            final QueueType type = QueueType.LINEAR_ARRAY;
+            preventChange("Queue Type", this.queueType, type);
+            this.queueCapacity = queueCapacity;
+            return this;
         }
 
         @Override
         public ReactorSchema withLinearLinkedQueue (final int queueCapacity)
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            final QueueType type = QueueType.LINEAR_LINKED;
+            preventChange("Queue Type", this.queueType, type);
+            this.queueCapacity = queueCapacity;
+            return this;
         }
 
         @Override
         public ReactorSchema withCircularArrayQueue (final int queueCapacity)
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            final QueueType type = QueueType.CIRCULAR_ARRAY;
+            preventChange("Queue Type", this.queueType, type);
+            this.queueCapacity = queueCapacity;
+            return this;
         }
 
         @Override
         public ReactorSchema withCircularLinkedQueue (final int queueCapacity)
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            final QueueType type = QueueType.CIRCULAR_LINKED;
+            preventChange("Queue Type", this.queueType, type);
+            this.queueCapacity = queueCapacity;
+            return this;
         }
 
         @Override
@@ -495,7 +547,6 @@ public final class ConcreteSchema
             subscriptions.add(token);
             return this;
         }
-
     };
 
     private final class Scope
@@ -525,6 +576,6 @@ public final class ConcreteSchema
 
         cs.addPump().named("pump1").withThreadCount(2);
 
-        cs.addReactor().named("clock1").withCore(null).subscribeTo("toggle");
+        cs.addReactor().named("clock1").withCore(Nodes.nop()).subscribeTo("toggle");
     }
 }
