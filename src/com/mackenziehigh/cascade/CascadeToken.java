@@ -163,9 +163,9 @@ public final class CascadeToken
      *
      * @return true, if this token denotes a full-name.
      */
-    public boolean isFull ()
+    public boolean isFullName ()
     {
-        return !isSimple();
+        return !isSimpleName();
     }
 
     /**
@@ -173,7 +173,7 @@ public final class CascadeToken
      *
      * @return true, if this token denotes a simple-name.
      */
-    public boolean isSimple ()
+    public boolean isSimpleName ()
     {
         return prefix.isEmpty();
     }

@@ -1,8 +1,7 @@
 package com.mackenziehigh.cascade.internal;
 
-
-
 import com.mackenziehigh.cascade.CascadeLogger;
+import com.mackenziehigh.cascade.CascadeToken;
 import java.util.logging.Logger;
 
 /**
@@ -13,9 +12,18 @@ public final class StandardLogger
 {
     private final Logger logger;
 
-    public StandardLogger (final String name)
+    private final CascadeToken site;
+
+    public StandardLogger (final CascadeToken site)
     {
-        this.logger = Logger.getLogger(name);
+        this.logger = Logger.getLogger(site.name());
+        this.site = site;
+    }
+
+    @Override
+    public CascadeToken site ()
+    {
+        return site;
     }
 
     @Override
@@ -34,5 +42,4 @@ public final class StandardLogger
         logger.warning(message.getMessage()); // TODO
         return this;
     }
-
 }

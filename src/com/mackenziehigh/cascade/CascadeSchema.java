@@ -96,7 +96,7 @@ public interface CascadeSchema
          * @throws IllegalStateException if this method was already invoked.
          * @throws IllegalArgumentException if count is less than zero.
          */
-        public FixedPoolSchema withCapacity (int count);
+        public FixedPoolSchema withBufferCount (int count);
     }
 
     /**
@@ -234,22 +234,82 @@ public interface CascadeSchema
          */
         public ReactorSchema usingPump (String name);
 
+        /**
+         * This method will cause the reactor to use a non-circular
+         * multi-queue in order to store pending event-messages.
+         *
+         * @param group identifies the multi-queue that the queue will be part of.
+         * @param queueCapacity will be the maximum-size of the queue.
+         * @param backlogCapacity will be the maximum combined-size of the multi-queue.
+         * @return this.
+         * @throws IllegalStateException if the queue-type was already specified.
+         * @throws IllegalArgumentException if queueCapacity is less than zero.
+         * @throws IllegalArgumentException if queueCapacity exceeds backlogCapacity.
+         * @throws IllegalArgumentException if backlogCapacity is less than zero.
+         */
         public ReactorSchema withLinearSharedQueue (String group,
                                                     int queueCapacity,
                                                     int backlogCapacity);
 
+        /**
+         * This method will cause the reactor to use a non-circular
+         * array-queue in order to store pending event-messages.
+         *
+         * @param queueCapacity will be the maximum-size of the queue.
+         * @return this.
+         * @throws IllegalStateException if the queue-type was already specified.
+         * @throws IllegalArgumentException if queueCapacity is less than zero.
+         */
         public ReactorSchema withLinearArrayQueue (int queueCapacity);
 
+        /**
+         * This method will cause the reactor to use a non-circular
+         * linked-queue in order to store pending event-messages.
+         *
+         * @param queueCapacity will be the maximum-size of the queue.
+         * @return this.
+         * @throws IllegalStateException if the queue-type was already specified.
+         * @throws IllegalArgumentException if queueCapacity is less than zero.
+         */
         public ReactorSchema withLinearLinkedQueue (int queueCapacity);
 
-        public ReactorSchema withCircularSharedQueue (String group,
-                                                      int queueCapacity,
-                                                      int backlogCapacity);
-
+        /**
+         * This method will cause the reactor to use a circular
+         * array-queue in order to store pending event-messages.
+         *
+         * @param queueCapacity will be the maximum-size of the queue.
+         * @return this.
+         * @throws IllegalStateException if the queue-type was already specified.
+         * @throws IllegalArgumentException if queueCapacity is less than zero.
+         */
         public ReactorSchema withCircularArrayQueue (int queueCapacity);
 
+        /**
+         * This method will cause the reactor to use a circular
+         * linked-queue in order to store pending event-messages.
+         *
+         * @param queueCapacity will be the maximum-size of the queue.
+         * @return this.
+         * @throws IllegalStateException if the queue-type was already specified.
+         * @throws IllegalArgumentException if queueCapacity is less than zero.
+         */
         public ReactorSchema withCircularLinkedQueue (int queueCapacity);
 
+        /**
+         * This method causes the reactor to be subscribed to a named event-channel; therefore,
+         * the reactor will receive any event-messages sent to that channel at runtime.
+         *
+         * <p>
+         * This method may be invoked multiple times in order to subscribe to multiple event-channels.
+         * </p>
+         *
+         * <p>
+         * Subsequent invocations of this method, given the same argument, are no-ops.
+         * </p>
+         *
+         * @param event is the name of the event-channel.
+         * @return this.
+         */
         public ReactorSchema subscribeTo (String event);
     }
 
@@ -262,9 +322,64 @@ public interface CascadeSchema
      */
     public CascadeSchema named (String name);
 
+    /**
+     * Use this method to enter a new scope.
+     *
+     * <p>
+     * The default logger-factory, logger, pool, and pump
+     * of the current scope, if any, will be inherited by
+     * the new scope.
+     * </p>
+     *
+     *
+     * @param name is the name-space to enter.
+     * @return this.
+     */
     public CascadeSchema begin (String name);
 
+    /**
+     * Use this method to exit a scope.
+     *
+     * <p>
+     * The default logger-factory, logger, pool, and pump
+     * will be restored to those of the outer scope.
+     * </p>
+     *
+     * @return this.
+     */
     public CascadeSchema end ();
+
+    /**
+     * Setter.
+     *
+     * @param factory will be the default logger-factory for reactors in this scope.
+     * @return this.
+     */
+    public CascadeSchema usingLogger (CascadeLogger.Factory factory);
+
+    /**
+     * Setter.
+     *
+     * @param logger will be the default logger for reactors in this scope.
+     * @return this.
+     */
+    public CascadeSchema usingLogger (CascadeLogger logger);
+
+    /**
+     * Setter.
+     *
+     * @param name identifies the default allocation-pool for reactors in this scope.
+     * @return this.
+     */
+    public CascadeSchema usingPool (String name);
+
+    /**
+     * Setter.
+     *
+     * @param name identifies the default pump for reactors in this scope.
+     * @return this.
+     */
+    public CascadeSchema usingPump (String name);
 
     /**
      * Use this method to add a dynamic allocation-pool.

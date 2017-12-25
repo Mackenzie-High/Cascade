@@ -1,6 +1,8 @@
 package com.mackenziehigh.cascade;
 
+import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import java.util.Map;
 import java.util.Objects;
@@ -75,7 +77,10 @@ public interface CascadeReactor
          *
          * @return an immutable set containing the names of event-channels.
          */
-        public Set<CascadeToken> initialSubscriptions ();
+        public default Set<CascadeToken> initialSubscriptions ()
+        {
+            return ImmutableSet.of();
+        }
 
         /**
          * This is the first life-cycle event-handler to be invoked.
@@ -91,8 +96,11 @@ public interface CascadeReactor
          * @param context provides access to the current state.
          * @throws java.lang.Throwable if something goes wrong.
          */
-        public void onSetup (final Context context)
-                throws Throwable;
+        public default void onSetup (final Context context)
+                throws Throwable
+        {
+            // Pass.
+        }
 
         /**
          * This is the second life-cycle event-handler to be invoked.
@@ -113,8 +121,11 @@ public interface CascadeReactor
          * @param context provides access to the current state.
          * @throws java.lang.Throwable if something goes wrong.
          */
-        public void onStart (final Context context)
-                throws Throwable;
+        public default void onStart (final Context context)
+                throws Throwable
+        {
+            // Pass
+        }
 
         /**
          * This is the third life-cycle event-handler to be invoked.
@@ -132,8 +143,11 @@ public interface CascadeReactor
          * @param context provides access to the current state.
          * @throws java.lang.Throwable if something goes wrong.
          */
-        public void onMessage (final Context context)
-                throws Throwable;
+        public default void onMessage (final Context context)
+                throws Throwable
+        {
+            // Pass
+        }
 
         /**
          * This is the fourth life-cycle event-handler to be invoked.
@@ -153,8 +167,11 @@ public interface CascadeReactor
          * @param context provides access to the current state.
          * @throws java.lang.Throwable if something goes wrong.
          */
-        public void onStop (final Context context)
-                throws Throwable;
+        public default void onStop (final Context context)
+                throws Throwable
+        {
+            // Pass
+        }
 
         /**
          * This is the fifth life-cycle event-handler to be invoked.
@@ -197,12 +214,14 @@ public interface CascadeReactor
          * Do *not* perform long-running computations herein.
          * </p>
          *
-         * @param context provides access to the current state.
-         * @return true, if this reactor has actually stopped processing messages.
+         * @return true, if this is ready to begin the destruction phase.
          * @throws java.lang.Throwable if something goes wrong.
          */
-        public boolean isStopped (final Context context)
-                throws Throwable;
+        public default boolean isDestroyable ()
+                throws Throwable
+        {
+            return true; // Because, pure reactors do not care.
+        }
 
         /**
          * This is the sixth life-cycle event-handler to be invoked.
@@ -210,7 +229,7 @@ public interface CascadeReactor
          * <p>
          * When this method is invoked, onStop(*) has already been
          * invoked on all of the reactors, including this reactor,
-         * and isStopped(*) has returned true for each reactor.
+         * and isDestroyable() has returned true for each reactor.
          * </p>
          *
          * <p>
@@ -228,8 +247,11 @@ public interface CascadeReactor
          * @param context provides access to the current state.
          * @throws java.lang.Throwable if something goes wrong.
          */
-        public void onDestroy (final Context context)
-                throws Throwable;
+        public default void onDestroy (final Context context)
+                throws Throwable
+        {
+            // Pass
+        }
 
         /**
          * This event-handler will be invoked whenever an unhandled
@@ -238,8 +260,12 @@ public interface CascadeReactor
          * @param context provides access to the current state.
          * @throws java.lang.Throwable if something goes wrong.
          */
-        public void onException (final Context context)
-                throws Throwable;
+        public default void onException (final Context context)
+                throws Throwable
+        {
+            Verify.verify(context.exception() != null);
+            context.reactor().logger().warn(context.exception());
+        }
 
         /**
          * This method returns implementation-specific and time-specific
@@ -285,7 +311,7 @@ public interface CascadeReactor
          *
          * <p>
          * In particular, this method will return null inside
-         * of the onSetup(*), onStart(*), onStop(*), isStopped(*), and onDestroy(*)
+         * of the onSetup(*), onStart(*), onStop(*), and onDestroy(*)
          * event-handlers.
          * </p>
          *
@@ -310,7 +336,7 @@ public interface CascadeReactor
          *
          * <p>
          * In particular, this method will return null inside
-         * of the onSetup(*), onStart(*), onStop(*), isStopped(*), and onDestroy(*)
+         * of the onSetup(*), onStart(*), onStop(*), and onDestroy(*)
          * event-handlers.
          * </p>
          *
