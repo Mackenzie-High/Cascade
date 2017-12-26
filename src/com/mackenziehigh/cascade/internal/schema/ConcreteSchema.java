@@ -13,20 +13,21 @@ import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Core;
 import com.mackenziehigh.cascade.CascadeSchema;
 import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.cores.Cores;
 import com.mackenziehigh.cascade.internal.StandardLogger;
 import com.mackenziehigh.cascade.internal.engines.Connection;
 import com.mackenziehigh.cascade.internal.engines.LinearArrayQueue;
 import com.mackenziehigh.cascade.internal.messages.ConcreteAllocator;
 import com.mackenziehigh.cascade.internal.routing.EventDispatcher;
 import com.mackenziehigh.cascade.internal.routing.EventDispatcher.ConcurrentEventSender;
-import com.mackenziehigh.cascade.cores.Nodes;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 /**
- *
+ * TODO: The user must always specify a default pool.
  */
 public final class ConcreteSchema
         implements CascadeSchema
@@ -765,15 +766,20 @@ public final class ConcreteSchema
     {
         final CascadeSchema cs = new ConcreteSchema().named("Schema1");
 
-        cs.addDynamicPool().named("pool1").withMinimumSize(128).withMaximumSize(256);
+        cs.addDynamicPool().named("default").withMinimumSize(0).withMaximumSize(256);
         cs.addFixedPool().named("pool2").withMinimumSize(512).withMaximumSize(768).withBufferCount(10);
-        cs.addCompositePool().named("pool3").withMemberPool("pool1").withMemberPool("pool2");
+        cs.addCompositePool().named("pool3").withMemberPool("default").withMemberPool("pool2");
 
         cs.addPump().named("pump1").withThreadCount(2);
 
-        cs.usingPool("pool1").usingPump("pump1");
+        cs.usingPool("default").usingPump("pump1");
 
-        cs.addReactor().named("clock1").withCore(Nodes.from(x -> System.out.println("Chicky"))).withLinearArrayQueue(128).subscribeTo("toggle");
+        cs.addReactor()
+                .named("clock1")
+                .withCore(Cores.newTicker().withPeriod(1, TimeUnit.SECONDS).withFormatMonotonicNanos().sendTo("tickTock").build())
+                .withLinearArrayQueue(128);
+
+        cs.addReactor().named("printer1").withLinearArrayQueue(128).withCore(Cores.newPrinter().build()).subscribeTo("tickTock");
 
         final Cascade cas = cs.build();
 

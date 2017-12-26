@@ -1,18 +1,21 @@
 package com.mackenziehigh.cascade.cores.builders;
 
-import com.mackenziehigh.cascade.cores.NodeBuilder;
+import com.google.common.collect.Sets;
+import com.mackenziehigh.cascade.CascadeReactor;
+import com.mackenziehigh.cascade.CascadeToken;
 import java.time.format.DateTimeFormatter;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import com.mackenziehigh.cascade.CascadeReactor;
+import java.util.function.Supplier;
 
 /**
  *
  */
 public final class TickerBuilder
-        implements NodeBuilder<TickerBuilder>
+        implements CascadeReactor.CoreBuilder
 {
     private static ScheduledExecutorService timer;
 
@@ -22,21 +25,31 @@ public final class TickerBuilder
 
     private volatile ScheduledFuture future;
 
-    public TickerBuilder delay (final long value,
-                                final TimeUnit unit)
+    private final Set<CascadeToken> outputs = Sets.newConcurrentHashSet();
+
+    private volatile Supplier<byte[]> formatter;
+
+    public TickerBuilder sendTo (final String eventId)
+    {
+        outputs.add(CascadeToken.create(eventId));
+        return this;
+    }
+
+    public TickerBuilder withDelay (final long value,
+                                    final TimeUnit unit)
     {
         delay = unit.toNanos(value);
         return this;
     }
 
-    public TickerBuilder period (final long value,
-                                 final TimeUnit unit)
+    public TickerBuilder withPeriod (final long value,
+                                     final TimeUnit unit)
     {
         period = unit.toNanos(value);
         return this;
     }
 
-    public TickerBuilder formatByteCounter ()
+    public TickerBuilder withFormatByteCounter ()
     {
         return this;
     }
@@ -46,27 +59,33 @@ public final class TickerBuilder
         return this;
     }
 
-    public TickerBuilder formatIntCounter ()
+    public TickerBuilder withFormatIntCounter ()
     {
         return this;
     }
 
-    public TickerBuilder formatLongCounter ()
+    public TickerBuilder withFormatLongCounter ()
     {
         return this;
     }
 
-    public TickerBuilder formatEpochMillis ()
+    public TickerBuilder withFormatEpochMillis ()
     {
         return this;
     }
 
-    public TickerBuilder formatMonotonicNanos ()
+    public TickerBuilder withFormatMonotonicNanos ()
+    {
+        formatter = () -> String.valueOf(System.nanoTime()).getBytes();
+        return this;
+    }
+
+    public TickerBuilder withFormatMonotonicElapsedNanos ()
     {
         return this;
     }
 
-    public TickerBuilder format (final DateTimeFormatter format)
+    public TickerBuilder withFormat (final DateTimeFormatter format)
     {
         return this;
     }
@@ -80,7 +99,11 @@ public final class TickerBuilder
             public void onSetup (final CascadeReactor.Context context)
                     throws Throwable
             {
-                final Runnable task = () -> run();
+                final Runnable task = () ->
+                {
+                    context.message().push(formatter.get());
+                    outputs.forEach(x -> context.broadcast(x, context.message()));
+                };
                 future = timer().scheduleAtFixedRate(task, delay, period, TimeUnit.NANOSECONDS);
             }
 
@@ -92,11 +115,6 @@ public final class TickerBuilder
                 future.cancel(interrupt);
             }
         };
-    }
-
-    private void run ()
-    {
-        // TODO: ASYNC!
     }
 
     private static synchronized ScheduledExecutorService timer ()

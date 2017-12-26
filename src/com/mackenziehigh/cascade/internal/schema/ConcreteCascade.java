@@ -2,6 +2,7 @@ package com.mackenziehigh.cascade.internal.schema;
 
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
+import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadePump;
 import com.mackenziehigh.cascade.CascadeReactor;
@@ -138,6 +139,23 @@ public class ConcreteCascade
 
     private void performStart ()
     {
+        final OperandStack stack = allocator.newOperandStack(); // TODO: Free
+
+        for (ConcreteReactor reactor : reactors.values())
+        {
+            final ConcreteContext ctx = new ConcreteContext(reactor);
+            ctx.set(null, stack, null);
+
+            try
+            {
+                reactor.core().onSetup(ctx);
+            }
+            catch (Throwable ex)
+            {
+                ex.printStackTrace(System.err);
+            }
+        }
+
         pumps.values().forEach(x -> x.start());
     }
 

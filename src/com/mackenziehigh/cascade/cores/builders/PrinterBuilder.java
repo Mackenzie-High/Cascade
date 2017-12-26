@@ -1,15 +1,14 @@
 package com.mackenziehigh.cascade.cores.builders;
 
-import com.mackenziehigh.cascade.cores.NodeBuilder;
+import com.mackenziehigh.cascade.CascadeReactor;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
-import com.mackenziehigh.cascade.CascadeReactor;
 
 /**
  * Node Builder for Printer nodes.
  */
 public final class PrinterBuilder
-        implements NodeBuilder<PrinterBuilder>
+        implements CascadeReactor.CoreBuilder
 {
     private volatile Charset charset = Charset.forName("UTF-8");
 

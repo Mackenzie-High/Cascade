@@ -1,14 +1,14 @@
 package com.mackenziehigh.cascade.cores.builders;
 
 import com.mackenziehigh.cascade.CascadeReactor;
-import com.mackenziehigh.cascade.cores.NodeBuilder;
+import com.mackenziehigh.cascade.CascadeReactor.CoreBuilder;
 import java.util.Arrays;
 
 /**
  *
  */
 public final class ConstantBuilder
-        implements NodeBuilder<ConstantBuilder>
+        implements CoreBuilder
 {
     private volatile boolean clearStack = false;
 

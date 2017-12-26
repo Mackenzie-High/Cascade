@@ -1,20 +1,31 @@
 package com.mackenziehigh.cascade.cores;
 
-import com.mackenziehigh.cascade.cores.builders.ForwarderBuilder;
-import com.mackenziehigh.cascade.cores.builders.PrinterBuilder;
 import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Context;
+import com.mackenziehigh.cascade.cores.builders.ForwarderBuilder;
+import com.mackenziehigh.cascade.cores.builders.PrinterBuilder;
+import com.mackenziehigh.cascade.cores.builders.TickerBuilder;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  *
  */
-public interface Nodes
+public final class Cores
 {
-    public final Supplier<ForwarderBuilder> FORWARDER = () -> new ForwarderBuilder();
+    public static ForwarderBuilder newForwarder ()
+    {
+        return new ForwarderBuilder();
+    }
 
-    public final Supplier<PrinterBuilder> PRINTER = () -> new PrinterBuilder();
+    public static TickerBuilder newTicker ()
+    {
+        return new TickerBuilder();
+    }
+
+    public static PrinterBuilder newPrinter ()
+    {
+        return new PrinterBuilder();
+    }
 
     /**
      * Returns a core that functions as a no-op.

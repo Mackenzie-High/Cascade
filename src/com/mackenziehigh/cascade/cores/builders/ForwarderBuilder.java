@@ -1,14 +1,13 @@
 package com.mackenziehigh.cascade.cores.builders;
 
-import com.mackenziehigh.cascade.CascadeReactor.Context;
-import com.mackenziehigh.cascade.cores.NodeBuilder;
 import com.mackenziehigh.cascade.CascadeReactor;
+import com.mackenziehigh.cascade.CascadeReactor.Context;
 
 /**
  * Node Builder for Forwarder nodes.
  */
 public final class ForwarderBuilder
-        implements NodeBuilder<ForwarderBuilder>
+        implements CascadeReactor.CoreBuilder
 {
 
     @Override
