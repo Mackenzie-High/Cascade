@@ -1,19 +1,25 @@
 package com.mackenziehigh.cascade.internal.schema;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.Cascade;
-import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
 import com.mackenziehigh.cascade.CascadeLogger;
-import com.mackenziehigh.cascade.CascadePump;
 import com.mackenziehigh.cascade.CascadeReactor;
+import com.mackenziehigh.cascade.CascadeReactor.Core;
 import com.mackenziehigh.cascade.CascadeSchema;
 import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.internal.StandardLogger;
 import com.mackenziehigh.cascade.internal.engines.Connection;
+import com.mackenziehigh.cascade.internal.engines.LinearArrayQueue;
 import com.mackenziehigh.cascade.internal.messages.ConcreteAllocator;
-import com.mackenziehigh.cascade.nodes.Nodes;
+import com.mackenziehigh.cascade.internal.routing.EventDispatcher;
+import com.mackenziehigh.cascade.internal.routing.EventDispatcher.ConcurrentEventSender;
+import com.mackenziehigh.cascade.cores.Nodes;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
@@ -25,6 +31,9 @@ import java.util.concurrent.ThreadFactory;
 public final class ConcreteSchema
         implements CascadeSchema
 {
+    // TODO: Set uncaught exception handler
+    private final ThreadFactory defaultThreadFactory = new ThreadFactoryBuilder().setDaemon(false).build();
+
     private CascadeToken name;
 
     private Scope scope = new Scope();
@@ -41,42 +50,55 @@ public final class ConcreteSchema
 
     private final ConcreteAllocator allocator = new ConcreteAllocator();
 
+    private final Map<CascadeToken, AllocationPool> namesToPools = Maps.newHashMap();
+
+    private final Map<CascadeToken, ConcretePump> namesToPumps = Maps.newHashMap();
+
     /**
      * Maps the name of a reactor to the corresponding connection.
      */
-    final Map<CascadeToken, Connection> reactorConnections = Maps.newConcurrentMap();
+    private final Map<CascadeToken, Connection> reactorConnections = Maps.newConcurrentMap();
+
+    private EventDispatcher dispatcher;
+
+    private final ConcreteCascade cascade = new ConcreteCascade();
+
+    public ConcreteSchema ()
+    {
+        scope.logger = new StandardLogger(CascadeToken.create("default"));
+    }
 
     @Override
     public CascadeSchema named (final String name)
     {
-        Preconditions.checkState(name == null, "Already Named");
-        this.name = CascadeToken.create(name);
+        preventChange("Name", this.name, name);
+        this.name = convertName(name);
         return this;
     }
 
     @Override
     public CascadeSchema begin (final String name)
     {
+        Preconditions.checkNotNull(name, "name");
         final CascadeToken token = CascadeToken.create(name);
-        this.scope = new Scope();
-        this.scope.below = new Scope();
-        this.scope.namespace = token;
-
+        final Scope newScope = new Scope();
+        newScope.below = scope;
+        newScope.namespace = token.isSimpleName() && scope.namespace != null ? scope.namespace.append(name) : token;
+        newScope.logger = scope.logger;
+        newScope.loggerFactory = scope.loggerFactory;
+        newScope.pool = scope.pool;
+        newScope.pump = scope.pump;
+        scope = newScope;
         return this;
     }
 
     @Override
     public CascadeSchema end ()
     {
-        if (scope.below == null)
-        {
-            throw new IllegalStateException("At Bottom Scope");
-        }
-        else
-        {
-            scope = scope.below;
-            return this;
-        }
+        Preconditions.checkState(scope.below != null, "At Bottom Scope");
+        scope = scope.below;
+        return this;
+
     }
 
     @Override
@@ -98,13 +120,15 @@ public final class ConcreteSchema
     @Override
     public CascadeSchema usingPool (final String name)
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        scope.pool = convertName(name);
+        return this;
     }
 
     @Override
-    public CascadeSchema usingPump (String name)
+    public CascadeSchema usingPump (final String name)
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        scope.pump = convertName(name);
+        return this;
     }
 
     @Override
@@ -143,6 +167,10 @@ public final class ConcreteSchema
     public ReactorSchema addReactor ()
     {
         final ReactorSchemaImp result = new ReactorSchemaImp();
+        result.defaultLogger = scope.logger;
+        result.defaultLoggerFactory = scope.loggerFactory;
+        result.defaultPool = scope.pool;
+        result.defaultPump = scope.pump;
         reactors.add(result);
         return result;
     }
@@ -150,6 +178,12 @@ public final class ConcreteSchema
     @Override
     public Cascade build ()
     {
+        /**
+         * Global.
+         */
+        cascade.setName(name);
+        cascade.setAllocator(allocator);
+
         /**
          * Declare.
          */
@@ -169,15 +203,33 @@ public final class ConcreteSchema
         reactors.forEach(x -> validate(x));
 
         /**
-         * Compile.
+         * Create the routing-table.
          */
-        dynamicPools.forEach(x -> compile(x));
-        fixedPools.forEach(x -> compile(x));
-        compositePools.forEach(x -> compile(x));
-        pumps.forEach(x -> compile(x));
-        reactors.forEach(x -> compile(x));
+        reactors.forEach(x -> reactorConnections.put(x.name, x.queue));
+        dispatcher = new EventDispatcher(reactorConnections);
+        reactors.forEach(s -> s.subscriptions.forEach(e -> dispatcher.register(s.name, e)));
 
-        return null;
+        /**
+         * Compile - Pass #1.
+         */
+        dynamicPools.forEach(x -> compile1(x));
+        fixedPools.forEach(x -> compile1(x));
+        compositePools.forEach(x -> compile1(x));
+
+        /**
+         * Compile - Pass #2.
+         */
+        pumps.forEach(x -> compile2(x));
+        reactors.forEach(x -> compile2(x));
+
+        /**
+         * Global.
+         */
+        pumps.forEach(x -> cascade.addPump(x.pump));
+        reactors.forEach(x -> cascade.addReactor(x.reactor));
+        reactors.forEach(x -> x.getPump().addReactor(x.reactor));
+
+        return cascade;
     }
 
     private void declare (final DynamicPoolSchemaImp object)
@@ -207,12 +259,19 @@ public final class ConcreteSchema
 
     private void validate (final DynamicPoolSchemaImp object)
     {
-
+        require("Dynamic Pool: Unspecified Name", object.name != null);
+        require("Dynamic Pool: Unspecified Minimum Size", object.minimumSize != null);
+        require("Dynamic Pool: Unspecified Maximum Size", object.maximumSize != null);
+        require("Dynamic Pool: Minimum Size > Maximum Size", object.minimumSize <= object.maximumSize);
     }
 
     private void validate (final FixedPoolSchemaImp object)
     {
-
+        require("Fixed Pool: Unspecified Name", object.name != null);
+        require("Fixed Pool: Unspecified Minimum Size", object.minimumSize != null);
+        require("Fixed Pool: Unspecified Maximum Size", object.maximumSize != null);
+        require("Fixed Pool: Unspecified Buffer Count", object.bufferCount != null);
+        require("Fixed Pool: Minimum Size > Maximum Size", object.minimumSize <= object.maximumSize);
     }
 
     private void validate (final CompositePoolSchemaImp object)
@@ -222,47 +281,97 @@ public final class ConcreteSchema
 
     private void validate (final PumpSchemaImp object)
     {
-
+        require("Pump: Unspecified Name", object.name != null);
+        require("Pump: Unspecified Thread Count", object.threadCount != null);
+        // TODO: Thread Factory
     }
 
     private void validate (final ReactorSchemaImp object)
     {
-
+        require("Reactor: Unspecified Name", object.name != null);
+        require("Reactor: Unspecified Logger", object.logger != null || object.defaultLogger != null || object.loggerFactory != null || object.defaultLoggerFactory != null);
+        require("Reactor: Unspecified Allocation Pool", object.pool != null || object.defaultPool != null);
+        require("Reactor: Unspecified Pump", object.pump != null || object.defaultPump != null);
+        require("Reactor: Unspecified Core", object.core != null);
+        require("Reactor: Unspecified Queue Type", object.queueType != null);
     }
 
-    private void compile (final DynamicPoolSchemaImp object)
+    private void compile1 (final DynamicPoolSchemaImp object)
     {
         object.pool = allocator.addDynamicPool(object.name.name(),
                                                object.minimumSize,
                                                object.maximumSize);
+
+        namesToPools.put(object.name, object.pool);
     }
 
-    private void compile (final FixedPoolSchemaImp object)
+    private void compile1 (final FixedPoolSchemaImp object)
     {
         object.pool = allocator.addFixedPool(object.name.name(),
                                              object.minimumSize,
                                              object.maximumSize,
                                              object.bufferCount);
+
+        namesToPools.put(object.name, object.pool);
     }
 
-    private void compile (final CompositePoolSchemaImp object)
+    private void compile1 (final CompositePoolSchemaImp object)
     {
-
+        namesToPools.put(object.name, object.pool);
     }
 
-    private void compile (final PumpSchemaImp object)
+    private void compile2 (final PumpSchemaImp object)
     {
+        final ThreadFactory factory = object.threadFactory != null ? object.threadFactory : defaultThreadFactory;
 
+        object.pump = new ConcretePump(cascade, object.name, factory, object.threadCount);
+
+        namesToPumps.put(object.pump.name(), object.pump);
     }
 
-    private void compile (final ReactorSchemaImp object)
+    private void compile2 (final ReactorSchemaImp object)
     {
+        Verify.verify(object.name != null);
+        Verify.verify(object.core != null);
+        Verify.verify(object.getPool() != null);
+        Verify.verify(object.getLogger() != null);
+        Verify.verify(object.queue != null);
 
+        final ConcurrentEventSender sender = dispatcher.lookup(object.name);
+
+        object.reactor = new ConcreteReactor(cascade,
+                                             object.name,
+                                             object.core,
+                                             object.getPool(),
+                                             object.getLogger(),
+                                             ImmutableMap.of(), // TODO
+                                             object.queue,
+                                             sender);
+    }
+
+    private void require (final String message,
+                          final boolean condition)
+    {
+        if (condition == false)
+        {
+            throw new IllegalStateException(message);
+        }
     }
 
     private CascadeToken convertName (final String name)
     {
-        return CascadeToken.create(name);
+        Preconditions.checkNotNull(name, "name");
+
+        final CascadeToken token = CascadeToken.create(name);
+
+        if (token.isSimpleName() && scope.namespace != null)
+        {
+            return scope.namespace.append(name);
+        }
+        else
+        {
+            return token;
+        }
     }
 
     private void preventChange (String entity,
@@ -408,6 +517,8 @@ public final class ConcreteSchema
 
         public Integer threadCount;
 
+        public ConcretePump pump;
+
         @Override
         public PumpSchema named (final String name)
         {
@@ -449,13 +560,88 @@ public final class ConcreteSchema
 
         public CascadeToken name;
 
+        public Core core;
+
+        public CascadeLogger logger;
+
+        public CascadeLogger.Factory loggerFactory;
+
+        public CascadeLogger defaultLogger = new StandardLogger(CascadeToken.create("TODO"));
+
+        public CascadeLogger.Factory defaultLoggerFactory;
+
+        public CascadeToken pool;
+
+        public CascadeToken defaultPool;
+
+        public CascadeToken pump;
+
+        public CascadeToken defaultPump;
+
         public QueueType queueType;
+
+        public Connection queue;
 
         public Integer queueCapacity;
 
         public Integer backlogCapacity;
 
         public final SortedSet<CascadeToken> subscriptions = Sets.newTreeSet();
+
+        public ConcreteReactor reactor;
+
+        public CascadeLogger getLogger ()
+        {
+            if (logger != null)
+            {
+                return logger;
+            }
+            else if (loggerFactory != null)
+            {
+                return loggerFactory.create(name);
+            }
+            else if (defaultLogger != null)
+            {
+                return defaultLogger;
+            }
+            else if (defaultLoggerFactory != null)
+            {
+                return defaultLoggerFactory.create(name);
+            }
+            else
+            {
+                return new StandardLogger(name); // TODO: Dev Null Logger Instead
+            }
+        }
+
+        public AllocationPool getPool ()
+        {
+            if (pool != null)
+            {
+                return namesToPools.get(pool);
+            }
+            else if (defaultPool != null)
+            {
+                return namesToPools.get(defaultPool);
+            }
+            else
+            {
+                return allocator.defaultPool();
+            }
+        }
+
+        public ConcretePump getPump ()
+        {
+            if (pump != null)
+            {
+                return namesToPumps.get(pump);
+            }
+            else
+            {
+                Verify.verify(defaultPump != null);
+                return namesToPumps.get(defaultPump);
+            }
+        }
 
         @Override
         public ReactorSchema named (final String name)
@@ -468,32 +654,38 @@ public final class ConcreteSchema
         @Override
         public ReactorSchema withCore (final CascadeReactor.Core core)
         {
+            preventChange("Core", this.core, core);
             subscriptions.addAll(core.initialSubscriptions());
+            this.core = core;
             return this;
         }
 
         @Override
         public ReactorSchema usingLogger (final CascadeLogger.Factory factory)
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            this.loggerFactory = factory;
+            return this;
         }
 
         @Override
         public ReactorSchema usingLogger (final CascadeLogger logger)
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            this.logger = logger;
+            return this;
         }
 
         @Override
         public ReactorSchema usingPool (final String name)
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            this.pool = convertName(name);
+            return this;
         }
 
         @Override
         public ReactorSchema usingPump (final String name)
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            this.pump = convertName(name);
+            return this;
         }
 
         @Override
@@ -509,7 +701,9 @@ public final class ConcreteSchema
         {
             final QueueType type = QueueType.LINEAR_ARRAY;
             preventChange("Queue Type", this.queueType, type);
+            this.queueType = type;
             this.queueCapacity = queueCapacity;
+            this.queue = new LinearArrayQueue(allocator, queueCapacity);
             return this;
         }
 
@@ -518,6 +712,7 @@ public final class ConcreteSchema
         {
             final QueueType type = QueueType.LINEAR_LINKED;
             preventChange("Queue Type", this.queueType, type);
+            this.queueType = type;
             this.queueCapacity = queueCapacity;
             return this;
         }
@@ -527,6 +722,7 @@ public final class ConcreteSchema
         {
             final QueueType type = QueueType.CIRCULAR_ARRAY;
             preventChange("Queue Type", this.queueType, type);
+            this.queueType = type;
             this.queueCapacity = queueCapacity;
             return this;
         }
@@ -536,6 +732,7 @@ public final class ConcreteSchema
         {
             final QueueType type = QueueType.CIRCULAR_LINKED;
             preventChange("Queue Type", this.queueType, type);
+            this.queueType = type;
             this.queueCapacity = queueCapacity;
             return this;
         }
@@ -557,18 +754,16 @@ public final class ConcreteSchema
 
         public CascadeLogger logger;
 
-        public CascadeAllocator.AllocationPool pool;
+        public CascadeToken pool;
 
-        public CascadePump pump;
-
-        public CascadeReactor reactor;
+        public CascadeToken pump;
 
         public Scope below;
     }
 
     public static void main (String[] args)
     {
-        final CascadeSchema cs = new ConcreteSchema();
+        final CascadeSchema cs = new ConcreteSchema().named("Schema1");
 
         cs.addDynamicPool().named("pool1").withMinimumSize(128).withMaximumSize(256);
         cs.addFixedPool().named("pool2").withMinimumSize(512).withMaximumSize(768).withBufferCount(10);
@@ -576,6 +771,14 @@ public final class ConcreteSchema
 
         cs.addPump().named("pump1").withThreadCount(2);
 
-        cs.addReactor().named("clock1").withCore(Nodes.nop()).subscribeTo("toggle");
+        cs.usingPool("pool1").usingPump("pump1");
+
+        cs.addReactor().named("clock1").withCore(Nodes.from(x -> System.out.println("Chicky"))).withLinearArrayQueue(128).subscribeTo("toggle");
+
+        final Cascade cas = cs.build();
+
+        cas.start();
+
+        cas.reactors().get(CascadeToken.create("clock1")).broadcast(CascadeToken.create("toggle"), cas.allocator().newOperandStack());
     }
 }

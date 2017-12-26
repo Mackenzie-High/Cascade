@@ -3,6 +3,7 @@ package com.mackenziehigh.cascade.internal.engines;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.CascadeToken;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * Conceptually, this is a transmission queue.
@@ -122,4 +123,21 @@ public interface Connection
      * </p>
      */
     public void close ();
+
+    /**
+     * This method sets the functor that will be invoked whenever
+     * an event-message is committed.
+     *
+     * @param functor is the event-handler
+     */
+    public void setCallback (Consumer<Connection> functor);
+
+    /**
+     * Invoke this method in order to dequeue an event-message, if available.
+     *
+     * @param out will receive the event-message, if one is available.
+     * @return the name of the event-channel, if a message is available;
+     * otherwise, return null.
+     */
+    public CascadeToken poll (OperandStack out);
 }

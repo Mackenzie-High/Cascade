@@ -1,12 +1,15 @@
 package com.mackenziehigh.cascade.internal.schema;
 
+import com.google.common.collect.ImmutableMap;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
+import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
 import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadePump;
 import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeSubscription;
 import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.internal.engines.Connection;
 import com.mackenziehigh.cascade.internal.routing.EventDispatcher;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -17,84 +20,116 @@ import java.util.concurrent.TimeUnit;
 public final class ConcreteReactor
         implements CascadeReactor
 {
+    private final ConcreteCascade cascade;
+
+    private final CascadeToken name;
+
+    private final Core core;
+
+    private final AllocationPool pool;
+
+    private final CascadeLogger logger;
+
+    private final Connection input;
+
     private final EventDispatcher.ConcurrentEventSender sender;
 
-    public ConcreteReactor (final CascadeToken name,
+    private final ImmutableMap<CascadeToken, CascadeSubscription> subscriptions;
+
+    public ConcreteReactor (final ConcreteCascade cascade,
+                            final CascadeToken name,
+                            final Core core,
+                            final AllocationPool pool,
+                            final CascadeLogger logger,
+                            final Map<CascadeToken, CascadeSubscription> subscriptions,
+                            final Connection input,
                             final EventDispatcher.ConcurrentEventSender sender)
     {
+        this.cascade = cascade;
+        this.name = name;
+        this.core = core;
         this.sender = sender;
+        this.pool = pool;
+        this.logger = logger;
+        this.input = input;
+        this.subscriptions = ImmutableMap.copyOf(subscriptions);
+    }
+
+    public Connection input ()
+    {
+        return input;
     }
 
     @Override
     public Cascade cascade ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return cascade;
     }
 
     @Override
     public CascadeToken name ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return name;
     }
 
     @Override
     public Core core ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return core;
     }
 
     @Override
     public CascadeLogger logger ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return logger;
     }
 
     @Override
     public CascadeAllocator allocator ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return pool().allocator();
     }
 
     @Override
     public CascadeAllocator.AllocationPool pool ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return pool;
     }
 
     @Override
     public CascadePump pump ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return cascade.pumps().get(name());
     }
 
     @Override
     public int backlogSize ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return input.globalSize();
     }
 
     @Override
     public int backlogCapacity ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return input.globalCapacity();
     }
 
     @Override
     public int queueSize ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return input.localSize();
     }
 
     @Override
     public int queueCapacity ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return input.localCapacity();
     }
 
     @Override
     public Map<CascadeToken, CascadeSubscription> subscriptions ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return subscriptions;
     }
 
     @Override
@@ -127,6 +162,12 @@ public final class ConcreteReactor
                           final CascadeAllocator.OperandStack message)
     {
         return sender.broadcast(event, message);
+    }
+
+    @Override
+    public String toString ()
+    {
+        return name.name();
     }
 
 }

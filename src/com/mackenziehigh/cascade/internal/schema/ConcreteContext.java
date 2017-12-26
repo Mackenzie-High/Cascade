@@ -2,6 +2,7 @@ package com.mackenziehigh.cascade.internal.schema;
 
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
+import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadePump;
 import com.mackenziehigh.cascade.CascadeReactor;
@@ -20,9 +21,24 @@ public final class ConcreteContext
 {
     private final CascadeReactor reactor;
 
+    private volatile CascadeToken event;
+
+    private volatile OperandStack stack;
+
+    private volatile Throwable exception;
+
     public ConcreteContext (final CascadeReactor reactor)
     {
         this.reactor = Objects.requireNonNull(reactor);
+    }
+
+    public void set (final CascadeToken event,
+                     final OperandStack stack,
+                     final Throwable exception)
+    {
+        this.event = event;
+        this.stack = stack;
+        this.exception = exception;
     }
 
     @Override
@@ -34,19 +50,19 @@ public final class ConcreteContext
     @Override
     public CascadeToken event ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return event;
     }
 
     @Override
     public CascadeAllocator.OperandStack message ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return stack;
     }
 
     @Override
     public Throwable exception ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return exception;
     }
 
     @Override
@@ -158,4 +174,9 @@ public final class ConcreteContext
         return reactor.broadcast(event, message);
     }
 
+    @Override
+    public String toString ()
+    {
+        return reactor.toString();
+    }
 }
