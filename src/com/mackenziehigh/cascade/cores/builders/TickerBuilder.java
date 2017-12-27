@@ -107,7 +107,7 @@ public final class TickerBuilder
                 {
                     try
                     {
-                        context.message().push(formatter.get());
+                        stack.push(formatter.get());
                         outputs.forEach(x -> context.broadcast(x, stack));
                     }
                     catch (Throwable ex)
@@ -133,7 +133,7 @@ public final class TickerBuilder
     {
         if (timer == null)
         {
-            timer = Executors.newScheduledThreadPool(1);
+            timer = Executors.newScheduledThreadPool(1); // TODO: Needs to be daemon
         }
 
         return timer;

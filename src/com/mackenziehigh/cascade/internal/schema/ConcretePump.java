@@ -145,80 +145,86 @@ public final class ConcretePump
         threads.forEach(x -> x.start());
     }
 
+    public void stop ()
+    {
+        stop.set(true);
+    }
+
     private void runTask ()
     {
         final Thread currentThread = Thread.currentThread();
 
-        final OperandStack stack = new CheckedOperandStack(currentThread, cascade.allocator().newOperandStack());
-
-        TaskStream<ReactorInfo> taskStream = null;
-
-        while (stop.get() == false)
+        try (OperandStack stack = new CheckedOperandStack(currentThread, cascade.allocator().newOperandStack()))
         {
-            try
+            TaskStream<ReactorInfo> taskStream = null;
+
+            while (stop.get() == false)
             {
                 try
                 {
-                    taskStream = scheduler.pollTask(1, TimeUnit.SECONDS);
-                }
-                catch (InterruptedException ex)
-                {
-                    cascade().defaultLogger().warn(ex);
-                    Thread.currentThread().interrupt();
-                    continue;
-                }
-
-                if (taskStream == null)
-                {
-                    continue;
-                }
-
-                final CascadeToken event = taskStream.source().connection.poll(stack);
-                final ConcreteContext context = taskStream.source().context;
-                final Core core = taskStream.source().reactor.core();
-
-                Verify.verifyNotNull(event);
-                Verify.verifyNotNull(context);
-                Verify.verifyNotNull(core);
-
-                try
-                {
-                    taskStream.source().reactor.enterCore();
-                    context.set(currentThread, event, stack, null);
-                    core.onMessage(context);
-                }
-                catch (Throwable ex1)
-                {
                     try
                     {
-                        context.set(currentThread, event, stack, ex1);
-                        core.onException(context);
+                        taskStream = scheduler.pollTask(1, TimeUnit.SECONDS);
                     }
-                    catch (Throwable ex2)
+                    catch (InterruptedException ex)
+                    {
+                        cascade().defaultLogger().warn(ex);
+                        Thread.currentThread().interrupt();
+                        continue;
+                    }
+
+                    if (taskStream == null)
+                    {
+                        continue;
+                    }
+
+                    final CascadeToken event = taskStream.source().connection.poll(stack);
+                    final ConcreteContext context = taskStream.source().context;
+                    final Core core = taskStream.source().reactor.core();
+
+                    Verify.verifyNotNull(event);
+                    Verify.verifyNotNull(context);
+                    Verify.verifyNotNull(core);
+
+                    try
+                    {
+                        taskStream.source().reactor.enterCore();
+                        context.set(currentThread, event, stack, null);
+                        core.onMessage(context);
+                    }
+                    catch (Throwable ex1)
                     {
                         try
                         {
-                            cascade().defaultLogger().warn(ex2);
+                            context.set(currentThread, event, stack, ex1);
+                            core.onException(context);
                         }
-                        catch (Throwable ex3)
+                        catch (Throwable ex2)
                         {
-                            ex1.printStackTrace(System.err);
-                            ex2.printStackTrace(System.err);
-                            ex3.printStackTrace(System.err);
+                            try
+                            {
+                                cascade().defaultLogger().warn(ex2);
+                            }
+                            catch (Throwable ex3)
+                            {
+                                ex1.printStackTrace(System.err);
+                                ex2.printStackTrace(System.err);
+                                ex3.printStackTrace(System.err);
+                            }
                         }
+                    }
+                    finally
+                    {
+                        context.set(currentThread, null, null, null);
+                        taskStream.source().reactor.exitCore();
                     }
                 }
                 finally
                 {
-                    context.set(currentThread, null, null, null);
-                    taskStream.source().reactor.exitCore();
-                }
-            }
-            finally
-            {
-                if (taskStream != null)
-                {
-                    taskStream.release();
+                    if (taskStream != null)
+                    {
+                        taskStream.release();
+                    }
                 }
             }
         }

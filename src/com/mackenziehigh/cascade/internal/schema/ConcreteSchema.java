@@ -792,18 +792,17 @@ public final class ConcreteSchema
         cs.addReactor()
                 .named("clock1")
                 .withCore(Cores.newTicker().withPeriod(50, TimeUnit.MILLISECONDS).withFormatMonotonicNanos().sendTo("tickTock").build())
-                .withLinearArrayQueue(4);
+                .withLinearArrayQueue(100);
 
         cs.addReactor()
                 .named("printer1")
-                .withLinearArrayQueue(7)
+                .withLinearArrayQueue(100)
                 .withCore(Cores.from(x -> System.out.println("X = " + x.message().asString() + ", Thread = " + Thread.currentThread().getId())))
                 .subscribeTo("tickTock");
 
         final Cascade cas = cs.build();
 
         cas.start();
-
-        cas.reactors().get(CascadeToken.create("clock1")).broadcast(CascadeToken.create("toggle"), cas.allocator().newOperandStack());
+        cas.stop();
     }
 }
