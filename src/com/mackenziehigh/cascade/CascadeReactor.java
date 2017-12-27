@@ -51,11 +51,27 @@ public interface CascadeReactor
      * <p>
      * Instances of this class must be made to be thread-safe; however,
      * there are some simplifying assumptions that can be made.
-     * Cascade will only use threads owned by the corresponding pump
-     * to invoke the methods herein, unless stated explicitly otherwise.
-     * Cascade will only invoke the methods herein using one thread at a time.
-     * However, Cascade does *not* guarantee that the same thread will always
-     * be used to invoke the methods herein.
+     * <ul>
+     * <li>
+     * Cascade will only use threads owned by the corresponding pump to invoke the onMessage(*) method herein.
+     * </li>
+     * <li>
+     * Cascade will only invoke the onMessage(*) method herein using one thread at a time.
+     * However, Cascade does *not* guarantee that the same thread will always be used to invoke the methods herein.
+     * </li>
+     * <li>
+     * Cascade will invoke the onSetup(*), onStart(*), onStop(*), isDestroyable(*), and onDestroy(*)
+     * methods on special startup/shutdown threads, as appropriate. Of note, these methods may be invoked
+     * by the startup/shutdown threads at the same time that a pump thread is executing onMessage(*).
+     * </li>
+     * <li>
+     * The initialSubscriptions() method will be invoked when the object is initially created,
+     * using a caller-provided thread that is neither a startup/shutdown thread nor a pump thread.
+     * </li>
+     * <li>
+     * The onException(*) and the debugInfo() methods may be invoked by any thread, as needed, at anytime.
+     * </li>
+     * </ul>
      * </p>
      */
     public interface Core
@@ -322,7 +338,7 @@ public interface CascadeReactor
          *
          * @return an immutable map.
          */
-        public default Map<String, String> debug ()
+        public default Map<String, String> debugInfo ()
         {
             return ImmutableMap.of();
         }
