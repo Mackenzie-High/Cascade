@@ -93,6 +93,14 @@ public interface CascadeReactor
          * The controller shall only cause this method to be invoked once.
          * </p>
          *
+         * <p>
+         * Warning: The context object is a shared resource.
+         * Do *NOT* save the object, or the operand-stack therein,
+         * for later use, because that would introduce threading bugs!
+         * However, you may save the reactor() from within the context,
+         * or any other object that is known to be immutable.
+         * </p>
+         *
          * @param context provides access to the current state.
          * @throws java.lang.Throwable if something goes wrong.
          */
@@ -118,6 +126,14 @@ public interface CascadeReactor
          * The controller shall only cause this method to be invoked once.
          * </p>
          *
+         * <p>
+         * Warning: The context object is a shared resource.
+         * Do *NOT* save the object, or the operand-stack therein,
+         * for later use, because that would introduce threading bugs!
+         * However, you may save the reactor() from within the context,
+         * or any other object that is known to be immutable.
+         * </p>
+         *
          * @param context provides access to the current state.
          * @throws java.lang.Throwable if something goes wrong.
          */
@@ -138,6 +154,14 @@ public interface CascadeReactor
          * <p>
          * This method may be repeatedly invoked during the lifetime
          * of the reactor in order to handle processing messages.
+         * </p>
+         *
+         * <p>
+         * Warning: The context object is a shared resource.
+         * Do *NOT* save the object, or the operand-stack therein,
+         * for later use, because that would introduce threading bugs!
+         * However, you may save the reactor() from within the context,
+         * or any other object that is known to be immutable.
          * </p>
          *
          * @param context provides access to the current state.
@@ -162,6 +186,14 @@ public interface CascadeReactor
          *
          * <p>
          * The controller shall only cause this method to be invoked once.
+         * </p>
+         *
+         * <p>
+         * Warning: The context object is a shared resource.
+         * Do *NOT* save the object, or the operand-stack therein,
+         * for later use, because that would introduce threading bugs!
+         * However, you may save the reactor() from within the context,
+         * or any other object that is known to be immutable.
          * </p>
          *
          * @param context provides access to the current state.
@@ -244,6 +276,14 @@ public interface CascadeReactor
          * The controller shall only cause this method to be invoked once.
          * </p>
          *
+         * <p>
+         * Warning: The context object is a shared resource.
+         * Do *NOT* save the object, or the operand-stack therein,
+         * for later use, because that would introduce threading bugs!
+         * However, you may save the reactor() from within the context,
+         * or any other object that is known to be immutable.
+         * </p>
+         *
          * @param context provides access to the current state.
          * @throws java.lang.Throwable if something goes wrong.
          */
@@ -256,6 +296,14 @@ public interface CascadeReactor
         /**
          * This event-handler will be invoked whenever an unhandled
          * exception is thrown by one of the other event-handlers.
+         *
+         * <p>
+         * Warning: The context object is a shared resource.
+         * Do *NOT* save the object, or the operand-stack therein,
+         * for later use, because that would introduce threading bugs!
+         * However, you may save the reactor() from within the context,
+         * or any other object that is known to be immutable.
+         * </p>
          *
          * @param context provides access to the current state.
          * @throws java.lang.Throwable if something goes wrong.
@@ -283,6 +331,15 @@ public interface CascadeReactor
     /**
      * An instance of this interface provides access to important values
      * during invocations of the life-cycle event-handlers.
+     *
+     * <p>
+     * Warning: A Context object is a shared resource.
+     * You can only legitimately use the Context within the event-handler
+     * that is providing this Context object. Do *NOT* cache the Context
+     * for later use, as that would introduce threading bugs.
+     * However, you may save the reactor() from within the Context,
+     * or any other object that is known to be immutable.
+     * </p>
      *
      * <p>
      * Some values may be absent depending on the exact situation.

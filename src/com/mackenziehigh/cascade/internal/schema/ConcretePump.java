@@ -11,6 +11,7 @@ import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Core;
 import com.mackenziehigh.cascade.CascadeToken;
 import com.mackenziehigh.cascade.internal.engines.Connection;
+import com.mackenziehigh.cascade.internal.messages.CheckedOperandStack;
 import com.mackenziehigh.cascade.internal.schema.Scheduler.TaskStream;
 import java.util.Collection;
 import java.util.Collections;
@@ -146,7 +147,9 @@ public final class ConcretePump
 
     private void runTask ()
     {
-        final OperandStack stack = cascade.allocator().newOperandStack();
+        final Thread currentThread = Thread.currentThread();
+
+        final OperandStack stack = new CheckedOperandStack(currentThread, cascade.allocator().newOperandStack());
 
         TaskStream<ReactorInfo> taskStream = null;
 
@@ -181,14 +184,14 @@ public final class ConcretePump
                 try
                 {
                     taskStream.source().reactor.enterCore();
-                    context.set(event, stack, null);
+                    context.set(currentThread, event, stack, null);
                     core.onMessage(context);
                 }
                 catch (Throwable ex1)
                 {
                     try
                     {
-                        context.set(event, stack, ex1);
+                        context.set(currentThread, event, stack, ex1);
                         core.onException(context);
                     }
                     catch (Throwable ex2)
@@ -207,7 +210,7 @@ public final class ConcretePump
                 }
                 finally
                 {
-                    context.set(null, null, null);
+                    context.set(currentThread, null, null, null);
                     taskStream.source().reactor.exitCore();
                 }
             }

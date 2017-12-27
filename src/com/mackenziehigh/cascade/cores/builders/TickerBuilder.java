@@ -105,8 +105,15 @@ public final class TickerBuilder
                 stack = context.allocator().newOperandStack();
                 final Runnable task = () ->
                 {
-                    stack.push(formatter.get());
-                    outputs.forEach(x -> context.broadcast(x, stack));
+                    try
+                    {
+                        context.message().push(formatter.get());
+                        outputs.forEach(x -> context.broadcast(x, stack));
+                    }
+                    catch (Throwable ex)
+                    {
+                        ex.printStackTrace(System.err);
+                    }
                 };
                 future = timer().scheduleAtFixedRate(task, delay, period, TimeUnit.NANOSECONDS);
             }

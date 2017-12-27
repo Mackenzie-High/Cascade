@@ -144,7 +144,7 @@ public class ConcreteCascade
         for (ConcreteReactor reactor : reactors.values())
         {
             final ConcreteContext ctx = new ConcreteContext(reactor);
-            ctx.set(null, stack, null);
+            ctx.set(Thread.currentThread(), null, stack, null);
 
             try
             {

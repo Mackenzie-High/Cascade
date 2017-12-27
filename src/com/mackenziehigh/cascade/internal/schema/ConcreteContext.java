@@ -21,6 +21,8 @@ public final class ConcreteContext
 {
     private final CascadeReactor reactor;
 
+    private volatile Thread user;
+
     private volatile CascadeToken event;
 
     private volatile OperandStack stack;
@@ -32,10 +34,12 @@ public final class ConcreteContext
         this.reactor = Objects.requireNonNull(reactor);
     }
 
-    public void set (final CascadeToken event,
+    public void set (final Thread user,
+                     final CascadeToken event,
                      final OperandStack stack,
                      final Throwable exception)
     {
+        this.user = user;
         this.event = event;
         this.stack = stack;
         this.exception = exception;
@@ -50,18 +54,21 @@ public final class ConcreteContext
     @Override
     public CascadeToken event ()
     {
+        detectMultipleThreads();
         return event;
     }
 
     @Override
     public CascadeAllocator.OperandStack message ()
     {
+        detectMultipleThreads();
         return stack;
     }
 
     @Override
     public Throwable exception ()
     {
+        detectMultipleThreads();
         return exception;
     }
 
@@ -178,5 +185,13 @@ public final class ConcreteContext
     public String toString ()
     {
         return reactor.toString();
+    }
+
+    private void detectMultipleThreads ()
+    {
+        if (user != Thread.currentThread())
+        {
+            throw new IllegalStateException("Thread Safety Violation: Context objects are *NOT* thread-safe.");
+        }
     }
 }
