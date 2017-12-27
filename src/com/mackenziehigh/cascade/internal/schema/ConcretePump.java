@@ -1,7 +1,8 @@
 package com.mackenziehigh.cascade.internal.schema;
 
+import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
@@ -9,11 +10,15 @@ import com.mackenziehigh.cascade.CascadePump;
 import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Core;
 import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.internal.engines.Connection;
+import com.mackenziehigh.cascade.internal.schema.Scheduler.TaskStream;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -22,6 +27,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class ConcretePump
         implements CascadePump
 {
+    private final class ReactorInfo
+    {
+        public ConcreteReactor reactor;
+
+        public ConcreteContext context;
+
+        public Connection connection;
+
+        public TaskStream<ReactorInfo> stream;
+    }
+
     private final ConcreteCascade cascade;
 
     private final CascadeToken name;
@@ -34,16 +50,23 @@ public final class ConcretePump
 
     private final Set<CascadeReactor> unmodReactors = Collections.unmodifiableSet(reactors);
 
-    private final Semaphore consumerPermits;
+    private final Scheduler<ReactorInfo> scheduler;
+
+    private final List<ReactorInfo> reactorInfos = Lists.newLinkedList();
 
     public ConcretePump (final ConcreteCascade cascade,
                          final CascadeToken name,
+                         final Collection<ConcreteReactor> reactors,
                          final ThreadFactory threadFactory,
                          final int threadCount)
     {
         this.cascade = Objects.requireNonNull(cascade);
         this.name = Objects.requireNonNull(name);
+        this.reactors.addAll(reactors);
 
+        /**
+         * Create the consumer threads.
+         */
         final Set<Thread> threadsSet = Sets.newHashSet();
         for (int i = 0; i < threadCount; i++)
         {
@@ -51,8 +74,27 @@ public final class ConcretePump
         }
         this.threads = ImmutableSet.copyOf(threadsSet);
 
-        this.consumerPermits = new Semaphore(Integer.MAX_VALUE);
-        this.consumerPermits.drainPermits();
+        /**
+         * Create the scheduler.
+         */
+        for (ConcreteReactor reactor : reactors)
+        {
+            final ReactorInfo info = new ReactorInfo();
+            info.reactor = reactor;
+            info.connection = reactor.input();
+            info.context = new ConcreteContext(reactor);
+            reactorInfos.add(info);
+        }
+        this.scheduler = new FairScheduler<>(reactorInfos);
+        for (ReactorInfo info : scheduler.streams().keySet())
+        {
+            info.stream = scheduler.streams().get(info);
+            info.connection.setCallback(x -> scheduler.addTask(info.stream));
+            Verify.verifyNotNull(info.reactor);
+            Verify.verifyNotNull(info.connection);
+            Verify.verifyNotNull(info.context);
+            Verify.verifyNotNull(info.stream);
+        }
     }
 
     @Override
@@ -97,12 +139,6 @@ public final class ConcretePump
         return name.name();
     }
 
-    public void addReactor (final ConcreteReactor reactor)
-    {
-        reactors.add(reactor);
-        reactor.input().setCallback(x -> consumerPermits.release());
-    }
-
     public void start ()
     {
         threads.forEach(x -> x.start());
@@ -112,67 +148,74 @@ public final class ConcretePump
     {
         final OperandStack stack = cascade.allocator().newOperandStack();
 
-        final Iterable<ConcreteReactor> cycle = Iterables.cycle(reactors);
+        TaskStream<ReactorInfo> taskStream = null;
 
         while (stop.get() == false)
         {
-            consumerPermits.acquireUninterruptibly();
-
-            CascadeToken event = null;
-            ConcreteContext context = null;
-
-            for (ConcreteReactor x : cycle)
-            {
-                event = x.input().poll(stack);
-
-                if (event != null)
-                {
-                    context = new ConcreteContext(x);
-                    break;
-                }
-            }
-
-            if (context == null)
-            {
-                continue;
-            }
-
-//            final ConcreteReactor reactor = (ConcreteReactor) context.reactor();
-//
-//            final Connection queue = reactor.input();
-//
-//            final CascadeToken event = queue.poll(stack);
-            if (event == null)
-            {
-                continue;
-            }
-
-            final Core core = context.reactor().core();
-
             try
-            {
-                context.set(event, stack, null);
-                core.onMessage(context);
-            }
-            catch (Throwable ex1)
             {
                 try
                 {
-                    context.set(event, stack, ex1);
-                    core.onException(context);
+                    taskStream = scheduler.pollTask(1, TimeUnit.SECONDS);
                 }
-                catch (Throwable ex2)
+                catch (InterruptedException ex)
+                {
+                    cascade().defaultLogger().warn(ex);
+                    Thread.currentThread().interrupt();
+                    continue;
+                }
+
+                if (taskStream == null)
+                {
+                    continue;
+                }
+
+                final CascadeToken event = taskStream.source().connection.poll(stack);
+                final ConcreteContext context = taskStream.source().context;
+                final Core core = taskStream.source().reactor.core();
+
+                Verify.verifyNotNull(event);
+                Verify.verifyNotNull(context);
+                Verify.verifyNotNull(core);
+
+                try
+                {
+                    taskStream.source().reactor.enterCore();
+                    context.set(event, stack, null);
+                    core.onMessage(context);
+                }
+                catch (Throwable ex1)
                 {
                     try
                     {
-                        cascade.defaultLogger().warn(ex2);
+                        context.set(event, stack, ex1);
+                        core.onException(context);
                     }
-                    catch (Throwable ex3)
+                    catch (Throwable ex2)
                     {
-                        ex1.printStackTrace(System.err);
-                        ex2.printStackTrace(System.err);
-                        ex3.printStackTrace(System.err);
+                        try
+                        {
+                            cascade().defaultLogger().warn(ex2);
+                        }
+                        catch (Throwable ex3)
+                        {
+                            ex1.printStackTrace(System.err);
+                            ex2.printStackTrace(System.err);
+                            ex3.printStackTrace(System.err);
+                        }
                     }
+                }
+                finally
+                {
+                    context.set(null, null, null);
+                    taskStream.source().reactor.exitCore();
+                }
+            }
+            finally
+            {
+                if (taskStream != null)
+                {
+                    taskStream.release();
                 }
             }
         }

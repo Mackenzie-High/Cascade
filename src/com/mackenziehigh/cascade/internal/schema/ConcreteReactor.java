@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade.internal.schema;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
@@ -13,6 +14,7 @@ import com.mackenziehigh.cascade.internal.engines.Connection;
 import com.mackenziehigh.cascade.internal.routing.EventDispatcher;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  *
@@ -35,6 +37,12 @@ public final class ConcreteReactor
     private final EventDispatcher.ConcurrentEventSender sender;
 
     private final ImmutableMap<CascadeToken, CascadeSubscription> subscriptions;
+
+    /**
+     * This flag is used as a sanity check to ensure that the core()
+     * is not being executed by two pump threads simultaneously.
+     */
+    private final AtomicBoolean coreLock = new AtomicBoolean();
 
     public ConcreteReactor (final ConcreteCascade cascade,
                             final CascadeToken name,
@@ -170,4 +178,14 @@ public final class ConcreteReactor
         return name.name();
     }
 
+    public void enterCore ()
+    {
+        Preconditions.checkState(coreLock.compareAndSet(false, true),
+                                 "core() is already being executed!");
+    }
+
+    public void exitCore ()
+    {
+        coreLock.set(false);
+    }
 }

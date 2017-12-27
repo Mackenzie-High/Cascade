@@ -1,6 +1,7 @@
 package com.mackenziehigh.cascade.cores.builders;
 
 import com.google.common.collect.Sets;
+import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeToken;
 import java.time.format.DateTimeFormatter;
@@ -95,14 +96,17 @@ public final class TickerBuilder
     {
         return new CascadeReactor.Core()
         {
+            private OperandStack stack;
+
             @Override
             public void onSetup (final CascadeReactor.Context context)
                     throws Throwable
             {
+                stack = context.allocator().newOperandStack();
                 final Runnable task = () ->
                 {
-                    context.message().push(formatter.get());
-                    outputs.forEach(x -> context.broadcast(x, context.message()));
+                    stack.push(formatter.get());
+                    outputs.forEach(x -> context.broadcast(x, stack));
                 };
                 future = timer().scheduleAtFixedRate(task, delay, period, TimeUnit.NANOSECONDS);
             }
@@ -113,6 +117,7 @@ public final class TickerBuilder
             {
                 final boolean interrupt = false;
                 future.cancel(interrupt);
+                stack.close();
             }
         };
     }

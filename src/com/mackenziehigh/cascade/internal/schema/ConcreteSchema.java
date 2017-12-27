@@ -3,7 +3,9 @@ package com.mackenziehigh.cascade.internal.schema;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.Cascade;
@@ -54,6 +56,8 @@ public final class ConcreteSchema
     private final Map<CascadeToken, AllocationPool> namesToPools = Maps.newHashMap();
 
     private final Map<CascadeToken, ConcretePump> namesToPumps = Maps.newHashMap();
+
+    private final Multimap<CascadeToken, ConcreteReactor> pumpsToReactors = LinkedListMultimap.create();
 
     /**
      * Maps the name of a reactor to the corresponding connection.
@@ -220,15 +224,18 @@ public final class ConcreteSchema
         /**
          * Compile - Pass #2.
          */
-        pumps.forEach(x -> compile2(x));
         reactors.forEach(x -> compile2(x));
+
+        /**
+         * Compile - Pass #3.
+         */
+        pumps.forEach(x -> compile3(x));
 
         /**
          * Global.
          */
         pumps.forEach(x -> cascade.addPump(x.pump));
         reactors.forEach(x -> cascade.addReactor(x.reactor));
-        reactors.forEach(x -> x.getPump().addReactor(x.reactor));
 
         return cascade;
     }
@@ -321,15 +328,6 @@ public final class ConcreteSchema
         namesToPools.put(object.name, object.pool);
     }
 
-    private void compile2 (final PumpSchemaImp object)
-    {
-        final ThreadFactory factory = object.threadFactory != null ? object.threadFactory : defaultThreadFactory;
-
-        object.pump = new ConcretePump(cascade, object.name, factory, object.threadCount);
-
-        namesToPumps.put(object.pump.name(), object.pump);
-    }
-
     private void compile2 (final ReactorSchemaImp object)
     {
         Verify.verify(object.name != null);
@@ -340,6 +338,8 @@ public final class ConcreteSchema
 
         final ConcurrentEventSender sender = dispatcher.lookup(object.name);
 
+        object.pump = object.pump == null ? object.defaultPump : object.pump;
+
         object.reactor = new ConcreteReactor(cascade,
                                              object.name,
                                              object.core,
@@ -348,6 +348,21 @@ public final class ConcreteSchema
                                              ImmutableMap.of(), // TODO
                                              object.queue,
                                              sender);
+
+        pumpsToReactors.put(object.pump, object.reactor);
+    }
+
+    private void compile3 (final PumpSchemaImp object)
+    {
+        final ThreadFactory factory = object.threadFactory != null ? object.threadFactory : defaultThreadFactory;
+
+        object.pump = new ConcretePump(cascade,
+                                       object.name,
+                                       pumpsToReactors.get(object.name),
+                                       factory,
+                                       object.threadCount);
+
+        namesToPumps.put(object.pump.name(), object.pump);
     }
 
     private void require (final String message,
@@ -770,16 +785,20 @@ public final class ConcreteSchema
         cs.addFixedPool().named("pool2").withMinimumSize(512).withMaximumSize(768).withBufferCount(10);
         cs.addCompositePool().named("pool3").withMemberPool("default").withMemberPool("pool2");
 
-        cs.addPump().named("pump1").withThreadCount(2);
+        cs.addPump().named("pump1").withThreadCount(3);
 
         cs.usingPool("default").usingPump("pump1");
 
         cs.addReactor()
                 .named("clock1")
-                .withCore(Cores.newTicker().withPeriod(1, TimeUnit.SECONDS).withFormatMonotonicNanos().sendTo("tickTock").build())
-                .withLinearArrayQueue(128);
+                .withCore(Cores.newTicker().withPeriod(50, TimeUnit.MILLISECONDS).withFormatMonotonicNanos().sendTo("tickTock").build())
+                .withLinearArrayQueue(4);
 
-        cs.addReactor().named("printer1").withLinearArrayQueue(128).withCore(Cores.newPrinter().build()).subscribeTo("tickTock");
+        cs.addReactor()
+                .named("printer1")
+                .withLinearArrayQueue(7)
+                .withCore(Cores.from(x -> System.out.println("X = " + x.message().asString() + ", Thread = " + Thread.currentThread().getId())))
+                .subscribeTo("tickTock");
 
         final Cascade cas = cs.build();
 

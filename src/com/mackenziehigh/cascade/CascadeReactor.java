@@ -331,6 +331,13 @@ public interface CascadeReactor
          * Getter.
          *
          * <p>
+         * Warning: The operand-stack returned by this method is a shared resource.
+         * You can only legitimately use the operand-stack within the event-handler
+         * that is providing this Context object. Do *NOT* cache the operand-stack
+         * for later use, as that would introduce threading bugs.
+         * </p>
+         *
+         * <p>
          * This method will return null, unless a message is available.
          * </p>
          *

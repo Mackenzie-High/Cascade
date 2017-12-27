@@ -99,14 +99,22 @@ public final class LinearArrayQueue
             messageQueue.offer(pos);
             callback.accept(this);
         }
+        else if (key != null)
+        {
+            throw new IllegalArgumentException("Wrong Key");
+        }
     }
 
     @Override
-    public void unlock (Object key)
+    public void unlock (final Object key)
     {
         if (key == transactionKey)
         {
             transactionLock.unlock();
+        }
+        else if (key != null)
+        {
+            throw new IllegalArgumentException("Wrong Key");
         }
     }
 
@@ -159,6 +167,7 @@ public final class LinearArrayQueue
             {
                 final int idx = (int) messageQueue.poll();
                 messageStorage.get(idx, out);
+                producerPermits.release();
                 return event;
             }
             else
