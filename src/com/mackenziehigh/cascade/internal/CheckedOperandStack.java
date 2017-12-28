@@ -5,6 +5,7 @@ import com.mackenziehigh.cascade.CascadeAllocator.OperandArray;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import java.util.Objects;
 
+// TODO: Add "locking" and use one instance per reactor.
 /**
  * This is an operand-stack that detects thread-safety violations.
  *

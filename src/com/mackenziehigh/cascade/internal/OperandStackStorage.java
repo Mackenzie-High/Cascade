@@ -1,6 +1,5 @@
 package com.mackenziehigh.cascade.internal;
 
-import com.mackenziehigh.cascade.internal.LongSynchronizedQueue;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
 import com.mackenziehigh.cascade.CascadeAllocator;

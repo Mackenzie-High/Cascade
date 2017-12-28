@@ -1,5 +1,7 @@
 package com.mackenziehigh.cascade.internal;
 
+import com.google.common.base.Verify;
+import com.google.common.collect.ImmutableSet;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
@@ -14,6 +16,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -42,6 +45,53 @@ public final class ConcreteCascade
     private final AtomicBoolean startWasCalled = new AtomicBoolean();
 
     private final AtomicBoolean stopWasCalled = new AtomicBoolean();
+
+    /**
+     * Invariant Checking.
+     */
+    public void selfTest ()
+    {
+        Verify.verifyNotNull(name());
+        Verify.verifyNotNull(uuid());
+        Verify.verifyNotNull(phase());
+        Verify.verifyNotNull(defaultLogger());
+        Verify.verifyNotNull(pumps());
+        Verify.verifyNotNull(reactors());
+
+        Verify.verify(name().toString().equals(toString()));
+        Verify.verify(phase().equals(ExecutionPhase.INITIAL));
+        Verify.verify(allocator().cascade().equals(this));
+
+        Verify.verify(phase().equals(phase()));
+        Verify.verify(uuid().equals(uuid()));
+
+        /**
+         * pumps() must map the name of a pump to that pump.
+         * Each pump must have this object as its cascade().
+         */
+        Verify.verify(pumps().values().stream().allMatch(x -> x.cascade().equals(this) && pumps().get(x.name()).equals(x)));
+
+        /**
+         * reactors() must map the name of a reactor to that reactor.
+         * Each reactor must have this object as its cascade().
+         */
+        Verify.verify(reactors().values().stream().allMatch(x -> x.cascade().equals(this) && reactors().get(x.name()).equals(x)));
+
+        /**
+         * Verify that all of the pumps known-by the reactors
+         * are also directly known by this object as well.
+         */
+        if (reactors.size() > 0)
+        {
+            Verify.verify(reactors().values().stream().map(x -> x.pump()).collect(Collectors.toSet()).equals(ImmutableSet.copyOf(pumps().values())));
+        }
+
+        /**
+         * Verify that all of the reactors known-by the pumps
+         * are also directly known by this object as well.
+         */
+        Verify.verify(pumps().values().stream().map(x -> x.reactors()).flatMap(x -> x.stream()).collect(Collectors.toSet()).equals(ImmutableSet.copyOf(reactors().values())));
+    }
 
     public void setName (final CascadeToken value)
     {
@@ -115,6 +165,7 @@ public final class ConcreteCascade
     {
         if (startWasCalled.compareAndSet(false, true))
         {
+            Verify.verify(phase().equals(ExecutionPhase.INITIAL));
             performStartOnNewThread();
         }
 
@@ -124,8 +175,11 @@ public final class ConcreteCascade
     @Override
     public Cascade stop ()
     {
+        // TODO: This causes problems, if stop is called during startup. Need to postpone.
+
         if (stopWasCalled.compareAndSet(false, true))
         {
+            Verify.verify(phase().equals(ExecutionPhase.RUN));
             performStopOnNewThread();
         }
 
@@ -163,17 +217,27 @@ public final class ConcreteCascade
         /**
          * Per the contract, bring each reactor online.
          */
+        phaseIdx.incrementAndGet();
         invokeSetupOnEachReactor();
 
         /**
          * Per the contract, notify each reactor that the pumps have started
          * and all of the reactors have been brought online.
          */
+        phaseIdx.incrementAndGet();
         invokeStartOnEachReactor();
+
+        /**
+         * The system is now running.
+         */
+        phaseIdx.incrementAndGet();
+        Verify.verify(phase().equals(ExecutionPhase.RUN));
     }
 
     private void startThePumps ()
     {
+        Verify.verify(phase().equals(ExecutionPhase.INITIAL));
+
         for (ConcretePump pump : pumps.values())
         {
             try
@@ -189,6 +253,8 @@ public final class ConcreteCascade
 
     private void invokeSetupOnEachReactor ()
     {
+        Verify.verify(phase().equals(ExecutionPhase.SETUP));
+
         for (CascadeReactor reactor : reactors.values())
         {
             invokeEventHandler(reactor, ctx -> reactor.core().onSetup(ctx));
@@ -197,6 +263,8 @@ public final class ConcreteCascade
 
     private void invokeStartOnEachReactor ()
     {
+        Verify.verify(phase().equals(ExecutionPhase.START));
+
         for (CascadeReactor reactor : reactors.values())
         {
             invokeEventHandler(reactor, ctx -> reactor.core().onStart(ctx));
@@ -216,6 +284,7 @@ public final class ConcreteCascade
         /**
          * Per the contract, inform each reactor that shutdown has begun.
          */
+        phaseIdx.incrementAndGet();
         invokeStopOnEachReactor();
 
         /**
@@ -235,11 +304,20 @@ public final class ConcreteCascade
          * Per the contract, notify each of the reactors that shutdown has occurred,
          * so that they can close/release any leak-able resources.
          */
+        phaseIdx.incrementAndGet();
         invokeDestroyOnEachReactor();
+
+        /**
+         * The system is now shutdown.
+         */
+        phaseIdx.incrementAndGet();
+        Verify.verify(phase().equals(ExecutionPhase.TERMINATED));
     }
 
     private void invokeStopOnEachReactor ()
     {
+        Verify.verify(phase().equals(ExecutionPhase.STOP));
+
         for (CascadeReactor reactor : reactors.values())
         {
             invokeEventHandler(reactor, ctx -> reactor.core().onStop(ctx));
@@ -248,6 +326,8 @@ public final class ConcreteCascade
 
     private void waitForEachReactorToStop ()
     {
+        Verify.verify(phase().equals(ExecutionPhase.STOP));
+
         for (CascadeReactor reactor : reactors.values())
         {
             final AtomicBoolean flag = new AtomicBoolean();
@@ -270,6 +350,8 @@ public final class ConcreteCascade
 
     private void stopThePumps ()
     {
+        Verify.verify(phase().equals(ExecutionPhase.STOP));
+
         for (ConcretePump pump : pumps.values())
         {
             try
@@ -285,6 +367,8 @@ public final class ConcreteCascade
 
     private void invokeDestroyOnEachReactor ()
     {
+        Verify.verify(phase().equals(ExecutionPhase.DESTROY));
+
         for (CascadeReactor reactor : reactors.values())
         {
             invokeEventHandler(reactor, ctx -> reactor.core().onDestroy(ctx));

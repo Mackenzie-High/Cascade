@@ -1,7 +1,5 @@
 package com.mackenziehigh.cascade.internal;
 
-import com.mackenziehigh.cascade.internal.ConcreteContext;
-import com.mackenziehigh.cascade.internal.ConcreteCascade;
 import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -12,11 +10,8 @@ import com.mackenziehigh.cascade.CascadePump;
 import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Core;
 import com.mackenziehigh.cascade.CascadeToken;
-import com.mackenziehigh.cascade.internal.Connection;
-import com.mackenziehigh.cascade.internal.CheckedOperandStack;
 import com.mackenziehigh.cascade.internal.Scheduler.TaskStream;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -36,7 +31,7 @@ public final class ConcretePump
 
         public ConcreteContext context;
 
-        public Connection connection;
+        public InflowQueue pipeline;
 
         public TaskStream<ReactorInfo> stream;
     }
@@ -49,9 +44,7 @@ public final class ConcretePump
 
     private final AtomicBoolean stop = new AtomicBoolean();
 
-    private final Set<ConcreteReactor> reactors = Sets.newConcurrentHashSet();
-
-    private final Set<CascadeReactor> unmodReactors = Collections.unmodifiableSet(reactors);
+    private final ImmutableSet<CascadeReactor> reactors;
 
     private final Scheduler<ReactorInfo> scheduler;
 
@@ -65,7 +58,7 @@ public final class ConcretePump
     {
         this.cascade = Objects.requireNonNull(cascade);
         this.name = Objects.requireNonNull(name);
-        this.reactors.addAll(reactors);
+        this.reactors = ImmutableSet.copyOf(reactors);
 
         /**
          * Create the consumer threads.
@@ -84,7 +77,7 @@ public final class ConcretePump
         {
             final ReactorInfo info = new ReactorInfo();
             info.reactor = reactor;
-            info.connection = reactor.input();
+            info.pipeline = reactor.input();
             info.context = new ConcreteContext(reactor);
             reactorInfos.add(info);
         }
@@ -92,11 +85,27 @@ public final class ConcretePump
         for (ReactorInfo info : scheduler.streams().keySet())
         {
             info.stream = scheduler.streams().get(info);
-            info.connection.setCallback(x -> scheduler.addTask(info.stream));
+            info.pipeline.setCallback(x -> scheduler.addTask(info.stream));
             Verify.verifyNotNull(info.reactor);
-            Verify.verifyNotNull(info.connection);
+            Verify.verifyNotNull(info.pipeline);
             Verify.verifyNotNull(info.context);
             Verify.verifyNotNull(info.stream);
+        }
+    }
+
+    /**
+     * Invariant Checking.
+     */
+    public void selfTest ()
+    {
+        Verify.verify(name().toString().equals(toString()));
+        Verify.verify(cascade().pumps().get(name()).equals(this));
+
+        for (CascadeReactor reactor : reactors())
+        {
+            Verify.verify(reactor.pump().equals(this));
+            Verify.verify(reactor.cascade().equals(cascade()));
+            Verify.verify(cascade().reactors().get(reactor.name()).equals(reactor));
         }
     }
 
@@ -113,18 +122,6 @@ public final class ConcretePump
     }
 
     @Override
-    public int minimumThreads ()
-    {
-        return maximumThreads();
-    }
-
-    @Override
-    public int maximumThreads ()
-    {
-        return threads.size();
-    }
-
-    @Override
     public Set<Thread> threads ()
     {
         return threads;
@@ -133,7 +130,7 @@ public final class ConcretePump
     @Override
     public Set<CascadeReactor> reactors ()
     {
-        return unmodReactors;
+        return reactors;
     }
 
     @Override
@@ -180,7 +177,7 @@ public final class ConcretePump
                         continue;
                     }
 
-                    final CascadeToken event = taskStream.source().connection.poll(stack);
+                    final CascadeToken event = taskStream.source().pipeline.poll(stack);
                     final ConcreteContext context = taskStream.source().context;
                     final Core core = taskStream.source().reactor.core();
 
@@ -205,13 +202,21 @@ public final class ConcretePump
                         {
                             try
                             {
-                                cascade().defaultLogger().warn(ex2);
+                                context.logger().warn(ex2);
                             }
                             catch (Throwable ex3)
                             {
-                                ex1.printStackTrace(System.err);
-                                ex2.printStackTrace(System.err);
-                                ex3.printStackTrace(System.err);
+                                try
+                                {
+                                    cascade().defaultLogger().warn(ex3);
+                                }
+                                catch (Throwable ex4)
+                                {
+                                    ex1.printStackTrace(System.err);
+                                    ex2.printStackTrace(System.err);
+                                    ex3.printStackTrace(System.err);
+                                    ex4.printStackTrace(System.err);
+                                }
                             }
                         }
                     }

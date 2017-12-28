@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CheckedOperandStack.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.internal</a> &gt; <span class="el_source">CheckedOperandStack.java</span></div><h1>CheckedOperandStack.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.internal;
+
+import com.mackenziehigh.cascade.CascadeAllocator;
+import com.mackenziehigh.cascade.CascadeAllocator.OperandArray;
+import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
+import java.util.Objects;
+
+// TODO: Add &quot;locking&quot; and use one instance per reactor.
+/**
+ * This is an operand-stack that detects thread-safety violations.
+ *
+ * &lt;p&gt;
+ * There is a noticeable performance cost to this;
+ * however, the cost is worth detecting violations,
+ * because they would cause insidious bugs.
+ * &lt;/p&gt;
+ */
+public final class CheckedOperandStack
+        implements CascadeAllocator.OperandStack
+{
+    private final Thread thread;
+
+    private final OperandStack delegate;
+
+    public CheckedOperandStack (final Thread thread,
+                                final OperandStack delegate)
+<span class="nc" id="L27">    {</span>
+<span class="nc" id="L28">        this.thread = Objects.requireNonNull(thread, &quot;thread&quot;);</span>
+<span class="nc" id="L29">        this.delegate = Objects.requireNonNull(delegate);</span>
+<span class="nc" id="L30">    }</span>
+
+    @Override
+    public CascadeAllocator allocator ()
+    {
+<span class="nc" id="L35">        return delegate.allocator();</span>
+    }
+
+    @Override
+    public CascadeAllocator.AllocationPool pool ()
+    {
+<span class="nc" id="L41">        return delegate.pool();</span>
+    }
+
+    @Override
+    public OperandStack set (final OperandStack value)
+    {
+<span class="nc" id="L47">        detectMultipleThreads();</span>
+<span class="nc" id="L48">        delegate.set(value);</span>
+<span class="nc" id="L49">        return this;</span>
+    }
+
+    @Override
+    public OperandStack set (final OperandArray array,
+                             final int index)
+    {
+<span class="nc" id="L56">        detectMultipleThreads();</span>
+<span class="nc" id="L57">        delegate.set(array, index);</span>
+<span class="nc" id="L58">        return this;</span>
+    }
+
+    @Override
+    public int operandSize ()
+    {
+<span class="nc" id="L64">        return delegate.operandSize();</span>
+    }
+
+    @Override
+    public int operandCapacity ()
+    {
+<span class="nc" id="L70">        return delegate.operandCapacity();</span>
+    }
+
+    @Override
+    public int stackSize ()
+    {
+<span class="nc" id="L76">        return delegate.stackSize();</span>
+    }
+
+    @Override
+    public OperandStack push (final OperandStack value)
+    {
+<span class="nc" id="L82">        detectMultipleThreads();</span>
+<span class="nc" id="L83">        return delegate.push(value);</span>
+    }
+
+    @Override
+    public byte byteAt (final int index)
+    {
+<span class="nc" id="L89">        return delegate.byteAt(index);</span>
+    }
+
+    @Override
+    public int copyTo (final byte[] buffer,
+                       final int offset,
+                       final int length)
+    {
+<span class="nc" id="L97">        return delegate.copyTo(buffer, offset, length);</span>
+    }
+
+    @Override
+    public OperandStack pop ()
+    {
+<span class="nc" id="L103">        detectMultipleThreads();</span>
+<span class="nc" id="L104">        return delegate.pop();</span>
+    }
+
+    /**
+     * Only invoke this method from mutator methods,
+     * rather than regular getters, in order to mitigate
+     * a little bit of the performance impact.
+     */
+    private void detectMultipleThreads ()
+    {
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (thread != Thread.currentThread())</span>
+        {
+<span class="nc" id="L116">            throw new IllegalStateException(&quot;Thread Safety Violation: Multiple threads are using a thread-specific OperandStack!&quot;);</span>
+        }
+<span class="nc" id="L118">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

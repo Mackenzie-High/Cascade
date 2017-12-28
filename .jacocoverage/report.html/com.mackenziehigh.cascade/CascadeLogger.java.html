@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CascadeLogger.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade</a> &gt; <span class="el_source">CascadeLogger.java</span></div><h1>CascadeLogger.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade;
+
+/**
+ * Use this interface to issue log-messages.
+ *
+ * &lt;p&gt;
+ * Many of the logging methods herein support argument substitution.
+ * The substitutions will be performed using the &lt;code&gt;String.format(*)&lt;/code&gt; method.
+ * &lt;/p&gt;
+ */
+public interface CascadeLogger
+{
+    /**
+     * An instance of this interface creates a new
+     * logger for an entity with a given name.
+     */
+    public interface Factory
+    {
+        /**
+         * Getter.
+         *
+         * @param name is the name of the usage site().
+         * @return a newly created logger.
+         */
+        public CascadeLogger create (CascadeToken name);
+    }
+
+    /**
+     * Log Levels.
+     *
+     * &lt;p&gt;
+     * The order of these constants is significant.
+     * The lowest levels have the lowest ordinal values.
+     * The highest levels have the highest ordinal values.
+     * &lt;/p&gt;
+     */
+<span class="nc" id="L37">    public enum LogLevel</span>
+    {
+<span class="nc" id="L39">        TRACE,</span>
+<span class="nc" id="L40">        DEBUG,</span>
+<span class="nc" id="L41">        INFO,</span>
+<span class="nc" id="L42">        WARNING,</span>
+<span class="nc" id="L43">        ERROR,</span>
+<span class="nc" id="L44">        FATAL</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the name of the entity that this logger applies to.
+     */
+    public CascadeToken site ();
+
+    /**
+     * Use this method to issue a log-message.
+     *
+     * @param level is the log-level of the log-message.
+     * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
+     * @return this.
+     */
+    public CascadeLogger log (final LogLevel level,
+                              final String message,
+                              final Object... args);
+
+    /**
+     * Use this method to issue a log-message.
+     *
+     * @param level is the log-level of the log-message.
+     * @param message is the log-message to issue.
+     * @return this.
+     */
+    public CascadeLogger log (final LogLevel level,
+                              final Throwable message);
+
+    /**
+     * Use this method to issue a fatal-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
+     * @return this.
+     */
+    public default CascadeLogger fatal (final String message,
+                                        final Object... args)
+    {
+<span class="nc" id="L86">        return log(LogLevel.FATAL, message, args);</span>
+    }
+
+    /**
+     * Use this method to issue a fatal-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @return this.
+     */
+    public default CascadeLogger fatal (final Throwable message)
+    {
+<span class="nc" id="L97">        return log(LogLevel.FATAL, message);</span>
+    }
+
+    /**
+     * Use this method to issue a error-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
+     * @return this.
+     */
+    public default CascadeLogger error (final String message,
+                                        final Object... args)
+    {
+<span class="nc" id="L110">        return log(LogLevel.ERROR, message, args);</span>
+    }
+
+    /**
+     * Use this method to issue a error-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @return this.
+     */
+    public default CascadeLogger error (final Throwable message)
+    {
+<span class="nc" id="L121">        return log(LogLevel.ERROR, message);</span>
+    }
+
+    /**
+     * Use this method to issue a warning-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
+     * @return this.
+     */
+    public default CascadeLogger warn (final String message,
+                                       final Object... args)
+    {
+<span class="nc" id="L134">        return log(LogLevel.WARNING, message, args);</span>
+    }
+
+    /**
+     * Use this method to issue a warning-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @return this.
+     */
+    public default CascadeLogger warn (final Throwable message)
+    {
+<span class="nc" id="L145">        return log(LogLevel.WARNING, message);</span>
+    }
+
+    /**
+     * Use this method to issue a info-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
+     * @return this.
+     */
+    public default CascadeLogger info (final String message,
+                                       final Object... args)
+    {
+<span class="nc" id="L158">        return log(LogLevel.INFO, message, args);</span>
+    }
+
+    /**
+     * Use this method to issue a info-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @return this.
+     */
+    public default CascadeLogger info (final Throwable message)
+    {
+<span class="nc" id="L169">        return log(LogLevel.INFO, message);</span>
+    }
+
+    /**
+     * Use this method to issue a debug-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
+     * @return this.
+     */
+    public default CascadeLogger debug (final String message,
+                                        final Object... args)
+    {
+<span class="nc" id="L182">        return log(LogLevel.DEBUG, message, args);</span>
+    }
+
+    /**
+     * Use this method to issue a debug-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @return this.
+     */
+    public default CascadeLogger debug (final Throwable message)
+    {
+<span class="nc" id="L193">        return log(LogLevel.DEBUG, message);</span>
+    }
+
+    /**
+     * Use this method to issue a trace-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @param args will be substituted into the log-message.
+     * @return this.
+     */
+    public default CascadeLogger trace (final String message,
+                                        final Object... args)
+    {
+<span class="nc" id="L206">        return log(LogLevel.TRACE, message, args);</span>
+    }
+
+    /**
+     * Use this method to issue a trace-level log-message.
+     *
+     * @param message is the log-message to issue.
+     * @return this.
+     */
+    public default CascadeLogger trace (final Throwable message)
+    {
+<span class="nc" id="L217">        return log(LogLevel.TRACE, message);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

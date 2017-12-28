@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>EventDispatcher.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.internal</a> &gt; <span class="el_source">EventDispatcher.java</span></div><h1>EventDispatcher.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.internal;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.Maps;
+import com.mackenziehigh.cascade.CascadeToken;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ *
+ */
+public final class EventDispatcher
+{
+    /**
+     * (subscriber) -&gt; (queue)
+     */
+    private final ImmutableSortedMap&lt;CascadeToken, InflowQueue&gt; queues;
+
+    /**
+     * (event) -&gt; [ (queue) ]
+     */
+<span class="fc" id="L25">    private final Map&lt;CascadeToken, ImmutableList&lt;InflowQueue&gt;&gt; subscriptions = Maps.newConcurrentMap();</span>
+
+    /**
+     * (publisher) -&gt; (sender)
+     */
+<span class="fc" id="L30">    private final Map&lt;CascadeToken, ConcurrentEventSender&gt; senders = Maps.newConcurrentMap();</span>
+
+    /**
+     * This lock is used to ensure that registrations, de-registrations, and look-ups are synchronous.
+     */
+<span class="fc" id="L35">    private final Lock lock = new ReentrantLock();</span>
+
+    /**
+     * Sole constructor.
+     *
+     * @param queues
+     */
+    public EventDispatcher (final Map&lt;CascadeToken, InflowQueue&gt; queues)
+<span class="fc" id="L43">    {</span>
+<span class="fc" id="L44">        this.queues = ImmutableSortedMap.copyOf(queues);</span>
+<span class="fc" id="L45">    }</span>
+
+    /**
+     * Register a message-queue to receive messages for a given event.
+     *
+     * @param subscriberId will now receive messages for (eventId).
+     * @param eventId identifies the event to listen for.
+     */
+    public void register (final CascadeToken subscriberId,
+                          final CascadeToken eventId)
+    {
+<span class="nc" id="L56">        lock.lock();</span>
+
+        try
+        {
+<span class="nc" id="L60">            performRegister(subscriberId, eventId);</span>
+        }
+        finally
+        {
+<span class="nc" id="L64">            lock.unlock();</span>
+<span class="nc" id="L65">        }</span>
+<span class="nc" id="L66">    }</span>
+
+    private void performRegister (final CascadeToken subscriberId,
+                                  final CascadeToken eventId)
+    {
+<span class="nc" id="L71">        final InflowQueue handler = queues.get(subscriberId);</span>
+
+<span class="nc bnc" id="L73" title="All 2 branches missed.">        if (handler != null)</span>
+        {
+            /**
+             * Subscribe the subscriber to the event channel.
+             * This is slow, but we need an immutable list during sends.
+             */
+<span class="nc" id="L79">            final ImmutableList&lt;InflowQueue&gt; original = subscriptions.getOrDefault(eventId, ImmutableList.of());</span>
+<span class="nc" id="L80">            final ImmutableList&lt;InflowQueue&gt; modified = ImmutableList.&lt;InflowQueue&gt;builder().addAll(original).add(handler).build();</span>
+<span class="nc" id="L81">            subscriptions.put(eventId, modified);</span>
+<span class="nc" id="L82">        }</span>
+        else
+        {
+<span class="nc" id="L85">            throw new IllegalArgumentException(&quot;No Such Subscriber: &quot; + subscriberId);</span>
+        }
+<span class="nc" id="L87">    }</span>
+
+    /**
+     * Deregister a message-queue from receiving message for a given event.
+     *
+     * @param subscriberId will no longer receive messages for (eventId).
+     * @param eventId identifies the event to no longer listen for.
+     */
+    public void deregister (final CascadeToken subscriberId,
+                            final CascadeToken eventId)
+    {
+<span class="nc" id="L98">        lock.lock();</span>
+
+        try
+        {
+<span class="nc" id="L102">            performDeregister(subscriberId, eventId);</span>
+        }
+        finally
+        {
+<span class="nc" id="L106">            lock.unlock();</span>
+<span class="nc" id="L107">        }</span>
+<span class="nc" id="L108">    }</span>
+
+    private void performDeregister (final CascadeToken subscriberId,
+                                    final CascadeToken eventId)
+    {
+        /**
+         * If no one was subscribed to the event,
+         * then an this should simply be a no-op.
+         */
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        if (subscriptions.containsKey(eventId) == false)</span>
+        {
+<span class="nc" id="L119">            return;</span>
+        }
+
+        /**
+         * Unsubscribe the subscriber to the event channel.
+         */
+<span class="nc" id="L125">        subscriptions.remove(eventId, subscriberId);</span>
+<span class="nc" id="L126">    }</span>
+
+    /**
+     * Use this method to lookup the special object that event-producers shall use to dispatch events.
+     *
+     * &lt;p&gt;
+     * Per use-site, this method should be called once and then the result cached.
+     * &lt;/p&gt;
+     *
+     * @param publisherId identifies the logical entity that will dispatch-events.
+     * @return the API for sending events.
+     */
+    public ConcurrentEventSender lookup (final CascadeToken publisherId)
+    {
+<span class="fc" id="L140">        lock.lock();</span>
+
+        try
+        {
+<span class="fc" id="L144">            return performLookup(publisherId);</span>
+        }
+        finally
+        {
+<span class="pc" id="L148">            lock.unlock();</span>
+        }
+    }
+
+    private ConcurrentEventSender performLookup (final CascadeToken publisherId)
+    {
+<span class="pc bpc" id="L154" title="1 of 2 branches missed.">        if (senders.containsKey(publisherId) == false)</span>
+        {
+<span class="fc" id="L156">            senders.put(publisherId, new ConcurrentEventSender());</span>
+        }
+
+<span class="fc" id="L159">        final ConcurrentEventSender result = senders.get(publisherId);</span>
+
+<span class="fc" id="L161">        return result;</span>
+    }
+
+    /**
+     * Use this API to send events.
+     */
+<span class="fc" id="L167">    public final class ConcurrentEventSender</span>
+            extends OrderlyAtomicSender
+    {
+
+        /**
+         * Private.
+         *
+         * @param eventId identifies the event being sent.
+         * @param out will receive the connections to the subscribers that are interested in the event.
+         */
+        @Override
+        public void resolveConnections (final CascadeToken eventId,
+                                        final ArrayList&lt;InflowQueue&gt; out)
+        {
+<span class="nc" id="L181">            out.clear();</span>
+
+<span class="nc" id="L183">            final ImmutableList&lt;InflowQueue&gt; connections = subscriptions.getOrDefault(eventId, ImmutableList.of());</span>
+
+<span class="nc bnc" id="L185" title="All 2 branches missed.">            for (int i = 0; i &lt; connections.size(); i++)</span>
+            {
+<span class="nc" id="L187">                final InflowQueue connection = connections.get(i);</span>
+<span class="nc" id="L188">                out.add(connection);</span>
+            }
+<span class="nc" id="L190">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

@@ -27,13 +27,11 @@ public interface Cascade
     public static enum ExecutionPhase
     {
         INITIAL,
-        SUBSCRIBE,
         SETUP,
         START,
         RUN,
         STOP,
         DESTROY,
-        CLOSE,
         TERMINATED,
     }
 

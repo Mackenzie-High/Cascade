@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Maps;
 import com.mackenziehigh.cascade.CascadeToken;
-import com.mackenziehigh.cascade.internal.Connection;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
@@ -16,14 +15,14 @@ import java.util.concurrent.locks.ReentrantLock;
 public final class EventDispatcher
 {
     /**
-     * (subscriber) -> (connection)
+     * (subscriber) -> (queue)
      */
-    private final ImmutableSortedMap<CascadeToken, Connection> queues;
+    private final ImmutableSortedMap<CascadeToken, InflowQueue> queues;
 
     /**
-     * (event) -> [ (connection) ]
+     * (event) -> [ (queue) ]
      */
-    private final Map<CascadeToken, ImmutableList<Connection>> subscriptions = Maps.newConcurrentMap();
+    private final Map<CascadeToken, ImmutableList<InflowQueue>> subscriptions = Maps.newConcurrentMap();
 
     /**
      * (publisher) -> (sender)
@@ -40,7 +39,7 @@ public final class EventDispatcher
      *
      * @param queues
      */
-    public EventDispatcher (final Map<CascadeToken, Connection> queues)
+    public EventDispatcher (final Map<CascadeToken, InflowQueue> queues)
     {
         this.queues = ImmutableSortedMap.copyOf(queues);
     }
@@ -69,7 +68,7 @@ public final class EventDispatcher
     private void performRegister (final CascadeToken subscriberId,
                                   final CascadeToken eventId)
     {
-        final Connection handler = queues.get(subscriberId);
+        final InflowQueue handler = queues.get(subscriberId);
 
         if (handler != null)
         {
@@ -77,8 +76,8 @@ public final class EventDispatcher
              * Subscribe the subscriber to the event channel.
              * This is slow, but we need an immutable list during sends.
              */
-            final ImmutableList<Connection> original = subscriptions.getOrDefault(eventId, ImmutableList.of());
-            final ImmutableList<Connection> modified = ImmutableList.<Connection>builder().addAll(original).add(handler).build();
+            final ImmutableList<InflowQueue> original = subscriptions.getOrDefault(eventId, ImmutableList.of());
+            final ImmutableList<InflowQueue> modified = ImmutableList.<InflowQueue>builder().addAll(original).add(handler).build();
             subscriptions.put(eventId, modified);
         }
         else
@@ -177,15 +176,15 @@ public final class EventDispatcher
          */
         @Override
         public void resolveConnections (final CascadeToken eventId,
-                                        final ArrayList<Connection> out)
+                                        final ArrayList<InflowQueue> out)
         {
             out.clear();
 
-            final ImmutableList<Connection> connections = subscriptions.getOrDefault(eventId, ImmutableList.of());
+            final ImmutableList<InflowQueue> connections = subscriptions.getOrDefault(eventId, ImmutableList.of());
 
             for (int i = 0; i < connections.size(); i++)
             {
-                final Connection connection = connections.get(i);
+                final InflowQueue connection = connections.get(i);
                 out.add(connection);
             }
         }

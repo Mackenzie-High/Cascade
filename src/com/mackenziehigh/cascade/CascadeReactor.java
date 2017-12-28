@@ -558,68 +558,13 @@ public interface CascadeReactor
      * This method retrieves the number of messages that
      * are currently enqueued awaiting processing.
      *
-     * <p>
-     * If this message-queue is based upon an underlying
-     * queue that is shared with other message-queues,
-     * then this result will be the sum of the sizes
-     * of the message-queues. In other words, this method
-     * retrieves the size of the underlying queue.
-     * Thus, this result may be larger than queueSize().
-     * </p>
-     *
-     * @return the total number of back-logged messages.
-     */
-    public int backlogSize ();
-
-    /**
-     * This method retrieves the maximum number of messages
-     * that can be simultaneously enqueued awaiting processing.
-     *
-     * <p>
-     * If this message-queue is based upon an underlying
-     * queue that is shared with other message-queues,
-     * then this result will be the capacity of the
-     * Thus, this result may be larger than queueCapacity().
-     * </p>
-     *
-     * @return the maximum number of back-logged messages.
-     */
-    public int backlogCapacity ();
-
-    /**
-     * This method retrieves the number of messages that
-     * are currently enqueued awaiting processing in this
-     * particular queue only.
-     *
-     * @return the total number of messages in this queue.
+     * @return the total number of pending event-messages.
      */
     public int queueSize ();
 
     /**
      * This method retrieves the maximum number of messages
      * that can be enqueued at one time awaiting processing.
-     *
-     * <p>
-     * The queueCapacity() is always upper-bounded by the backlogCapacity().
-     * </p>
-     *
-     * <p>
-     * The queueCapacity() is a best-case upper-bound.
-     * In practice, the actual available capacity may be lower.
-     * For example, if this message-queue is based upon
-     * a underlying finite data-structure that is shared
-     * with other message-queues, then the available capacity
-     * at any single moment in time will be affected by
-     * the size of each of the message-queues,
-     * even if each individual message-queue has
-     * a queueCapacity() equal to the backlogCapacity().
-     * </p>
-     *
-     * <p>
-     * In the situation where this message-queue cannot accept
-     * more messages, because backlogSize() equals backlogCapacity(),
-     * then we will say that the underlying queue is <i>overcommitted</i>.
-     * </p>
      *
      * @return the maximum queue size.
      */
@@ -641,15 +586,13 @@ public interface CascadeReactor
      */
     public default double backpressure ()
     {
-        if (queueCapacity() == 0 || backlogCapacity() == 0)
+        if (queueCapacity() == 0)
         {
             return 100.0;
         }
         else
         {
-            final double queueBP = queueSize() / (double) queueCapacity();
-            final double backlogBP = backlogSize() / (double) backlogCapacity();
-            final double bp = 100.0 * Math.max(queueBP, backlogBP);
+            final double bp = queueSize() / (double) queueCapacity();
             return bp;
         }
     }

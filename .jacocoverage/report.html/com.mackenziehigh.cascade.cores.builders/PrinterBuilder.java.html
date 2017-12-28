@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>PrinterBuilder.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.cores.builders</a> &gt; <span class="el_source">PrinterBuilder.java</span></div><h1>PrinterBuilder.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.cores.builders;
+
+import com.mackenziehigh.cascade.CascadeReactor;
+import java.io.PrintStream;
+import java.nio.charset.Charset;
+
+/**
+ * Node Builder for Printer nodes.
+ */
+<span class="nc" id="L10">public final class PrinterBuilder</span>
+        implements CascadeReactor.CoreBuilder
+{
+<span class="nc" id="L13">    private volatile Charset charset = Charset.forName(&quot;UTF-8&quot;);</span>
+
+<span class="nc" id="L15">    private volatile PrintStream stream = System.out;</span>
+
+<span class="nc" id="L17">    private volatile boolean newline = true;</span>
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CascadeReactor.Core build ()
+    {
+<span class="nc" id="L25">        return new CascadeReactor.Core()</span>
+<span class="nc" id="L26">        {</span>
+            @Override
+            public void onMessage (final CascadeReactor.Context context)
+                    throws Throwable
+            {
+<span class="nc" id="L31">                final byte[] bytes = context.message().asByteArray();</span>
+<span class="nc" id="L32">                context.message().pop();</span>
+<span class="nc" id="L33">                final String string = new String(bytes, charset);</span>
+
+<span class="nc bnc" id="L35" title="All 2 branches missed.">                if (newline)</span>
+                {
+<span class="nc" id="L37">                    stream.println(string);</span>
+                }
+                else
+                {
+<span class="nc" id="L41">                    stream.print(string);</span>
+                }
+<span class="nc" id="L43">            }</span>
+        };
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>PositiveIntRangeMap.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.internal</a> &gt; <span class="el_source">PositiveIntRangeMap.java</span></div><h1>PositiveIntRangeMap.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.internal;
+
+import com.google.common.base.Preconditions;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+/**
+ * An instance of this class is a map that maps finite non-overlapping
+ * inclusive positive integral ranges to user-specified values.
+ *
+ * &lt;p&gt;
+ * This class considers zero to be a positive number.
+ * &lt;/p&gt;
+ */
+public final class PositiveIntRangeMap&lt;E&gt;
+{
+    /**
+     * An instance of this class maps a finite inclusive
+     * contiguous set of integers to a user-specified value.
+     *
+     * @param &lt;T&gt; is the type of user-specified value.
+     */
+    public static final class RangeEntry&lt;T&gt;
+    {
+        public final int minimum;
+
+        public final int maximum;
+
+        public final T value;
+
+        public RangeEntry (final int minimum,
+                           final int maximum,
+                           final T value)
+<span class="fc" id="L36">        {</span>
+<span class="pc bpc" id="L37" title="1 of 2 branches missed.">            Preconditions.checkArgument(minimum &gt;= 0, &quot;minimum &lt; 0&quot;);</span>
+<span class="pc bpc" id="L38" title="1 of 2 branches missed.">            Preconditions.checkArgument(minimum &lt;= maximum, &quot;minimum &gt; maximum&quot;);</span>
+<span class="fc" id="L39">            this.minimum = minimum;</span>
+<span class="fc" id="L40">            this.maximum = maximum;</span>
+<span class="fc" id="L41">            this.value = value;</span>
+<span class="fc" id="L42">        }</span>
+    }
+
+    private final CopyOnWriteArrayList&lt;RangeEntry&lt;E&gt;&gt; entries;
+
+    /**
+     * Sole Constructor.
+     *
+     * @param ranges are the user-specified mappings to store herein.
+     */
+    public PositiveIntRangeMap (final List&lt;RangeEntry&lt;E&gt;&gt; ranges)
+<span class="fc" id="L53">    {</span>
+        /**
+         * Ensure that the list facilitates fast thread-safe random-access.
+         * Strictly speaking, we could just use an ArrayList here,
+         * since only this constructor will write to the array.
+         */
+<span class="fc" id="L59">        this.entries = new CopyOnWriteArrayList&lt;&gt;(ranges);</span>
+
+        /**
+         * Sort the array based on the minimum value of each range therein.
+         */
+<span class="fc" id="L64">        Collections.sort(entries, (x, y) -&gt; Integer.compare(x.minimum, y.minimum));</span>
+
+        /**
+         * The user-provided set of ranges may contain gaps.
+         * We are going to fill in those gaps with additional range objects,
+         * which will themselves contain null values.
+         * This will simplify the implementation to some degree.
+         */
+<span class="fc" id="L72">        final List&lt;RangeEntry&lt;E&gt;&gt; gaps = new LinkedList&lt;&gt;();</span>
+
+        /**
+         * If the first user-specified range does not start at zero,
+         * then add a null-valued range at the beginning.
+         */
+<span class="pc bpc" id="L78" title="1 of 4 branches missed.">        if (entries.size() &gt; 0 &amp;&amp; entries.get(0).minimum != 0)</span>
+        {
+<span class="fc" id="L80">            gaps.add(new RangeEntry&lt;&gt;(0, entries.get(0).minimum - 1, null));</span>
+        }
+
+        /**
+         * If the last user-specified range does not end at the max integer value,
+         * then add a null-valued range at the end.
+         */
+<span class="pc bpc" id="L87" title="2 of 4 branches missed.">        if (entries.size() &gt; 0 &amp;&amp; entries.get(entries.size() - 1).maximum &lt; Integer.MAX_VALUE)</span>
+        {
+<span class="fc" id="L89">            gaps.add(new RangeEntry&lt;&gt;(entries.get(entries.size() - 1).maximum + 1, Integer.MAX_VALUE, null));</span>
+        }
+
+        /**
+         * Iterate over the set of user-specified ranges,
+         * which may *currently* be non-contiguous.
+         */
+<span class="fc bfc" id="L96" title="All 2 branches covered.">        for (int i = 1; i &lt; entries.size(); i++)</span>
+        {
+<span class="fc" id="L98">            final RangeEntry x = entries.get(i - 1);</span>
+<span class="fc" id="L99">            final RangeEntry y = entries.get(i);</span>
+
+            /**
+             * We do not allow two neighboring ranges to overlap.
+             */
+<span class="pc bpc" id="L104" title="1 of 2 branches missed.">            if (x.maximum &gt;= y.minimum)</span>
+            {
+<span class="nc" id="L106">                final String msg = String.format(&quot;[%d, %d] overlaps [%d, %d]&quot;,</span>
+<span class="nc" id="L107">                                                 x.minimum,</span>
+<span class="nc" id="L108">                                                 x.maximum,</span>
+<span class="nc" id="L109">                                                 y.minimum,</span>
+<span class="nc" id="L110">                                                 y.maximum);</span>
+<span class="nc" id="L111">                throw new IllegalArgumentException(msg);</span>
+            }
+
+            /**
+             * If the two neighboring ranges are non-contiguous,
+             * then add a null-valued range between them
+             * in order to make the set of ranges contiguous.
+             */
+<span class="fc bfc" id="L119" title="All 2 branches covered.">            if (y.minimum - x.maximum != 1)</span>
+            {
+<span class="fc" id="L121">                gaps.add(new RangeEntry&lt;&gt;(x.maximum + 1, y.minimum - 1, null));</span>
+            }
+        }
+
+        /**
+         * Insert the gap-fillers into the set of ranges
+         * in order to make the set of ranges fully contiguous.
+         */
+<span class="fc" id="L129">        entries.addAll(gaps);</span>
+
+        /**
+         * Sort the ranges again, since we just added gap-fillers.
+         */
+<span class="fc" id="L134">        Collections.sort(entries, (x, y) -&gt; Integer.compare(x.minimum, y.minimum));</span>
+<span class="fc" id="L135">    }</span>
+
+    /**
+     * Use this method to find a value given an integer key that is within
+     * the contiguous user-defined range of integers that identify the value.
+     *
+     * @param key identifies the value to retrieve.
+     * @return the sought after value, or null, if no such value exists.
+     */
+    public E search (final int key)
+    {
+<span class="pc bpc" id="L146" title="1 of 2 branches missed.">        Preconditions.checkArgument(key &gt;= 0, &quot;key &lt; 0&quot;);</span>
+<span class="pc bpc" id="L147" title="1 of 2 branches missed.">        return entries.isEmpty() ? null : binarySearch(key, 0, entries.size() - 1);</span>
+    }
+
+    private E binarySearch (final int key,
+                            final int low,
+                            final int high)
+    {
+<span class="fc" id="L154">        final int mid = low + ((high - low) / 2);</span>
+
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">        if (high &lt; low)</span>
+        {
+<span class="nc" id="L158">            return null;</span>
+        }
+<span class="fc bfc" id="L160" title="All 2 branches covered.">        else if (key &lt; entries.get(mid).minimum)</span>
+        {
+<span class="fc" id="L162">            return binarySearch(key, low, mid - 1);</span>
+        }
+<span class="fc bfc" id="L164" title="All 2 branches covered.">        else if (key &gt; entries.get(mid).maximum)</span>
+        {
+<span class="fc" id="L166">            return binarySearch(key, mid + 1, high);</span>
+        }
+        else
+        {
+<span class="fc" id="L170">            return entries.get(mid).value;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

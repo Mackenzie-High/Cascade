@@ -46,8 +46,6 @@ public final class ConcreteSchema
 
     private final Set<ReactorSchemaImp> reactors = Sets.newHashSet();
 
-    private final ConcreteAllocator allocator = new ConcreteAllocator();
-
     private final Map<CascadeToken, AllocationPool> namesToPools = Maps.newHashMap();
 
     private final Map<CascadeToken, ConcretePump> namesToPumps = Maps.newHashMap();
@@ -55,17 +53,21 @@ public final class ConcreteSchema
     private final Multimap<CascadeToken, ConcreteReactor> pumpsToReactors = LinkedListMultimap.create();
 
     /**
-     * Maps the name of a reactor to the corresponding connection.
+     * Maps the name of a reactor to the corresponding queue.
      */
-    private final Map<CascadeToken, Connection> reactorConnections = Maps.newConcurrentMap();
+    private final Map<CascadeToken, InflowQueue> reactorsToQueues = Maps.newConcurrentMap();
 
     private EventDispatcher dispatcher;
 
     private final ConcreteCascade cascade = new ConcreteCascade();
 
+    private final ConcreteAllocator allocator = new ConcreteAllocator(cascade);
+
+    private CascadeLogger globalDefaultLogger = new StandardLogger(CascadeToken.create("default"));
+
     public ConcreteSchema ()
     {
-        scope.logger = new StandardLogger(CascadeToken.create("default"));
+        scope.logger = globalDefaultLogger;
     }
 
     @Override
@@ -183,6 +185,7 @@ public final class ConcreteSchema
          */
         cascade.setName(name);
         cascade.setAllocator(allocator);
+        cascade.setDefaultLogger(globalDefaultLogger);
 
         /**
          * Declare.
@@ -205,8 +208,8 @@ public final class ConcreteSchema
         /**
          * Create the routing-table.
          */
-        reactors.forEach(x -> reactorConnections.put(x.name, x.queue));
-        dispatcher = new EventDispatcher(reactorConnections);
+        reactors.forEach(x -> reactorsToQueues.put(x.name, x.queue));
+        dispatcher = new EventDispatcher(reactorsToQueues);
         reactors.forEach(s -> s.subscriptions.forEach(e -> dispatcher.register(s.name, e)));
 
         /**
@@ -231,6 +234,23 @@ public final class ConcreteSchema
          */
         pumps.forEach(x -> cascade.addPump(x.pump));
         reactors.forEach(x -> cascade.addReactor(x.reactor));
+
+        /**
+         * Verify.
+         */
+        verifyCascade();
+        dynamicPools.forEach(x -> verify(x));
+        fixedPools.forEach(x -> verify(x));
+        compositePools.forEach(x -> verify(x));
+        pumps.forEach(x -> verify(x));
+        reactors.forEach(x -> verify(x));
+
+        /**
+         * Verify - Self Tests.
+         */
+        cascade.selfTest();
+        pumps.forEach(x -> x.pump.selfTest());
+        reactors.forEach(x -> x.reactor.selfTest());
 
         return cascade;
     }
@@ -339,6 +359,7 @@ public final class ConcreteSchema
                                              object.name,
                                              object.core,
                                              object.getPool(),
+                                             object.pump,
                                              object.getLogger(),
                                              ImmutableMap.of(), // TODO
                                              object.queue,
@@ -358,6 +379,108 @@ public final class ConcreteSchema
                                        object.threadCount);
 
         namesToPumps.put(object.pump.name(), object.pump);
+    }
+
+    private void verifyCascade ()
+    {
+        Verify.verifyNotNull(cascade.name());
+        Verify.verifyNotNull(cascade.uuid());
+        Verify.verifyNotNull(cascade.allocator());
+        Verify.verifyNotNull(cascade.phase());
+        Verify.verifyNotNull(cascade.defaultLogger());
+        Verify.verifyNotNull(cascade.pumps());
+        Verify.verifyNotNull(cascade.reactors());
+        Verify.verify(cascade.name().equals(name));
+        Verify.verify(cascade.name().toString().equals(cascade.toString()));
+        Verify.verify(cascade.name().name().equals(cascade.toString()));
+        Verify.verify(cascade.defaultLogger().equals(globalDefaultLogger));     // TODO: Make sure this is always true!
+        Verify.verify(cascade.phase().equals(Cascade.ExecutionPhase.INITIAL));
+    }
+
+    private void verify (final DynamicPoolSchemaImp object)
+    {
+        Verify.verifyNotNull(object.pool);
+        Verify.verifyNotNull(object.name);
+        Verify.verifyNotNull(object.minimumSize);
+        Verify.verifyNotNull(object.maximumSize);
+        Verify.verify(object.minimumSize >= 0);
+        Verify.verify(object.maximumSize >= 0);
+        Verify.verify(object.minimumSize <= object.maximumSize);
+        Verify.verify(object.pool.name().equals(object.name.name()));
+        Verify.verify(object.minimumSize.equals(object.pool.minimumAllocationSize()));
+        Verify.verify(object.maximumSize.equals(object.pool.maximumAllocationSize()));
+        Verify.verify(object.pool.isFixed() == false);
+        Verify.verify(object.pool.size().isPresent() == false);
+        Verify.verify(object.pool.capacity().isPresent() == false);
+        Verify.verify(object.pool.allocator().equals(cascade.allocator()));
+        Verify.verify(cascade.allocator().pools().get(object.name.name()).equals(object.pool));
+        Verify.verify(cascade.equals(object.pool.allocator().cascade()));
+    }
+
+    private void verify (final FixedPoolSchemaImp object)
+    {
+        Verify.verifyNotNull(object.pool);
+        Verify.verifyNotNull(object.name);
+        Verify.verifyNotNull(object.minimumSize);
+        Verify.verifyNotNull(object.maximumSize);
+        Verify.verifyNotNull(object.bufferCount);
+        Verify.verify(object.minimumSize >= 0);
+        Verify.verify(object.maximumSize >= 0);
+        Verify.verify(object.minimumSize <= object.maximumSize);
+        Verify.verify(object.bufferCount >= 0);
+        Verify.verify(object.pool.name().equals(object.name.name()));
+        Verify.verify(object.minimumSize.equals(object.pool.minimumAllocationSize()));
+        Verify.verify(object.maximumSize.equals(object.pool.maximumAllocationSize()));
+        Verify.verify(object.pool.isFixed());
+        Verify.verify(object.pool.size().isPresent());
+        Verify.verify(object.pool.capacity().isPresent());
+        Verify.verify(object.pool.size().getAsLong() == 0);
+        Verify.verify(object.pool.capacity().getAsLong() == object.bufferCount);
+        Verify.verify(object.pool.allocator().equals(cascade.allocator()));
+        Verify.verify(cascade.allocator().pools().get(object.name.name()).equals(object.pool));
+        Verify.verify(cascade.equals(object.pool.allocator().cascade()));
+    }
+
+    private void verify (final CompositePoolSchemaImp object)
+    {
+
+    }
+
+    private void verify (final PumpSchemaImp object)
+    {
+        Verify.verifyNotNull(object.pump);
+        Verify.verifyNotNull(object.name);
+        Verify.verifyNotNull(object.threadCount);
+//        Verify.verifyNotNull(object.threadFactory); TODO: ??????????????????????????
+        Verify.verify(cascade.equals(object.pump.cascade()));
+        Verify.verify(object.pump.name().equals(object.name));
+        Verify.verify(object.pump.threads().size() == object.threadCount);
+        Verify.verify(cascade.pumps().get(object.name).equals(object.pump));
+    }
+
+    private void verify (final ReactorSchemaImp object)
+    {
+        Verify.verifyNotNull(object.reactor);
+        Verify.verifyNotNull(object.core);
+        Verify.verifyNotNull(object.name);
+        Verify.verifyNotNull(object.queueType);
+        Verify.verifyNotNull(object.queueCapacity);
+        Verify.verifyNotNull(object.queue);
+        Verify.verifyNotNull(object.getLogger());
+        Verify.verifyNotNull(object.getPool());
+        Verify.verifyNotNull(object.getPump());
+        Verify.verify(cascade.equals(object.reactor.cascade()));
+        Verify.verify(object.reactor.name().equals(object.name));
+        Verify.verify(object.reactor.allocator().equals(cascade.allocator()));
+        Verify.verify(object.reactor.pool().equals(object.getPool()));
+        Verify.verify(object.reactor.core().equals(object.core));
+        Verify.verify(object.reactor.input().equals(object.queue));
+        Verify.verify(object.reactor.queueCapacity() == object.queueCapacity);
+        // Verify.verify(object.reactor.logger().equals(object.getLogger())); TODO: currently may differ becasue getLogger does not cache!!!
+        Verify.verify(object.reactor.pump().name().equals(object.pump));
+        Verify.verify(cascade.pumps().get(object.reactor.pump().name()).equals(object.reactor.pump()));
+        Verify.verify(cascade.reactors().get(object.reactor.name()).equals(object.reactor));
+        Verify.verify(object.reactor.pump().reactors().contains(object.reactor));
     }
 
     private void require (final String message,
@@ -385,9 +508,9 @@ public final class ConcreteSchema
         }
     }
 
-    private void preventChange (String entity,
-                                Object original,
-                                Object value)
+    private void preventChange (final String entity,
+                                final Object original,
+                                final Object value)
     {
         if (original != null)
         {
@@ -591,7 +714,7 @@ public final class ConcreteSchema
 
         public QueueType queueType;
 
-        public Connection queue;
+        public InflowQueue queue;
 
         public Integer queueCapacity;
 
@@ -609,7 +732,7 @@ public final class ConcreteSchema
             }
             else if (loggerFactory != null)
             {
-                return loggerFactory.create(name);
+                return loggerFactory.create(name); // TODO: Should this be cached? Currently called multiple times potentially.
             }
             else if (defaultLogger != null)
             {
@@ -714,7 +837,7 @@ public final class ConcreteSchema
             preventChange("Queue Type", this.queueType, type);
             this.queueType = type;
             this.queueCapacity = queueCapacity;
-            this.queue = new LinearArrayQueue(allocator, queueCapacity);
+            this.queue = new ArrayInflowQueue(allocator, queueCapacity);
             return this;
         }
 
@@ -773,6 +896,7 @@ public final class ConcreteSchema
     }
 
     public static void main (String[] args)
+            throws InterruptedException
     {
         final CascadeSchema cs = new ConcreteSchema().named("Schema1");
 

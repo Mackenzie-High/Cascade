@@ -1,9 +1,8 @@
 package com.mackenziehigh.cascade.internal;
 
-import com.mackenziehigh.cascade.CascadeToken;
 import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.internal.Connection;
+import com.mackenziehigh.cascade.CascadeToken;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -11,7 +10,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * This class provides the algorithms needed to send
- * a message atomically to multiple independent pipes.
+ * a message atomically to multiple independent queues.
  *
  * <p>
  * In this context, atomicity means that given an
@@ -45,7 +44,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public abstract class OrderlyAtomicSender
 {
     public abstract void resolveConnections (CascadeToken event,
-                                             ArrayList<Connection> out);
+                                             ArrayList<InflowQueue> out);
 
     /**
      * This lock ensures that no two send attempts
@@ -54,7 +53,7 @@ public abstract class OrderlyAtomicSender
      */
     private final Lock transactionLock = new ReentrantLock();
 
-    private final ArrayList<Connection> outputs = new ArrayList<>(16);
+    private final ArrayList<InflowQueue> outputs = new ArrayList<>(16);
 
     private final ArrayList<Object> keys = new ArrayList<>(16);
 
@@ -208,6 +207,7 @@ public abstract class OrderlyAtomicSender
                              final long timeout,
                              final TimeUnit timeoutUnits)
             throws InterruptedException
+
     {
         Preconditions.checkArgument(timeoutUnits.toNanos(timeout) > 0, "Invalid Timeout");
 

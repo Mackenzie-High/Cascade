@@ -115,18 +115,6 @@ public final class ConcreteContext
     }
 
     @Override
-    public int backlogSize ()
-    {
-        return reactor.backlogSize();
-    }
-
-    @Override
-    public int backlogCapacity ()
-    {
-        return reactor.backlogCapacity();
-    }
-
-    @Override
     public int queueSize ()
     {
         return reactor.queueSize();

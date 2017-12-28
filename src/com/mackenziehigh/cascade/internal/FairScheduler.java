@@ -25,7 +25,7 @@ public final class FairScheduler<T>
     public FairScheduler (final Collection<T> sources)
     {
         sources.forEach(x -> streams.put(x, new TaskStreamImp(x)));
-        queue = new ArrayBlockingQueue<>(sources.size());
+        queue = new ArrayBlockingQueue<>(sources.size() + 1);
     }
 
     @Override

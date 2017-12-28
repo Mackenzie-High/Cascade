@@ -24,20 +24,6 @@ public interface CascadePump
     /**
      * Getter.
      *
-     * @return the minimum number of threads alive simultaneously herein.
-     */
-    public int minimumThreads ();
-
-    /**
-     * Getter.
-     *
-     * @return the maximum number of threads alive simultaneously herein.
-     */
-    public int maximumThreads ();
-
-    /**
-     * Getter.
-     *
      * @return the threads that are currently alive herein.
      */
     public Set<Thread> threads ();

@@ -1,7 +1,6 @@
 package com.mackenziehigh.cascade.internal;
 
-import com.mackenziehigh.cascade.internal.ConcreteCascade;
-import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableMap;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
@@ -11,9 +10,8 @@ import com.mackenziehigh.cascade.CascadePump;
 import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeSubscription;
 import com.mackenziehigh.cascade.CascadeToken;
-import com.mackenziehigh.cascade.internal.Connection;
-import com.mackenziehigh.cascade.internal.EventDispatcher;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -31,9 +29,11 @@ public final class ConcreteReactor
 
     private final AllocationPool pool;
 
+    private final CascadeToken pump;
+
     private final CascadeLogger logger;
 
-    private final Connection input;
+    private final InflowQueue input;
 
     private final EventDispatcher.ConcurrentEventSender sender;
 
@@ -49,22 +49,43 @@ public final class ConcreteReactor
                             final CascadeToken name,
                             final Core core,
                             final AllocationPool pool,
+                            final CascadeToken pump,
                             final CascadeLogger logger,
                             final Map<CascadeToken, CascadeSubscription> subscriptions,
-                            final Connection input,
+                            final InflowQueue input,
                             final EventDispatcher.ConcurrentEventSender sender)
     {
-        this.cascade = cascade;
-        this.name = name;
-        this.core = core;
-        this.sender = sender;
-        this.pool = pool;
-        this.logger = logger;
-        this.input = input;
+        this.cascade = Objects.requireNonNull(cascade);
+        this.name = Objects.requireNonNull(name);
+        this.core = Objects.requireNonNull(core);
+        this.sender = Objects.requireNonNull(sender);
+        this.pool = Objects.requireNonNull(pool);
+        this.pump = Objects.requireNonNull(pump);
+        this.logger = Objects.requireNonNull(logger);
+        this.input = Objects.requireNonNull(input);
         this.subscriptions = ImmutableMap.copyOf(subscriptions);
     }
 
-    public Connection input ()
+    /**
+     * Invariant Checking.
+     */
+    public void selfTest ()
+    {
+        Verify.verifyNotNull(pump());
+        Verify.verify(name().toString().equals(toString()));
+        Verify.verify(cascade().allocator().equals(allocator()));
+        Verify.verify(cascade().phase().equals(Cascade.ExecutionPhase.INITIAL));
+        Verify.verify(cascade().pumps().get(pump().name()).equals(pump()));
+        Verify.verify(cascade().reactors().get(name()).equals(this));
+        Verify.verify(allocator().equals(cascade().allocator()));
+        Verify.verify(allocator().pools().get(pool().name()).equals(pool()));
+        Verify.verify(allocator().cascade().equals(cascade()));
+        Verify.verify(pump().cascade().equals(cascade()));
+        Verify.verify(pump().reactors().contains(this));
+        Verify.verify(pool().allocator().equals(allocator()));
+    }
+
+    public InflowQueue input ()
     {
         return input;
     }
@@ -108,31 +129,19 @@ public final class ConcreteReactor
     @Override
     public CascadePump pump ()
     {
-        return cascade.pumps().get(name());
-    }
-
-    @Override
-    public int backlogSize ()
-    {
-        return input.globalSize();
-    }
-
-    @Override
-    public int backlogCapacity ()
-    {
-        return input.globalCapacity();
+        return cascade.pumps().get(pump);
     }
 
     @Override
     public int queueSize ()
     {
-        return input.localSize();
+        return input.size();
     }
 
     @Override
     public int queueCapacity ()
     {
-        return input.localCapacity();
+        return input.capacity();
     }
 
     @Override
@@ -154,7 +163,7 @@ public final class ConcreteReactor
                          final long timeout,
                          final TimeUnit timeoutUnits)
     {
-        //return sender.sendSync(event, message, timeout, timeoutUnits);
+//        return sender.sendSync(event, message, timeout, timeoutUnits);
         return false;
     }
 
@@ -181,8 +190,8 @@ public final class ConcreteReactor
 
     public void enterCore ()
     {
-        Preconditions.checkState(coreLock.compareAndSet(false, true),
-                                 "core() is already being executed!");
+        Verify.verify(coreLock.compareAndSet(false, true),
+                      "core() is already being executed!");
     }
 
     public void exitCore ()

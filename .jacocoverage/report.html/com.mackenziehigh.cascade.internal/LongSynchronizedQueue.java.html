@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>LongSynchronizedQueue.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.internal</a> &gt; <span class="el_source">LongSynchronizedQueue.java</span></div><h1>LongSynchronizedQueue.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.internal;
+
+import com.google.common.base.Preconditions;
+
+/**
+ * This is a simple efficient thread-safe queue implementation
+ * for storing values of primitive-type (long).
+ */
+public final class LongSynchronizedQueue
+{
+    private final int capacity;
+
+<span class="fc" id="L13">    private int size = 0;</span>
+
+    private final long[] circularBuffer;
+
+<span class="fc" id="L17">    private int tail = 0;</span>
+
+<span class="fc" id="L19">    private int head = 0;</span>
+
+    public LongSynchronizedQueue (final int capacity)
+<span class="fc" id="L22">    {</span>
+<span class="pc bpc" id="L23" title="1 of 2 branches missed.">        Preconditions.checkArgument(capacity &gt;= 0, &quot;capacity &lt; 0&quot;);</span>
+<span class="fc" id="L24">        this.capacity = capacity;</span>
+<span class="fc" id="L25">        this.circularBuffer = new long[capacity];</span>
+<span class="fc" id="L26">    }</span>
+
+    /**
+     * Use this method add a value to the tail of the queue,
+     * if doing so would not violate the capacity restriction.
+     *
+     * @param value is the value to add, if possible.
+     * @return true, if the value was actually added to the queue.
+     */
+    public synchronized boolean offer (final long value)
+    {
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        if (size &gt;= capacity)</span>
+        {
+<span class="fc" id="L39">            return false;</span>
+        }
+        else
+        {
+<span class="fc" id="L43">            ++size;</span>
+<span class="fc bfc" id="L44" title="All 2 branches covered.">            tail = (tail &gt;= circularBuffer.length - 1) ? 0 : tail + 1;</span>
+<span class="fc" id="L45">            circularBuffer[tail] = value;</span>
+<span class="fc" id="L46">            return true;</span>
+        }
+    }
+
+    /**
+     * Use this method to retrieve and remove the head of the queue, if possible.
+     *
+     * @return the value, if one was retrieved; otherwise, return zero.
+     */
+    public synchronized long poll ()
+    {
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        if (size == 0)</span>
+        {
+<span class="fc" id="L59">            return 0;</span>
+        }
+        else
+        {
+<span class="fc" id="L63">            --size;</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">            head = (head &gt;= circularBuffer.length - 1) ? 0 : head + 1;</span>
+<span class="fc" id="L65">            return (circularBuffer[head]);</span>
+        }
+    }
+
+    /**
+     * Use this method to retrieve, but not remove, the head of the queue, if possible.
+     *
+     * @return the value, if one was retrieved; otherwise, return zero.
+     */
+    public synchronized long peek ()
+    {
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        if (size == 0)</span>
+        {
+<span class="fc" id="L78">            return 0;</span>
+        }
+        else
+        {
+<span class="fc bfc" id="L82" title="All 2 branches covered.">            final int index = (head &gt;= circularBuffer.length - 1) ? 0 : head + 1;</span>
+<span class="fc" id="L83">            return (circularBuffer[index]);</span>
+        }
+    }
+
+    /**
+     * Use this method to remove all elements from this queue instantly.
+     */
+    public synchronized void clear ()
+    {
+<span class="fc" id="L92">        size = 0;</span>
+<span class="fc" id="L93">        head = -1;</span>
+<span class="fc" id="L94">        tail = -1;</span>
+<span class="fc" id="L95">    }</span>
+
+    /**
+     * Getter.
+     *
+     * @return true, if size() is zero.
+     */
+    public synchronized boolean isEmpty ()
+    {
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        return size() == 0;</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the current size of the queue.
+     */
+    public synchronized int size ()
+    {
+<span class="fc" id="L114">        return size;</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the maximum size of the queue.
+     */
+    public synchronized int capacity ()
+    {
+<span class="fc" id="L124">        return capacity;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>
