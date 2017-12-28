@@ -41,7 +41,7 @@ public final class LinkedInflowQueue
     public LinkedInflowQueue (final CascadeAllocator allocator,
                               final int capacity)
     {
-        super(allocator, capacity);
+        super(capacity);
         Preconditions.checkNotNull(allocator, "allocator");
         Preconditions.checkArgument(capacity >= 0, "capacity < 0");
     }

@@ -10,7 +10,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * This class provides the algorithms needed to send
- * a message atomically to multiple independent pipes.
+ * a message atomically to multiple independent queues.
  *
  * &lt;p&gt;
  * In this context, atomicity means that given an
@@ -206,98 +206,100 @@ import java.util.concurrent.locks.ReentrantLock;
                              final OperandStack message,
                              final long timeout,
                              final TimeUnit timeoutUnits)
+            throws InterruptedException
 
     {
-<span class="nc bnc" id="L211" title="All 2 branches missed.">        Preconditions.checkArgument(timeoutUnits.toNanos(timeout) &gt; 0, &quot;Invalid Timeout&quot;);</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">        Preconditions.checkArgument(timeoutUnits.toNanos(timeout) &gt; 0, &quot;Invalid Timeout&quot;);</span>
 
         /**
          * The asynchronous version of this method is usually faster,
          * because fewer system-calls are needed, etc; therefore,
          * we will try that method first in hopes of getting lucky.
          */
-<span class="nc bnc" id="L218" title="All 2 branches missed.">        if (sendAsync(event, message))</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        if (sendAsync(event, message))</span>
         {
-<span class="nc" id="L220">            return true;</span>
+<span class="nc" id="L221">            return true;</span>
         }
 
-<span class="nc" id="L223">        final long timeoutNanos = timeoutUnits.toNanos(timeout);</span>
-<span class="nc" id="L224">        final long startTime = System.nanoTime();</span>
-<span class="nc" id="L225">        int lockCount = 0;</span>
+<span class="nc" id="L224">        final long timeoutNanos = timeoutUnits.toNanos(timeout);</span>
+<span class="nc" id="L225">        final long startTime = System.nanoTime();</span>
+<span class="nc" id="L226">        int lockCount = 0;</span>
 
-//        if (transactionLock.tryLock(timeoutNanos, TimeUnit.NANOSECONDS) == false)
-//        {
-//            return false;
-//        }
-//        else
-//        {
-//            resolveConnections(event);
-//        }
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        if (transactionLock.tryLock(timeoutNanos, TimeUnit.NANOSECONDS) == false)</span>
+        {
+<span class="nc" id="L230">            return false;</span>
+        }
+        else
+        {
+<span class="nc" id="L234">            resolveConnections(event);</span>
+        }
+
         try
         {
             /**
              * Acquire the locks.
              */
-<span class="nc bnc" id="L240" title="All 2 branches missed.">            for (int i = 0; i &lt; outputs.size(); i++)</span>
+<span class="nc bnc" id="L242" title="All 2 branches missed.">            for (int i = 0; i &lt; outputs.size(); i++)</span>
             {
-<span class="nc" id="L242">                final long elapsedTime = System.nanoTime() - startTime;</span>
-<span class="nc" id="L243">                final long diffTime = timeoutNanos - elapsedTime; // Limit (diffTime) -&gt; 0</span>
-<span class="nc" id="L244">                final long remainingTime = Math.max(Math.min(diffTime, timeoutNanos), 0);</span>
+<span class="nc" id="L244">                final long elapsedTime = System.nanoTime() - startTime;</span>
+<span class="nc" id="L245">                final long diffTime = timeoutNanos - elapsedTime; // Limit (diffTime) -&gt; 0</span>
+<span class="nc" id="L246">                final long remainingTime = Math.max(Math.min(diffTime, timeoutNanos), 0);</span>
 
-<span class="nc bnc" id="L246" title="All 2 branches missed.">                if (remainingTime == 0)</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">                if (remainingTime == 0)</span>
                 {
-<span class="nc" id="L248">                    break;</span>
+<span class="nc" id="L250">                    break;</span>
                 }
 
-//                final Object key = outputs.get(i).lock(remainingTime, TimeUnit.NANOSECONDS);
-//                if (key == null)
-//                {
-//                    break;
-//                }
-//                else
-//                {
-//                    keys.set(i, outputs.get(i).lock());
-//                    ++lockCount;
-//                }
+<span class="nc" id="L253">                final Object key = outputs.get(i).lock(remainingTime, TimeUnit.NANOSECONDS);</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">                if (key == null)</span>
+                {
+<span class="nc" id="L256">                    break;</span>
+                }
+                else
+                {
+<span class="nc" id="L260">                    keys.set(i, outputs.get(i).lock());</span>
+<span class="nc" id="L261">                    ++lockCount;</span>
+                }
             }
 
-<span class="nc bnc" id="L263" title="All 2 branches missed.">            final boolean hasAllLocks = lockCount == keys.size();</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">            final boolean hasAllLocks = lockCount == keys.size();</span>
 
             /**
              * If we successfully obtained the locks,
              * then commit the message to each output.
              */
-<span class="nc" id="L269">            int commitCount = 0;</span>
-<span class="nc bnc" id="L270" title="All 4 branches missed.">            for (int i = 0; hasAllLocks &amp;&amp; i &lt; keys.size(); i++)</span>
+<span class="nc" id="L271">            int commitCount = 0;</span>
+<span class="nc bnc" id="L272" title="All 4 branches missed.">            for (int i = 0; hasAllLocks &amp;&amp; i &lt; keys.size(); i++)</span>
             {
-<span class="nc" id="L272">                final Object key = keys.get(i);</span>
-<span class="nc" id="L273">                outputs.get(i).commit(key, event, message);</span>
-<span class="nc" id="L274">                ++commitCount;</span>
+<span class="nc" id="L274">                final Object key = keys.get(i);</span>
+<span class="nc" id="L275">                outputs.get(i).commit(key, event, message);</span>
+<span class="nc" id="L276">                ++commitCount;</span>
             }
 
             /**
              * Release the locks.
              */
-<span class="nc bnc" id="L280" title="All 2 branches missed.">            for (int i = 0; i &lt; keys.size(); i++)</span>
+<span class="nc bnc" id="L282" title="All 2 branches missed.">            for (int i = 0; i &lt; keys.size(); i++)</span>
             {
-<span class="nc" id="L282">                outputs.get(i).unlock(keys.size());</span>
-<span class="nc" id="L283">                keys.set(i, null);</span>
+<span class="nc" id="L284">                outputs.get(i).unlock(keys.size());</span>
+<span class="nc" id="L285">                keys.set(i, null);</span>
             }
 
-<span class="nc bnc" id="L286" title="All 2 branches missed.">            final boolean result = commitCount == keys.size();</span>
-<span class="nc" id="L287">            return result;</span>
+<span class="nc bnc" id="L288" title="All 2 branches missed.">            final boolean result = commitCount == keys.size();</span>
+<span class="nc" id="L289">            return result;</span>
         }
         finally
         {
-<span class="nc" id="L291">            transactionLock.lock();</span>
+<span class="nc" id="L293">            transactionLock.lock();</span>
         }
     }
 
     private void resolveConnections (final CascadeToken event)
     {
-<span class="nc" id="L297">        resolveConnections(event, outputs);</span>
-<span class="nc" id="L298">        keys.ensureCapacity(outputs.size());</span>
-<span class="nc" id="L299">        keys.clear();</span>
-<span class="nc" id="L300">    }</span>
+<span class="nc" id="L299">        resolveConnections(event, outputs);</span>
+<span class="nc" id="L300">        keys.ensureCapacity(outputs.size());</span>
+<span class="nc" id="L301">        keys.clear();</span>
+<span class="nc" id="L302">    }</span>
 
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

@@ -88,13 +88,10 @@ public abstract class AbstractInflowQueue
     /**
      * Sole Constructor.
      *
-     * @param allocator is needed to allocate requisite storage.
      * @param capacity will be the maximum size of the queue at any time.
      */
-    public AbstractInflowQueue (final CascadeAllocator allocator,
-                                final int capacity)
+    public AbstractInflowQueue (final int capacity)
     {
-        Preconditions.checkNotNull(allocator, "allocator");
         Preconditions.checkArgument(capacity >= 0, "capacity < 0");
 
         this.capacity = capacity;

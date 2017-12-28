@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade.internal;
 
+import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeToken;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -38,8 +39,8 @@ public final class ArrayInflowQueue
     public ArrayInflowQueue (final CascadeAllocator allocator,
                              final int capacity)
     {
-        super(allocator, capacity);
-
+        super(capacity);
+        Preconditions.checkNotNull(allocator, "allocator");
         this.eventQueue = new ArrayBlockingQueue<>(capacity);
         this.messageQueue = new LongSynchronizedQueue(capacity);
         this.messageStorage = new OperandStackStorage(allocator, capacity);

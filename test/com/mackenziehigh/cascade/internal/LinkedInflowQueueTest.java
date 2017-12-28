@@ -36,7 +36,7 @@ public final class LinkedInflowQueueTest
 
         final AtomicInteger callbacks = new AtomicInteger();
         final CascadeAllocator.OperandStack message = allocator.newOperandStack();
-        final InflowQueue inflow = new ArrayInflowQueue(allocator, 3);
+        final InflowQueue inflow = new LinkedInflowQueue(allocator, 3);
         inflow.setCallback(x -> callbacks.incrementAndGet());
         Object accessKey;
 
@@ -343,7 +343,7 @@ public final class LinkedInflowQueueTest
         /**
          * Method Under Test.
          */
-//        assertEquals(2, alloc.defaultPool().size().getAsLong());
+        assertEquals(2, alloc.defaultPool().size().getAsLong());
         inflow.close();
         assertEquals(0, alloc.defaultPool().size().getAsLong());
     }
