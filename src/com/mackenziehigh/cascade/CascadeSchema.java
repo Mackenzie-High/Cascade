@@ -236,23 +236,6 @@ public interface CascadeSchema
 
         /**
          * This method will cause the reactor to use a non-circular
-         * multi-queue in order to store pending event-messages.
-         *
-         * @param group identifies the multi-queue that the queue will be part of.
-         * @param queueCapacity will be the maximum-size of the queue.
-         * @param backlogCapacity will be the maximum combined-size of the multi-queue.
-         * @return this.
-         * @throws IllegalStateException if the queue-type was already specified.
-         * @throws IllegalArgumentException if queueCapacity is less than zero.
-         * @throws IllegalArgumentException if queueCapacity exceeds backlogCapacity.
-         * @throws IllegalArgumentException if backlogCapacity is less than zero.
-         */
-        public ReactorSchema withLinearSharedQueue (String group,
-                                                    int queueCapacity,
-                                                    int backlogCapacity);
-
-        /**
-         * This method will cause the reactor to use a non-circular
          * array-queue in order to store pending event-messages.
          *
          * @param queueCapacity will be the maximum-size of the queue.
@@ -260,7 +243,7 @@ public interface CascadeSchema
          * @throws IllegalStateException if the queue-type was already specified.
          * @throws IllegalArgumentException if queueCapacity is less than zero.
          */
-        public ReactorSchema withLinearArrayQueue (int queueCapacity);
+        public ReactorSchema withArrayQueue (int queueCapacity);
 
         /**
          * This method will cause the reactor to use a non-circular
@@ -271,29 +254,7 @@ public interface CascadeSchema
          * @throws IllegalStateException if the queue-type was already specified.
          * @throws IllegalArgumentException if queueCapacity is less than zero.
          */
-        public ReactorSchema withLinearLinkedQueue (int queueCapacity);
-
-        /**
-         * This method will cause the reactor to use a circular
-         * array-queue in order to store pending event-messages.
-         *
-         * @param queueCapacity will be the maximum-size of the queue.
-         * @return this.
-         * @throws IllegalStateException if the queue-type was already specified.
-         * @throws IllegalArgumentException if queueCapacity is less than zero.
-         */
-        public ReactorSchema withCircularArrayQueue (int queueCapacity);
-
-        /**
-         * This method will cause the reactor to use a circular
-         * linked-queue in order to store pending event-messages.
-         *
-         * @param queueCapacity will be the maximum-size of the queue.
-         * @return this.
-         * @throws IllegalStateException if the queue-type was already specified.
-         * @throws IllegalArgumentException if queueCapacity is less than zero.
-         */
-        public ReactorSchema withCircularLinkedQueue (int queueCapacity);
+        public ReactorSchema withLinkedQueue (int queueCapacity);
 
         /**
          * This method causes the reactor to be subscribed to a named event-channel; therefore,
