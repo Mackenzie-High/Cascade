@@ -16,6 +16,7 @@ import com.mackenziehigh.cascade.CascadeReactor.Core;
 import com.mackenziehigh.cascade.CascadeSchema;
 import com.mackenziehigh.cascade.CascadeToken;
 import com.mackenziehigh.cascade.cores.Cores;
+import com.mackenziehigh.cascade.cores.builders.Clock;
 import com.mackenziehigh.cascade.internal.EventDispatcher.ConcurrentEventSender;
 import java.util.Map;
 import java.util.Set;
@@ -880,9 +881,15 @@ public final class ConcreteSchema
 
         cs.usingPool("default").usingPump("pump1");
 
+        final Clock clock1 = Cores.newTicker();
+        final Clock.OutputChannel cout1 = clock1.addOutput();
+        cout1.event.set(CascadeToken.create("tickTock"));
+        cout1.periodNanos.set(TimeUnit.MILLISECONDS.toNanos(1000));
+        cout1.formatAsMonotonicElapsedNanos.set(true);
+
         cs.addReactor()
                 .named("clock1")
-                .withCore(Cores.newTicker().withPeriod(50, TimeUnit.MILLISECONDS).withFormatMonotonicNanos().sendTo("tickTock").build())
+                .withCore(clock1.build())
                 .withArrayQueue(100);
 
         cs.addReactor()

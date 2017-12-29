@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import com.mackenziehigh.cascade.cores.Handler;
 
 /**
  *
@@ -376,7 +377,7 @@ public final class ConcreteCascade
     }
 
     private void invokeEventHandler (final CascadeReactor reactor,
-                                     final UnsafeConsumer<Context> action)
+                                     final Handler<Context> action)
     {
         final Thread currentThread = Thread.currentThread();
         final ConcreteContext context = new ConcreteContext(reactor);

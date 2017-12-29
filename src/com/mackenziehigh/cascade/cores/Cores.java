@@ -4,8 +4,7 @@ import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Context;
 import com.mackenziehigh.cascade.cores.builders.ForwarderBuilder;
 import com.mackenziehigh.cascade.cores.builders.PrinterBuilder;
-import com.mackenziehigh.cascade.cores.builders.TickerBuilder;
-import java.util.function.Consumer;
+import com.mackenziehigh.cascade.cores.builders.Clock;
 
 /**
  *
@@ -17,9 +16,9 @@ public final class Cores
         return new ForwarderBuilder();
     }
 
-    public static TickerBuilder newTicker ()
+    public static Clock newTicker ()
     {
-        return new TickerBuilder();
+        return new Clock();
     }
 
     public static PrinterBuilder newPrinter ()
@@ -46,7 +45,7 @@ public final class Cores
      * @param action will be converted.
      * @return the new reactor core.
      */
-    public static CascadeReactor.Core from (final Consumer<Context> action)
+    public static CascadeReactor.Core from (final Handler<Context> action)
     {
         return new CascadeReactor.Core()
         {
