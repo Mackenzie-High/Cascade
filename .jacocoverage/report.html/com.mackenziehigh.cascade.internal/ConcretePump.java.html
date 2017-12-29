@@ -81,7 +81,7 @@ public final class ConcretePump
 <span class="fc" id="L81">            info.context = new ConcreteContext(reactor);</span>
 <span class="fc" id="L82">            reactorInfos.add(info);</span>
 <span class="fc" id="L83">        }</span>
-<span class="fc" id="L84">        this.scheduler = new FairScheduler&lt;&gt;(reactorInfos);</span>
+<span class="fc" id="L84">        this.scheduler = new RoundRobinScheduler&lt;&gt;(reactorInfos);</span>
 <span class="fc bfc" id="L85" title="All 2 branches covered.">        for (ReactorInfo info : scheduler.streams().keySet())</span>
         {
 <span class="fc" id="L87">            info.stream = scheduler.streams().get(info);</span>

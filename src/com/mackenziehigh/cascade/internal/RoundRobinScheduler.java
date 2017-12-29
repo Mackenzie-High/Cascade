@@ -1,6 +1,5 @@
 package com.mackenziehigh.cascade.internal;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.Collections;
@@ -10,9 +9,12 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * This is a task-scheduler that uses a simple round-robin algorithm
+ * in order to schedule tasks, such that no two tasks run simultaneously.
  *
+ * @param <T>
  */
-public final class FairScheduler<T>
+public final class RoundRobinScheduler<T>
         implements Scheduler<T>
 {
 
@@ -22,18 +24,35 @@ public final class FairScheduler<T>
 
     private final BlockingQueue<TaskStreamImp> queue;
 
-    public FairScheduler (final Collection<T> sources)
+    /**
+     * Sole Constructor.
+     *
+     * @param sources are usually queues of awaiting tasks.
+     */
+    public RoundRobinScheduler (final Collection<T> sources)
     {
         sources.forEach(x -> streams.put(x, new TaskStreamImp(x)));
-        queue = new ArrayBlockingQueue<>(sources.size() + 1);
+
+        /**
+         * This queue must be big enough to hold all of the task-streams.
+         * If no task-streams are passed-in, then use a size of one;
+         * otherwise, an exception would occur.
+         */
+        queue = new ArrayBlockingQueue<>(sources.isEmpty() ? 1 : sources.size());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Map<T, TaskStream<T>> streams ()
     {
         return unmodStreams;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void addTask (final TaskStream<T> stream)
     {
@@ -41,6 +60,9 @@ public final class FairScheduler<T>
         tasker.addTask();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public TaskStream<T> pollTask (final long timeout,
                                    final TimeUnit timeoutUnit)
@@ -55,8 +77,19 @@ public final class FairScheduler<T>
     {
         private final T source;
 
+        /**
+         * This flag is true, when either one of two things is true.
+         * 1. There are pending tasks in this stream, but no consumer
+         * is currently processing a task from this stream.
+         * 2. Exactly one consumer is currently processing a task
+         * from this stream, and thus, that thread holds the conceptual
+         * lock that must be released by calling release() herein.
+         */
         private volatile boolean scheduled = false;
 
+        /**
+         * This is the number of pending tasks in this stream.
+         */
         private volatile int count = 0;
 
         public TaskStreamImp (final T src)
@@ -136,18 +169,5 @@ public final class FairScheduler<T>
                 queue.add(this);
             }
         }
-    }
-
-    public static void main (String[] args)
-            throws InterruptedException
-    {
-        final FairScheduler<String> sch = new FairScheduler<>(ImmutableList.of("X", "Y", "Z"));
-
-        sch.addTask(sch.streams().get("X"));
-        sch.addTask(sch.streams().get("X"));
-
-        System.out.println(sch.pollTask(1, TimeUnit.HOURS));
-        sch.streams().get("X").release();
-        System.out.println(sch.pollTask(1, TimeUnit.HOURS));
     }
 }

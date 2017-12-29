@@ -823,64 +823,36 @@ public final class ConcreteSchema
         }
 
         @Override
-        public ReactorSchema withLinearSharedQueue (final String group,
-                                                    final int queueCapacity,
-                                                    final int backlogCapacity)
+        public ReactorSchema withArrayQueue (final int queueCapacity)
         {
-<span class="nc" id="L830">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
+<span class="fc" id="L828">            final QueueType type = QueueType.LINEAR_ARRAY;</span>
+<span class="fc" id="L829">            preventChange(&quot;Queue Type&quot;, this.queueType, type);</span>
+<span class="fc" id="L830">            this.queueType = type;</span>
+<span class="fc" id="L831">            this.queueCapacity = queueCapacity;</span>
+<span class="fc" id="L832">            this.queue = new ArrayInflowQueue(allocator, queueCapacity);</span>
+<span class="fc" id="L833">            return this;</span>
         }
 
         @Override
-        public ReactorSchema withLinearArrayQueue (final int queueCapacity)
+        public ReactorSchema withLinkedQueue (final int queueCapacity)
         {
-<span class="fc" id="L836">            final QueueType type = QueueType.LINEAR_ARRAY;</span>
-<span class="fc" id="L837">            preventChange(&quot;Queue Type&quot;, this.queueType, type);</span>
-<span class="fc" id="L838">            this.queueType = type;</span>
-<span class="fc" id="L839">            this.queueCapacity = queueCapacity;</span>
-<span class="fc" id="L840">            this.queue = new ArrayInflowQueue(allocator, queueCapacity);</span>
-<span class="fc" id="L841">            return this;</span>
-        }
-
-        @Override
-        public ReactorSchema withLinearLinkedQueue (final int queueCapacity)
-        {
-<span class="nc" id="L847">            final QueueType type = QueueType.LINEAR_LINKED;</span>
-<span class="nc" id="L848">            preventChange(&quot;Queue Type&quot;, this.queueType, type);</span>
-<span class="nc" id="L849">            this.queueType = type;</span>
-<span class="nc" id="L850">            this.queueCapacity = queueCapacity;</span>
-<span class="nc" id="L851">            return this;</span>
-        }
-
-        @Override
-        public ReactorSchema withCircularArrayQueue (final int queueCapacity)
-        {
-<span class="nc" id="L857">            final QueueType type = QueueType.CIRCULAR_ARRAY;</span>
-<span class="nc" id="L858">            preventChange(&quot;Queue Type&quot;, this.queueType, type);</span>
-<span class="nc" id="L859">            this.queueType = type;</span>
-<span class="nc" id="L860">            this.queueCapacity = queueCapacity;</span>
-<span class="nc" id="L861">            return this;</span>
-        }
-
-        @Override
-        public ReactorSchema withCircularLinkedQueue (final int queueCapacity)
-        {
-<span class="nc" id="L867">            final QueueType type = QueueType.CIRCULAR_LINKED;</span>
-<span class="nc" id="L868">            preventChange(&quot;Queue Type&quot;, this.queueType, type);</span>
-<span class="nc" id="L869">            this.queueType = type;</span>
-<span class="nc" id="L870">            this.queueCapacity = queueCapacity;</span>
-<span class="nc" id="L871">            return this;</span>
+<span class="nc" id="L839">            final QueueType type = QueueType.LINEAR_LINKED;</span>
+<span class="nc" id="L840">            preventChange(&quot;Queue Type&quot;, this.queueType, type);</span>
+<span class="nc" id="L841">            this.queueType = type;</span>
+<span class="nc" id="L842">            this.queueCapacity = queueCapacity;</span>
+<span class="nc" id="L843">            return this;</span>
         }
 
         @Override
         public ReactorSchema subscribeTo (final String event)
         {
-<span class="nc" id="L877">            final CascadeToken token = CascadeToken.create(event);</span>
-<span class="nc" id="L878">            subscriptions.add(token);</span>
-<span class="nc" id="L879">            return this;</span>
+<span class="nc" id="L849">            final CascadeToken token = CascadeToken.create(event);</span>
+<span class="nc" id="L850">            subscriptions.add(token);</span>
+<span class="nc" id="L851">            return this;</span>
         }
     };
 
-<span class="fc" id="L883">    private final class Scope</span>
+<span class="fc" id="L855">    private final class Scope</span>
     {
         public CascadeToken namespace;
 
@@ -898,30 +870,30 @@ public final class ConcreteSchema
     public static void main (String[] args)
             throws InterruptedException
     {
-<span class="nc" id="L901">        final CascadeSchema cs = new ConcreteSchema().named(&quot;Schema1&quot;);</span>
+<span class="nc" id="L873">        final CascadeSchema cs = new ConcreteSchema().named(&quot;Schema1&quot;);</span>
 
-<span class="nc" id="L903">        cs.addDynamicPool().named(&quot;default&quot;).withMinimumSize(0).withMaximumSize(256);</span>
-<span class="nc" id="L904">        cs.addFixedPool().named(&quot;pool2&quot;).withMinimumSize(512).withMaximumSize(768).withBufferCount(10);</span>
-<span class="nc" id="L905">        cs.addCompositePool().named(&quot;pool3&quot;).withMemberPool(&quot;default&quot;).withMemberPool(&quot;pool2&quot;);</span>
+<span class="nc" id="L875">        cs.addDynamicPool().named(&quot;default&quot;).withMinimumSize(0).withMaximumSize(256);</span>
+<span class="nc" id="L876">        cs.addFixedPool().named(&quot;pool2&quot;).withMinimumSize(512).withMaximumSize(768).withBufferCount(10);</span>
+<span class="nc" id="L877">        cs.addCompositePool().named(&quot;pool3&quot;).withMemberPool(&quot;default&quot;).withMemberPool(&quot;pool2&quot;);</span>
 
-<span class="nc" id="L907">        cs.addPump().named(&quot;pump1&quot;).withThreadCount(3);</span>
+<span class="nc" id="L879">        cs.addPump().named(&quot;pump1&quot;).withThreadCount(3);</span>
 
-<span class="nc" id="L909">        cs.usingPool(&quot;default&quot;).usingPump(&quot;pump1&quot;);</span>
+<span class="nc" id="L881">        cs.usingPool(&quot;default&quot;).usingPump(&quot;pump1&quot;);</span>
 
-<span class="nc" id="L911">        cs.addReactor()</span>
-<span class="nc" id="L912">                .named(&quot;clock1&quot;)</span>
-<span class="nc" id="L913">                .withCore(Cores.newTicker().withPeriod(50, TimeUnit.MILLISECONDS).withFormatMonotonicNanos().sendTo(&quot;tickTock&quot;).build())</span>
-<span class="nc" id="L914">                .withLinearArrayQueue(100);</span>
+<span class="nc" id="L883">        cs.addReactor()</span>
+<span class="nc" id="L884">                .named(&quot;clock1&quot;)</span>
+<span class="nc" id="L885">                .withCore(Cores.newTicker().withPeriod(50, TimeUnit.MILLISECONDS).withFormatMonotonicNanos().sendTo(&quot;tickTock&quot;).build())</span>
+<span class="nc" id="L886">                .withArrayQueue(100);</span>
 
-<span class="nc" id="L916">        cs.addReactor()</span>
-<span class="nc" id="L917">                .named(&quot;printer1&quot;)</span>
-<span class="nc" id="L918">                .withLinearArrayQueue(100)</span>
-<span class="nc" id="L919">                .withCore(Cores.from(x -&gt; System.out.println(&quot;X = &quot; + x.message().asString() + &quot;, Thread = &quot; + Thread.currentThread().getId())))</span>
-<span class="nc" id="L920">                .subscribeTo(&quot;tickTock&quot;);</span>
+<span class="nc" id="L888">        cs.addReactor()</span>
+<span class="nc" id="L889">                .named(&quot;printer1&quot;)</span>
+<span class="nc" id="L890">                .withArrayQueue(100)</span>
+<span class="nc" id="L891">                .withCore(Cores.from(x -&gt; System.out.println(&quot;X = &quot; + x.message().asString() + &quot;, Thread = &quot; + Thread.currentThread().getId())))</span>
+<span class="nc" id="L892">                .subscribeTo(&quot;tickTock&quot;);</span>
 
-<span class="nc" id="L922">        final Cascade cas = cs.build();</span>
+<span class="nc" id="L894">        final Cascade cas = cs.build();</span>
 
-<span class="nc" id="L924">        cas.start();</span>
-<span class="nc" id="L925">    }</span>
+<span class="nc" id="L896">        cas.start();</span>
+<span class="nc" id="L897">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

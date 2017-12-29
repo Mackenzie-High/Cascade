@@ -81,7 +81,7 @@ public final class ConcretePump
             info.context = new ConcreteContext(reactor);
             reactorInfos.add(info);
         }
-        this.scheduler = new FairScheduler<>(reactorInfos);
+        this.scheduler = new RoundRobinScheduler<>(reactorInfos);
         for (ReactorInfo info : scheduler.streams().keySet())
         {
             info.stream = scheduler.streams().get(info);
