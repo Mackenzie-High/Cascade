@@ -68,57 +68,57 @@ import java.util.concurrent.locks.ReentrantLock;
     public int broadcast (final CascadeToken event,
                           final OperandStack message)
     {
-<span class="nc bnc" id="L71" title="All 2 branches missed.">        if (transactionLock.tryLock() == false)</span>
+<span class="pc bpc" id="L71" title="1 of 2 branches missed.">        if (transactionLock.tryLock() == false)</span>
         {
 <span class="nc" id="L73">            return 0;</span>
         }
         else
         {
-<span class="nc" id="L77">            resolveConnections(event);</span>
+<span class="fc" id="L77">            resolveConnections(event);</span>
         }
 
-<span class="nc" id="L80">        int commitCount = 0;</span>
+<span class="fc" id="L80">        int commitCount = 0;</span>
 
         try
         {
             /**
              * Acquire the locks.
              */
-<span class="nc bnc" id="L87" title="All 2 branches missed.">            for (int i = 0; i &lt; outputs.size(); i++)</span>
+<span class="fc bfc" id="L87" title="All 2 branches covered.">            for (int i = 0; i &lt; outputs.size(); i++)</span>
             {
-<span class="nc" id="L89">                final Object key = outputs.get(i).lock();</span>
-<span class="nc" id="L90">                keys.add(key);</span>
+<span class="fc" id="L89">                final Object key = outputs.get(i).lock();</span>
+<span class="fc" id="L90">                keys.add(key);</span>
             }
 
             /**
              * If we successfully obtained the locks,
              * then commit the message to each output.
              */
-<span class="nc bnc" id="L97" title="All 2 branches missed.">            for (int i = 0; i &lt; keys.size(); i++)</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">            for (int i = 0; i &lt; keys.size(); i++)</span>
             {
-<span class="nc" id="L99">                final Object key = keys.get(i);</span>
-<span class="nc bnc" id="L100" title="All 2 branches missed.">                if (key != null)</span>
+<span class="fc" id="L99">                final Object key = keys.get(i);</span>
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">                if (key != null)</span>
                 {
-<span class="nc" id="L102">                    outputs.get(i).commit(key, event, message);</span>
-<span class="nc" id="L103">                    ++commitCount;</span>
+<span class="fc" id="L102">                    outputs.get(i).commit(key, event, message);</span>
+<span class="fc" id="L103">                    ++commitCount;</span>
                 }
             }
 
             /**
              * Release the locks.
              */
-<span class="nc bnc" id="L110" title="All 2 branches missed.">            for (int i = 0; i &lt; keys.size(); i++)</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">            for (int i = 0; i &lt; keys.size(); i++)</span>
             {
-<span class="nc" id="L112">                outputs.get(i).unlock(keys.get(i));</span>
-<span class="nc" id="L113">                keys.set(i, null);</span>
+<span class="fc" id="L112">                outputs.get(i).unlock(keys.get(i));</span>
+<span class="fc" id="L113">                keys.set(i, null);</span>
             }
         }
         finally
         {
-<span class="nc" id="L118">            transactionLock.unlock();</span>
-<span class="nc" id="L119">        }</span>
+<span class="pc" id="L118">            transactionLock.unlock();</span>
+<span class="fc" id="L119">        }</span>
 
-<span class="nc" id="L121">        return commitCount;</span>
+<span class="fc" id="L121">        return commitCount;</span>
     }
 
     /**
@@ -296,10 +296,10 @@ import java.util.concurrent.locks.ReentrantLock;
 
     private void resolveConnections (final CascadeToken event)
     {
-<span class="nc" id="L299">        resolveConnections(event, outputs);</span>
-<span class="nc" id="L300">        keys.ensureCapacity(outputs.size());</span>
-<span class="nc" id="L301">        keys.clear();</span>
-<span class="nc" id="L302">    }</span>
+<span class="fc" id="L299">        resolveConnections(event, outputs);</span>
+<span class="fc" id="L300">        keys.ensureCapacity(outputs.size());</span>
+<span class="fc" id="L301">        keys.clear();</span>
+<span class="fc" id="L302">    }</span>
 
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

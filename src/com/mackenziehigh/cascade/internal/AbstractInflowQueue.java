@@ -38,7 +38,10 @@ public abstract class AbstractInflowQueue
      * This function will be invoked whenever a new event-message
      * is enqueued in order to notify the consumers.
      */
-    private volatile Consumer<InflowQueue> callback;
+    private volatile Consumer<InflowQueue> callback = x ->
+    {
+        // Pass
+    };
 
     /**
      * This is the capacity(), which is the maximum number of

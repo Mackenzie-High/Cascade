@@ -1,11 +1,19 @@
 package com.mackenziehigh.cascade.internal;
 
+import com.google.common.base.Verify;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimaps;
+import com.google.common.collect.SetMultimap;
 import com.mackenziehigh.cascade.CascadeToken;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -15,19 +23,55 @@ import java.util.concurrent.locks.ReentrantLock;
 public final class EventDispatcher
 {
     /**
-     * (subscriber) -> (queue)
+     * Empty List.
      */
-    private final ImmutableSortedMap<CascadeToken, InflowQueue> queues;
+    private final ImmutableList<InflowQueue> EMPTY_LIST = ImmutableList.of();
 
     /**
-     * (event) -> [ (queue) ]
+     * (subscriber) -> (queue).
+     *
+     * <p>
+     * This map maps the name of a subscriber to the inflow-queue that
+     * stores the pending event-messages flowing into that subscriber.
+     * </p>
      */
-    private final Map<CascadeToken, ImmutableList<InflowQueue>> subscriptions = Maps.newConcurrentMap();
+    private final ImmutableSortedMap<CascadeToken, InflowQueue> subscribersToInflowQueues;
 
     /**
-     * (publisher) -> (sender)
+     * (event) -> [ (queue) ].
+     *
+     * <p>
+     * This map maps the name of an event to the inflow-queues that feed
+     * event-messages to the subscribers interested in that event.
+     * </p>
+     */
+    private final Map<CascadeToken, ImmutableList<InflowQueue>> eventsToSubscriberQueues = Maps.newConcurrentMap();
+
+    /**
+     * (publisher) -> (sender).
+     *
+     * <p>
+     * This method maps the name of a publisher to an object that can
+     * be used to send event-messages in an orderly and atomic manner.
+     * Whenever an event-message is sent using the sender object,
+     * the sender object will resolve the list of inflow-queues
+     * pertaining to the subscribers that are interested in
+     * the message being sent, and then, the sender object
+     * will enqueue the even-message in those inflow-queues,
+     * if possible.
+     * </p>
      */
     private final Map<CascadeToken, ConcurrentEventSender> senders = Maps.newConcurrentMap();
+
+    /**
+     * (event) -> [ (subscriber) ].
+     *
+     * <p>
+     * This method maps the name of an event to the names of the subscribers
+     * that are currently interested in receiving that type of event.
+     * </p>
+     */
+    private final SetMultimap<CascadeToken, CascadeToken> subscriptions = Multimaps.synchronizedSetMultimap(HashMultimap.create());
 
     /**
      * This lock is used to ensure that registrations, de-registrations, and look-ups are synchronous.
@@ -37,11 +81,23 @@ public final class EventDispatcher
     /**
      * Sole constructor.
      *
-     * @param queues
+     * @param queues maps subscribers to their input sources.
      */
     public EventDispatcher (final Map<CascadeToken, InflowQueue> queues)
     {
-        this.queues = ImmutableSortedMap.copyOf(queues);
+        this.subscribersToInflowQueues = ImmutableSortedMap.copyOf(queues);
+    }
+
+    /**
+     * Use this method to find the names of any subscribers that
+     * are currently registered to receive the given event.
+     *
+     * @param eventId identifies the event-channel.
+     * @return the subscribes to the given event-channel.
+     */
+    public Set<CascadeToken> subscribersOf (final CascadeToken eventId)
+    {
+        return ImmutableSet.copyOf(subscriptions.get(eventId));
     }
 
     /**
@@ -68,17 +124,23 @@ public final class EventDispatcher
     private void performRegister (final CascadeToken subscriberId,
                                   final CascadeToken eventId)
     {
-        final InflowQueue handler = queues.get(subscriberId);
+        final InflowQueue handler = subscribersToInflowQueues.get(subscriberId);
 
         if (handler != null)
         {
             /**
-             * Subscribe the subscriber to the event channel.
-             * This is slow, but we need an immutable list during sends.
+             * Subscribe the subscriber to the event-channel.
+             * This is slow, O(N) copy each time, but we need an immutable list during sends.
+             * Given that the number of subscribers is expected to be a small number (usually);
+             * therefore, the trade-off is acceptable here at this time.
+             * In theory, we could use a truly functional data-structure.
+             * Unfortunately, we do not have such a data-structure conveniently
+             * available and adding a dependency just for this is not justifiable now.
              */
-            final ImmutableList<InflowQueue> original = subscriptions.getOrDefault(eventId, ImmutableList.of());
+            final ImmutableList<InflowQueue> original = eventsToSubscriberQueues.getOrDefault(eventId, ImmutableList.of());
             final ImmutableList<InflowQueue> modified = ImmutableList.<InflowQueue>builder().addAll(original).add(handler).build();
-            subscriptions.put(eventId, modified);
+            eventsToSubscriberQueues.put(eventId, modified);
+            subscriptions.put(eventId, subscriberId);
         }
         else
         {
@@ -114,14 +176,24 @@ public final class EventDispatcher
          * If no one was subscribed to the event,
          * then an this should simply be a no-op.
          */
-        if (subscriptions.containsKey(eventId) == false)
+        if (eventsToSubscriberQueues.containsKey(eventId) == false)
         {
             return;
         }
 
         /**
-         * Unsubscribe the subscriber to the event channel.
+         * Unsubscribe the subscriber from the event-channel.
+         * This is slow, O(N) copy each time.
+         * See the discussion in the registration method.
          */
+        final InflowQueue removeThis = subscribersToInflowQueues.get(subscriberId);
+        final List<InflowQueue> original = Lists.newArrayList(eventsToSubscriberQueues.getOrDefault(eventId, ImmutableList.of()));
+        final int originalSize = original.size();
+        original.removeIf(x -> x.equals(removeThis));
+        final ImmutableList<InflowQueue> modified = ImmutableList.copyOf(original);
+        final int modifiedSize = modified.size();
+        Verify.verify(modifiedSize == (originalSize - 1));
+        eventsToSubscriberQueues.put(eventId, modified);
         subscriptions.remove(eventId, subscriberId);
     }
 
@@ -178,13 +250,25 @@ public final class EventDispatcher
         public void resolveConnections (final CascadeToken eventId,
                                         final ArrayList<InflowQueue> out)
         {
+            /**
+             * The list is expected to be reused.
+             * Make sure the list is actually clear.
+             */
             out.clear();
 
-            final ImmutableList<InflowQueue> connections = subscriptions.getOrDefault(eventId, ImmutableList.of());
-
+            /**
+             * Resolve the interested subscribers and add them to the output list.
+             * I am deliberately using a int-based for loop here,
+             * rather than a for-each loop or an addAll() method,
+             * because I do not want to cause an Iterator object to be allocated.
+             * Due to the frequency with which this method will be invoked,
+             * that would be a lot of unnecessary garbage.
+             */
+            final ImmutableList<InflowQueue> connections = eventsToSubscriberQueues.getOrDefault(eventId, EMPTY_LIST);
             for (int i = 0; i < connections.size(); i++)
             {
                 final InflowQueue connection = connections.get(i);
+                Verify.verifyNotNull(connection);
                 out.add(connection);
             }
         }

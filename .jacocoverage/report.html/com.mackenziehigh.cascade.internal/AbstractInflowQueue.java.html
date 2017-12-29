@@ -38,7 +38,10 @@ public abstract class AbstractInflowQueue
      * This function will be invoked whenever a new event-message
      * is enqueued in order to notify the consumers.
      */
-    private volatile Consumer&lt;InflowQueue&gt; callback;
+<span class="fc" id="L41">    private volatile Consumer&lt;InflowQueue&gt; callback = x -&gt;</span>
+    {
+        // Pass
+<span class="fc" id="L44">    };</span>
 
     /**
      * This is the capacity(), which is the maximum number of
@@ -56,7 +59,7 @@ public abstract class AbstractInflowQueue
      * This lock prevents concurrent consumers from causing
      * the internal state of this object to become invalid.
      */
-<span class="fc" id="L59">    private final Lock consumerLock = new ReentrantLock();</span>
+<span class="fc" id="L62">    private final Lock consumerLock = new ReentrantLock();</span>
 
     /**
      * In order for a caller to commit() a transaction,
@@ -64,7 +67,7 @@ public abstract class AbstractInflowQueue
      * obtained from one of the lock(*) methods.
      * This is used to help ensure proper usage.
      */
-<span class="fc" id="L67">    private final Object transactionKey = new Object();</span>
+<span class="fc" id="L70">    private final Object transactionKey = new Object();</span>
 
     /**
      * This lock must be held by whatever thread that invokes the commit(*) method.
@@ -77,13 +80,13 @@ public abstract class AbstractInflowQueue
      * if the calling thread is the thread that holds the lock.
      * &lt;/p&gt;
      */
-<span class="fc" id="L80">    private final Lock transactionLock = new ReentrantLock();</span>
+<span class="fc" id="L83">    private final Lock transactionLock = new ReentrantLock();</span>
 
     /**
      * In effect, this flag is used to prevent the transaction-lock
      * from being a reentrant lock, since we do not want that.
      */
-<span class="fc" id="L86">    private volatile boolean transactionInProgress = false;</span>
+<span class="fc" id="L89">    private volatile boolean transactionInProgress = false;</span>
 
     /**
      * Sole Constructor.
@@ -91,12 +94,12 @@ public abstract class AbstractInflowQueue
      * @param capacity will be the maximum size of the queue at any time.
      */
     public AbstractInflowQueue (final int capacity)
-<span class="fc" id="L94">    {</span>
-<span class="pc bpc" id="L95" title="1 of 2 branches missed.">        Preconditions.checkArgument(capacity &gt;= 0, &quot;capacity &lt; 0&quot;);</span>
+<span class="fc" id="L97">    {</span>
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">        Preconditions.checkArgument(capacity &gt;= 0, &quot;capacity &lt; 0&quot;);</span>
 
-<span class="fc" id="L97">        this.capacity = capacity;</span>
-<span class="fc" id="L98">        this.producerPermits = new Semaphore(capacity);</span>
-<span class="fc" id="L99">    }</span>
+<span class="fc" id="L100">        this.capacity = capacity;</span>
+<span class="fc" id="L101">        this.producerPermits = new Semaphore(capacity);</span>
+<span class="fc" id="L102">    }</span>
 
     /**
      * {@inheritDoc}
@@ -106,7 +109,7 @@ public abstract class AbstractInflowQueue
                         final TimeUnit timeoutUnits)
             throws InterruptedException
     {
-<span class="pc bpc" id="L109" title="1 of 4 branches missed.">        if (transactionInProgress &amp;&amp; transactionLock.tryLock())</span>
+<span class="pc bpc" id="L112" title="1 of 4 branches missed.">        if (transactionInProgress &amp;&amp; transactionLock.tryLock())</span>
         {
             /**
              * In this case, we know that the current thread already
@@ -117,22 +120,22 @@ public abstract class AbstractInflowQueue
              * Thus, do not allow the thread to obtain another
              * producer permit or the access-key (again).
              */
-<span class="fc" id="L120">            return null;</span>
+<span class="fc" id="L123">            return null;</span>
         }
-<span class="fc bfc" id="L122" title="All 2 branches covered.">        else if (producerPermits.tryAcquire(timeout, timeoutUnits))</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">        else if (producerPermits.tryAcquire(timeout, timeoutUnits))</span>
         {
-<span class="pc bpc" id="L124" title="1 of 2 branches missed.">            Verify.verify(size() &lt; capacity());</span>
-<span class="fc" id="L125">            transactionLock.lock();</span>
-<span class="fc" id="L126">            transactionInProgress = true;</span>
-<span class="fc" id="L127">            return transactionKey;</span>
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">            Verify.verify(size() &lt; capacity());</span>
+<span class="fc" id="L128">            transactionLock.lock();</span>
+<span class="fc" id="L129">            transactionInProgress = true;</span>
+<span class="fc" id="L130">            return transactionKey;</span>
         }
         else
         {
             /**
              * The queue is full. No producer permit was available.
              */
-<span class="pc bpc" id="L134" title="1 of 2 branches missed.">            Verify.verify(size() == capacity());</span>
-<span class="fc" id="L135">            return null;</span>
+<span class="pc bpc" id="L137" title="1 of 2 branches missed.">            Verify.verify(size() == capacity());</span>
+<span class="fc" id="L138">            return null;</span>
         }
     }
 
@@ -142,7 +145,7 @@ public abstract class AbstractInflowQueue
     @Override
     public Object lock ()
     {
-<span class="pc bpc" id="L145" title="1 of 4 branches missed.">        if (transactionInProgress &amp;&amp; transactionLock.tryLock())</span>
+<span class="pc bpc" id="L148" title="1 of 4 branches missed.">        if (transactionInProgress &amp;&amp; transactionLock.tryLock())</span>
         {
             /**
              * In this case, we know that the current thread already
@@ -153,23 +156,23 @@ public abstract class AbstractInflowQueue
              * Thus, do not allow the thread to obtain another
              * producer permit or the access-key (again).
              */
-<span class="fc" id="L156">            return null;</span>
+<span class="fc" id="L159">            return null;</span>
         }
-<span class="fc bfc" id="L158" title="All 2 branches covered.">        else if (producerPermits.tryAcquire())</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">        else if (producerPermits.tryAcquire())</span>
         {
-<span class="pc bpc" id="L160" title="1 of 2 branches missed.">            Verify.verify(transactionInProgress == false);</span>
-<span class="pc bpc" id="L161" title="1 of 2 branches missed.">            Verify.verify(size() &lt; capacity());</span>
-<span class="fc" id="L162">            transactionLock.lock();</span>
-<span class="fc" id="L163">            transactionInProgress = true;</span>
-<span class="fc" id="L164">            return transactionKey;</span>
+<span class="pc bpc" id="L163" title="1 of 2 branches missed.">            Verify.verify(transactionInProgress == false);</span>
+<span class="pc bpc" id="L164" title="1 of 2 branches missed.">            Verify.verify(size() &lt; capacity());</span>
+<span class="fc" id="L165">            transactionLock.lock();</span>
+<span class="fc" id="L166">            transactionInProgress = true;</span>
+<span class="fc" id="L167">            return transactionKey;</span>
         }
         else
         {
             /**
              * The queue is full. No producer permit was available.
              */
-<span class="pc bpc" id="L171" title="1 of 2 branches missed.">            Verify.verify(size() == capacity());</span>
-<span class="fc" id="L172">            return null;</span>
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">            Verify.verify(size() == capacity());</span>
+<span class="fc" id="L175">            return null;</span>
         }
     }
 
@@ -181,23 +184,23 @@ public abstract class AbstractInflowQueue
                         final CascadeToken event,
                         final CascadeAllocator.OperandStack message)
     {
-<span class="fc bfc" id="L184" title="All 2 branches covered.">        if (key == transactionKey) // Deliberate Identity Equals</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">        if (key == transactionKey) // Deliberate Identity Equals</span>
         {
             /**
              * Implementation-Specific Queue Operations.
              */
-<span class="fc" id="L189">            doCommit(event, message);</span>
+<span class="fc" id="L192">            doCommit(event, message);</span>
 
             /**
              * Notify the consumers of a new event-message.
              */
-<span class="fc" id="L194">            callback.accept(this);</span>
+<span class="fc" id="L197">            callback.accept(this);</span>
         }
-<span class="fc bfc" id="L196" title="All 2 branches covered.">        else if (key != null)</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">        else if (key != null)</span>
         {
-<span class="fc" id="L198">            throw new IllegalArgumentException(&quot;Bug! - Wrong Key&quot;);</span>
+<span class="fc" id="L201">            throw new IllegalArgumentException(&quot;Bug! - Wrong Key&quot;);</span>
         }
-<span class="fc" id="L200">    }</span>
+<span class="fc" id="L203">    }</span>
 
     /**
      * {@inheritDoc}
@@ -205,16 +208,16 @@ public abstract class AbstractInflowQueue
     @Override
     public void unlock (final Object key)
     {
-<span class="fc bfc" id="L208" title="All 2 branches covered.">        if (key == transactionKey) // Deliberate Identity Equals</span>
+<span class="fc bfc" id="L211" title="All 2 branches covered.">        if (key == transactionKey) // Deliberate Identity Equals</span>
         {
-<span class="fc" id="L210">            transactionInProgress = false; // Do *not* move this below unlock()!</span>
-<span class="fc" id="L211">            transactionLock.unlock();</span>
+<span class="fc" id="L213">            transactionInProgress = false; // Do *not* move this below unlock()!</span>
+<span class="fc" id="L214">            transactionLock.unlock();</span>
         }
-<span class="fc bfc" id="L213" title="All 2 branches covered.">        else if (key != null)</span>
+<span class="fc bfc" id="L216" title="All 2 branches covered.">        else if (key != null)</span>
         {
-<span class="fc" id="L215">            throw new IllegalArgumentException(&quot;Bug! - Wrong Key&quot;);</span>
+<span class="fc" id="L218">            throw new IllegalArgumentException(&quot;Bug! - Wrong Key&quot;);</span>
         }
-<span class="fc" id="L217">    }</span>
+<span class="fc" id="L220">    }</span>
 
     /**
      * {@inheritDoc}
@@ -222,7 +225,7 @@ public abstract class AbstractInflowQueue
     @Override
     public int capacity ()
     {
-<span class="fc" id="L225">        return capacity;</span>
+<span class="fc" id="L228">        return capacity;</span>
     }
 
     /**
@@ -231,8 +234,8 @@ public abstract class AbstractInflowQueue
     @Override
     public void setCallback (final Consumer&lt;InflowQueue&gt; functor)
     {
-<span class="fc" id="L234">        callback = Objects.requireNonNull(functor);</span>
-<span class="fc" id="L235">    }</span>
+<span class="fc" id="L237">        callback = Objects.requireNonNull(functor);</span>
+<span class="fc" id="L238">    }</span>
 
     /**
      * {@inheritDoc}
@@ -240,29 +243,29 @@ public abstract class AbstractInflowQueue
     @Override
     public CascadeToken poll (final CascadeAllocator.OperandStack out)
     {
-<span class="fc" id="L243">        consumerLock.lock();</span>
+<span class="fc" id="L246">        consumerLock.lock();</span>
 
         try
         {
             /**
              * Implementation-Specific Queue Operations.
              */
-<span class="fc" id="L250">            final CascadeToken event = doPoll(out);</span>
+<span class="fc" id="L253">            final CascadeToken event = doPoll(out);</span>
 
-<span class="fc bfc" id="L252" title="All 2 branches covered.">            if (event != null)</span>
+<span class="fc bfc" id="L255" title="All 2 branches covered.">            if (event != null)</span>
             {
                 /**
                  * We removed an event-message,
                  * so there is now room for a new one.
                  */
-<span class="fc" id="L258">                producerPermits.release();</span>
+<span class="fc" id="L261">                producerPermits.release();</span>
             }
 
-<span class="fc" id="L261">            return event;</span>
+<span class="fc" id="L264">            return event;</span>
         }
         finally
         {
-<span class="pc" id="L265">            consumerLock.unlock();</span>
+<span class="pc" id="L268">            consumerLock.unlock();</span>
         }
     }
 }
