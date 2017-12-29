@@ -40,6 +40,7 @@ public final class StandardLogger
                               Throwable message)
     {
         logger.warning(message.getMessage()); // TODO
+        message.printStackTrace(System.err);
         return this;
     }
 }

@@ -153,7 +153,8 @@ public final class ConcretePump
     {
         final Thread currentThread = Thread.currentThread();
 
-        try (OperandStack stack = new CheckedOperandStack(currentThread, cascade.allocator().newOperandStack()))
+        // TODO: try (OperandStack stack = new CheckedOperandStack(currentThread, cascade.allocator().newOperandStack()))
+        try (OperandStack stack = cascade.allocator().newOperandStack())
         {
             TaskStream<ReactorInfo> taskStream = null;
 

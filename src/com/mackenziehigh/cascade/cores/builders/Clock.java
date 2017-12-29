@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
 /**
- * (Core Builder) This type of core is a clock that transmits
+ * This type of core is a clock that transmits
  * specially formatted event-messages whenever the clock ticks.
  *
  * <p>
@@ -35,155 +35,135 @@ import java.util.function.LongSupplier;
 public final class Clock
         implements CascadeReactor.CoreBuilder
 {
+
     /**
-     * A single output stream of this clock.
+     * (Required) This is the name of the event-channel to send the ticks to.
      */
-    public final class OutputChannel
-    {
-        /**
-         * (Required) This is the name of the event-channel to send the ticks to.
-         */
-        public final CascadeProperty<CascadeToken> event = CascadeProperty.<CascadeToken>newBuilder("event")
-                .makeFinal()
-                .build();
+    public final CascadeProperty<CascadeToken> event = CascadeProperty.<CascadeToken>newBuilder("event")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) If this flag is true, then the clock will require that (at least)
-         * the period number of nanoseconds has elapsed before firing another tick.
-         * Otherwise, ticks may be closer together than the specified period
-         * occasionally due to the time needed to transmit messages.
-         */
-        public final CascadeProperty<Boolean> spaced = CascadeProperty.<Boolean>newBuilder("spaced")
-                .makeFinal()
-                .build();
+    /**
+     * (Optional) If this flag is true, then the clock will require that (at least)
+     * the period number of nanoseconds has elapsed before firing another tick.
+     * Otherwise, ticks may be closer together than the specified period
+     * occasionally due to the time needed to transmit messages.
+     */
+    public final CascadeProperty<Boolean> spaced = CascadeProperty.<Boolean>newBuilder("spaced")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) This is the number of milliseconds to wait before the first tick.
-         */
-        public final CascadeProperty<Long> delayNanos = CascadeProperty.<Long>newBuilder("delayNanos")
-                .makeFinal()
-                .build();
+    /**
+     * (Optional) This is the number of nanoseconds to wait before the first tick.
+     */
+    public final CascadeProperty<Long> delayNanos = CascadeProperty.<Long>newBuilder("delayNanos")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Required) This is the number of milliseconds to wait between ticks.
-         */
-        public final CascadeProperty<Long> periodNanos = CascadeProperty.<Long>newBuilder("periodNanos")
-                .makeFinal()
-                .build();
+    /**
+     * (Required) This is the number of nanoseconds to wait between ticks.
+     */
+    public final CascadeProperty<Long> periodNanos = CascadeProperty.<Long>newBuilder("periodNanos")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) This is the maximum number of ticks to send throughout the lifetime of the clock.
-         */
-        public final CascadeProperty<Long> limit = CascadeProperty.<Long>newBuilder("tickLimit")
-                .makeFinal()
-                .build();
+    /**
+     * (Optional) This is the maximum number of ticks to send throughout the lifetime of the clock.
+     */
+    public final CascadeProperty<Long> limit = CascadeProperty.<Long>newBuilder("tickLimit")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) Each tick will be an (8-bit) (Java primitive-byte compatible) counter.
-         */
-        public final CascadeProperty<Boolean> formatAsByteCounter = CascadeProperty.<Boolean>newBuilder("formatAsByteCounter")
-                .makeFinal()
-                .build();
+    /**
+     * (Optional) Each tick will be an (8-bit) (Java primitive-byte compatible) counter.
+     */
+    public final CascadeProperty<Boolean> formatAsByteCounter = CascadeProperty.<Boolean>newBuilder("formatAsByteCounter")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) Each tick will be an (16-bit, Big Endian) (Java primitive-short compatible) counter.
-         */
-        public final CascadeProperty<Boolean> formatAsShortCounter = CascadeProperty.<Boolean>newBuilder("formatAsShortCounter")
-                .makeFinal()
-                .build();
+    /**
+     * (Optional) Each tick will be an (16-bit, Big Endian) (Java primitive-short compatible) counter.
+     */
+    public final CascadeProperty<Boolean> formatAsShortCounter = CascadeProperty.<Boolean>newBuilder("formatAsShortCounter")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) Each tick will be an (32-bit, Big Endian) (Java primitive-int compatible) counter.
-         */
-        public final CascadeProperty<Boolean> formatAsIntCounter = CascadeProperty.<Boolean>newBuilder("formatAsIntCounter")
-                .makeFinal()
-                .build();
+    /**
+     * (Optional) Each tick will be an (32-bit, Big Endian) (Java primitive-int compatible) counter.
+     */
+    public final CascadeProperty<Boolean> formatAsIntCounter = CascadeProperty.<Boolean>newBuilder("formatAsIntCounter")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) Each tick will be an (64-bit, Big Endian) (Java primitive-long compatible) counter.
-         */
-        public final CascadeProperty<Boolean> formatAsLongCounter = CascadeProperty.<Boolean>newBuilder("formatAsLongCounter")
-                .makeFinal()
-                .build();
+    /**
+     * (Optional) Each tick will be an (64-bit, Big Endian) (Java primitive-long compatible) counter.
+     */
+    public final CascadeProperty<Boolean> formatAsLongCounter = CascadeProperty.<Boolean>newBuilder("formatAsLongCounter")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) Each tick will be an (64-bit, Big Endian) (Java primitive-long compatible)
-         * representation of the number of milliseconds since the epoch.
-         *
-         * <p>
-         * Equivalent To: <code>System.currentTimeMillis()</code>
-         * </p>
-         */
-        public final CascadeProperty<Boolean> formatAsEpochMillis = CascadeProperty.<Boolean>newBuilder("formatAsEpochMillis")
-                .makeFinal()
-                .build();
+    /**
+     * (Optional) Each tick will be an (64-bit, Big Endian) (Java primitive-long compatible)
+     * representation of the number of milliseconds since the epoch.
+     *
+     * <p>
+     * Equivalent To: <code>System.currentTimeMillis()</code>
+     * </p>
+     */
+    public final CascadeProperty<Boolean> formatAsEpochMillis = CascadeProperty.<Boolean>newBuilder("formatAsEpochMillis")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) Each tick will be an (64-bit, Big Endian) (Java primitive-long compatible)
-         * representation of the number of nanoseconds since some arbitrary point in time.
-         *
-         * <p>
-         * Equivalent To: <code>System.nanoTime()</code>
-         * </p>
-         */
-        public final CascadeProperty<Boolean> formatAsMonotonicNanos = CascadeProperty.<Boolean>newBuilder("formatAsMonotonicNanos")
-                .makeFinal()
-                .build();
+    /**
+     * (Optional) Each tick will be an (64-bit, Big Endian) (Java primitive-long compatible)
+     * representation of the number of nanoseconds since some arbitrary point in time.
+     *
+     * <p>
+     * Equivalent To: <code>System.nanoTime()</code>
+     * </p>
+     */
+    public final CascadeProperty<Boolean> formatAsMonotonicNanos = CascadeProperty.<Boolean>newBuilder("formatAsMonotonicNanos")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) Each tick will be an (64-bit, Big Endian) (Java primitive-long compatible)
-         * representation of the number of nanoseconds since the first tick of this clock.
-         *
-         * <p>
-         * See Also: <code>System.nanoTime()</code>
-         * </p>
-         */
-        public final CascadeProperty<Boolean> formatAsMonotonicElapsedNanos = CascadeProperty.<Boolean>newBuilder("formatAsMonotonicElapsedNanos")
-                .makeFinal()
-                .build();
+    /**
+     * (Optional) Each tick will be an (64-bit, Big Endian) (Java primitive-long compatible)
+     * representation of the number of nanoseconds since the first tick of this clock.
+     *
+     * <p>
+     * See Also: <code>System.nanoTime()</code>
+     * </p>
+     */
+    public final CascadeProperty<Boolean> formatAsMonotonicElapsedNanos = CascadeProperty.<Boolean>newBuilder("formatAsMonotonicElapsedNanos")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) Each tick will be a textual representation of the current time formatted using this formatter.
-         */
-        public final CascadeProperty<DateTimeFormatter> formatAsDateTime = CascadeProperty.<DateTimeFormatter>newBuilder("formatAsDateTime")
-                .makeFinal()
-                .build();
+    /**
+     * (Optional) Each tick will be a textual representation of the current time formatted using this formatter.
+     */
+    public final CascadeProperty<DateTimeFormatter> formatAsDateTime = CascadeProperty.<DateTimeFormatter>newBuilder("formatAsDateTime")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) If this is true, then each tick will produce an ASCII encoded string.
-         */
-        public final CascadeProperty<Boolean> textual = CascadeProperty.<Boolean>newBuilder("textual")
-                .makeFinal()
-                .build();
+    /**
+     * (Optional) If this is true, then each tick will produce an ASCII encoded string.
+     */
+    public final CascadeProperty<Boolean> textual = CascadeProperty.<Boolean>newBuilder("textual")
+            .makeFinal()
+            .build();
 
-        /**
-         * (Optional) If this is true, then each tick will produce a binary integer.
-         */
-        public final CascadeProperty<Boolean> binary = CascadeProperty.<Boolean>newBuilder("binary")
-                .makeFinal()
-                .build();
-
-    }
+    /**
+     * (Optional) If this is true, then each tick will produce a binary integer.
+     */
+    public final CascadeProperty<Boolean> binary = CascadeProperty.<Boolean>newBuilder("binary")
+            .makeFinal()
+            .build();
 
     private static volatile ScheduledExecutorService timer;
-
-    private final Set<OutputChannel> outputs = Sets.newConcurrentHashSet();
 
     private final Set<ScheduledFuture> futures = Sets.newConcurrentHashSet();
 
     private final Set<OperandStack> cleanup = Sets.newConcurrentHashSet();
-
-    /**
-     * Add an output channel to this clock.
-     *
-     * @return the new output.
-     */
-    public OutputChannel addOutput ()
-    {
-        final OutputChannel out = new OutputChannel();
-        outputs.add(out);
-        return out;
-    }
 
     /**
      * {@inheritDoc}
@@ -197,7 +177,7 @@ public final class Clock
             public void onSetup (final CascadeReactor.Context context)
                     throws Throwable
             {
-                outputs.forEach(x -> submit(context.reactor(), x));
+                submit(context.reactor());
             }
 
             @Override
@@ -209,8 +189,7 @@ public final class Clock
         };
     }
 
-    private void submit (final CascadeReactor reactor,
-                         final OutputChannel config)
+    private void submit (final CascadeReactor reactor)
     {
         Runnable txtTask = null;
         Runnable binTask = null;
@@ -218,53 +197,53 @@ public final class Clock
         final AtomicLong tickCounter = new AtomicLong();
         final AtomicLong firstTick = new AtomicLong();
         final OperandStack stack = reactor.allocator().newOperandStack();
-        final CascadeToken event = config.event.get();
+        final CascadeToken eventId = this.event.get();
 
-        final boolean textual = config.textual.getOrDefault(false) || !config.binary.getOrDefault(false);
+        final boolean useText = this.textual.getOrDefault(false) || !binary.getOrDefault(false);
 
-        if (config.formatAsByteCounter.getOrDefault(false))
+        if (formatAsByteCounter.getOrDefault(false))
         {
-            binTask = () -> reactor.broadcast(event, stack.clear().push((byte) tickCounter.get()));
-            txtTask = () -> reactor.broadcast(event, stack.clear().push(Byte.toString((byte) tickCounter.get())));
+            binTask = () -> reactor.broadcast(eventId, stack.clear().push((byte) tickCounter.get()));
+            txtTask = () -> reactor.broadcast(eventId, stack.clear().push(Byte.toString((byte) tickCounter.get())));
         }
-        else if (config.formatAsShortCounter.getOrDefault(false))
+        else if (formatAsShortCounter.getOrDefault(false))
         {
-            binTask = () -> reactor.broadcast(event, stack.clear().push((short) tickCounter.get()));
-            txtTask = () -> reactor.broadcast(event, stack.clear().push(Short.toString((short) tickCounter.get())));
+            binTask = () -> reactor.broadcast(eventId, stack.clear().push((short) tickCounter.get()));
+            txtTask = () -> reactor.broadcast(eventId, stack.clear().push(Short.toString((short) tickCounter.get())));
         }
-        else if (config.formatAsIntCounter.getOrDefault(false))
+        else if (formatAsIntCounter.getOrDefault(false))
         {
-            binTask = () -> reactor.broadcast(event, stack.clear().push((int) tickCounter.get()));
-            txtTask = () -> reactor.broadcast(event, stack.clear().push(Integer.toString((int) tickCounter.get())));
+            binTask = () -> reactor.broadcast(eventId, stack.clear().push((int) tickCounter.get()));
+            txtTask = () -> reactor.broadcast(eventId, stack.clear().push(Integer.toString((int) tickCounter.get())));
         }
-        else if (config.formatAsLongCounter.getOrDefault(false))
+        else if (formatAsLongCounter.getOrDefault(false))
         {
-            binTask = () -> reactor.broadcast(event, stack.clear().push((long) tickCounter.get()));
-            txtTask = () -> reactor.broadcast(event, stack.clear().push(Long.toString((long) tickCounter.get())));
+            binTask = () -> reactor.broadcast(eventId, stack.clear().push((long) tickCounter.get()));
+            txtTask = () -> reactor.broadcast(eventId, stack.clear().push(Long.toString((long) tickCounter.get())));
         }
-        else if (config.formatAsEpochMillis.getOrDefault(false))
+        else if (formatAsEpochMillis.getOrDefault(false))
         {
-            binTask = () -> reactor.broadcast(event, stack.clear().push(System.currentTimeMillis()));
-            txtTask = () -> reactor.broadcast(event, stack.clear().push(Long.toString(System.currentTimeMillis())));
+            binTask = () -> reactor.broadcast(eventId, stack.clear().push(System.currentTimeMillis()));
+            txtTask = () -> reactor.broadcast(eventId, stack.clear().push(Long.toString(System.currentTimeMillis())));
         }
-        else if (config.formatAsMonotonicNanos.getOrDefault(false))
+        else if (formatAsMonotonicNanos.getOrDefault(false))
         {
-            binTask = () -> reactor.broadcast(event, stack.clear().push(System.nanoTime()));
-            txtTask = () -> reactor.broadcast(event, stack.clear().push(Long.toString(System.nanoTime())));
+            binTask = () -> reactor.broadcast(eventId, stack.clear().push(System.nanoTime()));
+            txtTask = () -> reactor.broadcast(eventId, stack.clear().push(Long.toString(System.nanoTime())));
         }
-        else if (config.formatAsMonotonicElapsedNanos.getOrDefault(false))
+        else if (formatAsMonotonicElapsedNanos.getOrDefault(false))
         {
             final LongSupplier fun = () -> tickCounter.get() == 0 ? 0 : System.nanoTime() - firstTick.get();
-            binTask = () -> reactor.broadcast(event, stack.clear().push(fun.getAsLong()));
-            txtTask = () -> reactor.broadcast(event, stack.clear().push(Long.toString(fun.getAsLong())));
+            binTask = () -> reactor.broadcast(eventId, stack.clear().push(fun.getAsLong()));
+            txtTask = () -> reactor.broadcast(eventId, stack.clear().push(Long.toString(fun.getAsLong())));
         }
-        else if (config.formatAsDateTime.isSet() && config.binary.getOrDefault(false))
+        else if (formatAsDateTime.isSet() && binary.getOrDefault(false))
         {
             // Error
         }
-        else if (config.formatAsDateTime.isSet())
+        else if (formatAsDateTime.isSet())
         {
-            txtTask = () -> reactor.broadcast(event, stack.clear().push(config.formatAsDateTime.get().format(Instant.now())));
+            txtTask = () -> reactor.broadcast(eventId, stack.clear().push(formatAsDateTime.get().format(Instant.now())));
             binTask = null;
         }
         else
@@ -275,7 +254,7 @@ public final class Clock
         /**
          * Select the actual task.
          */
-        final Runnable task = textual ? txtTask : binTask;
+        final Runnable task = useText ? txtTask : binTask;
         Verify.verifyNotNull(task);
 
         /**
@@ -285,7 +264,7 @@ public final class Clock
          * if the format is elapsed time.
          */
         final AtomicReference<ScheduledFuture> refFuture = new AtomicReference<>();
-        final long limit = config.limit.getOrDefault(Long.MAX_VALUE);
+        final long maxTicks = limit.getOrDefault(Long.MAX_VALUE);
         final Runnable limitedTask = () ->
         {
             if (tickCounter.get() == 0)
@@ -293,7 +272,7 @@ public final class Clock
                 firstTick.set(System.nanoTime());
             }
             task.run();
-            if (tickCounter.incrementAndGet() >= limit)
+            if (tickCounter.incrementAndGet() >= maxTicks)
             {
                 refFuture.get().cancel(false);
             }
@@ -314,10 +293,10 @@ public final class Clock
             }
         };
 
-        final long delay = config.delayNanos.getOrDefault(0L);
-        final long period = config.periodNanos.getOrDefault(TimeUnit.SECONDS.toNanos(1));
+        final long delay = delayNanos.getOrDefault(0L);
+        final long period = periodNanos.getOrDefault(TimeUnit.SECONDS.toNanos(1));
         final ScheduledFuture future;
-        if (config.spaced.getOrDefault(false))
+        if (spaced.getOrDefault(false))
         {
             future = timer().scheduleWithFixedDelay(safeTask, delay, period, TimeUnit.NANOSECONDS);
         }

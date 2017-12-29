@@ -15,14 +15,11 @@ import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Core;
 import com.mackenziehigh.cascade.CascadeSchema;
 import com.mackenziehigh.cascade.CascadeToken;
-import com.mackenziehigh.cascade.cores.Cores;
-import com.mackenziehigh.cascade.cores.builders.Clock;
 import com.mackenziehigh.cascade.internal.EventDispatcher.ConcurrentEventSender;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 
 /**
  * TODO: The user must always specify a default pool.
@@ -868,38 +865,4 @@ public final class ConcreteSchema
         public Scope below;
     }
 
-    public static void main (String[] args)
-            throws InterruptedException
-    {
-        final CascadeSchema cs = new ConcreteSchema().named("Schema1");
-
-        cs.addDynamicPool().named("default").withMinimumSize(0).withMaximumSize(256);
-        cs.addFixedPool().named("pool2").withMinimumSize(512).withMaximumSize(768).withBufferCount(10);
-        cs.addCompositePool().named("pool3").withMemberPool("default").withMemberPool("pool2");
-
-        cs.addPump().named("pump1").withThreadCount(3);
-
-        cs.usingPool("default").usingPump("pump1");
-
-        final Clock clock1 = Cores.newTicker();
-        final Clock.OutputChannel cout1 = clock1.addOutput();
-        cout1.event.set(CascadeToken.create("tickTock"));
-        cout1.periodNanos.set(TimeUnit.MILLISECONDS.toNanos(1000));
-        cout1.formatAsMonotonicElapsedNanos.set(true);
-
-        cs.addReactor()
-                .named("clock1")
-                .withCore(clock1.build())
-                .withArrayQueue(100);
-
-        cs.addReactor()
-                .named("printer1")
-                .withArrayQueue(100)
-                .withCore(Cores.from(x -> System.out.println("X = " + x.message().asString() + ", Thread = " + Thread.currentThread().getId())))
-                .subscribeTo("tickTock");
-
-        final Cascade cas = cs.build();
-
-        cas.start();
-    }
 }

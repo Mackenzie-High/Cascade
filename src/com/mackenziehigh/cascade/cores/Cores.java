@@ -2,28 +2,23 @@ package com.mackenziehigh.cascade.cores;
 
 import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Context;
-import com.mackenziehigh.cascade.cores.builders.ForwarderBuilder;
-import com.mackenziehigh.cascade.cores.builders.PrinterBuilder;
 import com.mackenziehigh.cascade.cores.builders.Clock;
+import com.mackenziehigh.cascade.cores.builders.Printer;
 
 /**
  *
  */
 public final class Cores
 {
-    public static ForwarderBuilder newForwarder ()
-    {
-        return new ForwarderBuilder();
-    }
 
-    public static Clock newTicker ()
+    public static Clock newClock ()
     {
         return new Clock();
     }
 
-    public static PrinterBuilder newPrinter ()
+    public static Printer newPrinter ()
     {
-        return new PrinterBuilder();
+        return new Printer();
     }
 
     /**

@@ -7,7 +7,7 @@ import java.nio.charset.Charset;
 /**
  * Node Builder for Printer nodes.
  */
-public final class PrinterBuilder
+public final class Printer
         implements CascadeReactor.CoreBuilder
 {
     private volatile Charset charset = Charset.forName("UTF-8");
