@@ -5,7 +5,7 @@ import java.io.PrintStream;
 import java.nio.charset.Charset;
 
 /**
- * Node Builder for Printer nodes.
+ * Prints an operand to standard-output.
  */
 public final class Printer
         implements CascadeReactor.CoreBuilder

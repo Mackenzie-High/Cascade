@@ -3,10 +3,7 @@ package com.mackenziehigh.cascade.cores.builders;
 import com.mackenziehigh.cascade.CascadeReactor;
 
 /**
- * This type of core expects to receive a fixed finite number
- * of event-messages from a single event-channel in well-defined
- * user-defined sequence, such that each of the event-messages
- * matches a specific predicate.
+ * Verifies a series of event-messages using a series of predicates.
  *
  * <p>
  * You may find this type of core particularly useful during
@@ -19,10 +16,14 @@ public final class Checker
         implements CascadeReactor.CoreBuilder
 {
 
+//    public Checker expect (final Predicate<Context> condition)
+//    {
+//
+//    }
     @Override
     public CascadeReactor.Core build ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return null;
     }
 
 }

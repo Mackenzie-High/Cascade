@@ -11,9 +11,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * This type of core only allows a fixed finite number
- * of event-messages through from one event-channel
- * to another event-channel.
+ * Tally based rate limiting.
  */
 public final class TallyLimiter
         implements CascadeReactor.CoreBuilder

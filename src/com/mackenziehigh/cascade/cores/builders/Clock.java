@@ -20,8 +20,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
 /**
- * This type of core is a clock that transmits
- * specially formatted event-messages whenever the clock ticks.
+ * A clock that ticks by sending event-messages.
  *
  * <p>
  * This type of clock uses broadcast(*) to send event-messages,
