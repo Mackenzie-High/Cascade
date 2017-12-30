@@ -2,12 +2,21 @@ package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.CascadeLogger;
+import com.mackenziehigh.cascade.CascadeReactor.Core;
 
 /**
  * Common Utility Methods.
  */
 public class Utils
 {
+    public static Core nop ()
+    {
+        return new Core()
+        {
+            // Pass
+        };
+    }
+
     public static String checkSimpleName (final String name)
     {
         Preconditions.checkNotNull(name);

@@ -5,7 +5,6 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeSchema;
 import com.mackenziehigh.cascade.CascadeToken;
-import com.mackenziehigh.cascade.cores.Cores;
 import static junit.framework.Assert.*;
 import org.junit.Test;
 
@@ -14,6 +13,7 @@ import org.junit.Test;
  */
 public final class ConcreteSchemaTest
 {
+
     @Test
     public void test ()
     {
@@ -80,8 +80,8 @@ public final class ConcreteSchemaTest
         cs.addPump().named("pump1").withThreadCount(17);
         cs.usingPool("pool1");
         cs.usingPump("pump1");
-        cs.addReactor().named("reactor1").withArrayQueue(8).withCore(Cores.nop());
-        cs.addReactor().named("reactor2").withArrayQueue(8).withCore(Cores.nop());
+        cs.addReactor().named("reactor1").withArrayQueue(8).withCore(Utils.nop());
+        cs.addReactor().named("reactor2").withArrayQueue(8).withCore(Utils.nop());
         cas = cs.build();
         assertEquals("pump1", cas.pumps().get(CascadeToken.create("pump1")).name().toString());
         assertEquals(1, cas.pumps().size());
@@ -108,8 +108,8 @@ public final class ConcreteSchemaTest
         cs.addPump().named("pump1").withThreadCount(1);
         cs.addPump().named("pump2").withThreadCount(1);
         cs.usingPool("pool1");
-        cs.addReactor().named("reactor1").withArrayQueue(8).usingPump("pump1").withCore(Cores.nop());
-        cs.addReactor().named("reactor2").withArrayQueue(8).usingPump("pump2").withCore(Cores.nop());
+        cs.addReactor().named("reactor1").withArrayQueue(8).usingPump("pump1").withCore(Utils.nop());
+        cs.addReactor().named("reactor2").withArrayQueue(8).usingPump("pump2").withCore(Utils.nop());
         cas = cs.build();
         assertEquals(2, cas.reactors().size());
         assertEquals("pump1", cas.reactors().get(CascadeToken.create("reactor1")).pump().name().toString());

@@ -153,89 +153,90 @@ public final class ConcretePump
     {
 <span class="nc" id="L154">        final Thread currentThread = Thread.currentThread();</span>
 
-<span class="nc" id="L156">        try (OperandStack stack = new CheckedOperandStack(currentThread, cascade.allocator().newOperandStack()))</span>
+        // TODO: try (OperandStack stack = new CheckedOperandStack(currentThread, cascade.allocator().newOperandStack()))
+<span class="nc" id="L157">        try (OperandStack stack = cascade.allocator().newOperandStack())</span>
         {
-<span class="nc" id="L158">            TaskStream&lt;ReactorInfo&gt; taskStream = null;</span>
+<span class="nc" id="L159">            TaskStream&lt;ReactorInfo&gt; taskStream = null;</span>
 
-<span class="nc bnc" id="L160" title="All 2 branches missed.">            while (stop.get() == false)</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">            while (stop.get() == false)</span>
             {
                 try
                 {
                     try
                     {
-<span class="nc" id="L166">                        taskStream = scheduler.pollTask(1, TimeUnit.SECONDS);</span>
+<span class="nc" id="L167">                        taskStream = scheduler.pollTask(1, TimeUnit.SECONDS);</span>
                     }
-<span class="nc" id="L168">                    catch (InterruptedException ex)</span>
+<span class="nc" id="L169">                    catch (InterruptedException ex)</span>
                     {
-<span class="nc" id="L170">                        cascade().defaultLogger().warn(ex);</span>
-<span class="nc" id="L171">                        Thread.currentThread().interrupt();</span>
+<span class="nc" id="L171">                        cascade().defaultLogger().warn(ex);</span>
+<span class="nc" id="L172">                        Thread.currentThread().interrupt();</span>
                         continue;
-<span class="nc" id="L173">                    }</span>
+<span class="nc" id="L174">                    }</span>
 
-<span class="nc bnc" id="L175" title="All 2 branches missed.">                    if (taskStream == null)</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">                    if (taskStream == null)</span>
                     {
                         continue;
                     }
 
-<span class="nc" id="L180">                    final CascadeToken event = taskStream.source().pipeline.poll(stack);</span>
-<span class="nc" id="L181">                    final ConcreteContext context = taskStream.source().context;</span>
-<span class="nc" id="L182">                    final Core core = taskStream.source().reactor.core();</span>
+<span class="nc" id="L181">                    final CascadeToken event = taskStream.source().pipeline.poll(stack);</span>
+<span class="nc" id="L182">                    final ConcreteContext context = taskStream.source().context;</span>
+<span class="nc" id="L183">                    final Core core = taskStream.source().reactor.core();</span>
 
-<span class="nc" id="L184">                    Verify.verifyNotNull(event);</span>
-<span class="nc" id="L185">                    Verify.verifyNotNull(context);</span>
-<span class="nc" id="L186">                    Verify.verifyNotNull(core);</span>
+<span class="nc" id="L185">                    Verify.verifyNotNull(event);</span>
+<span class="nc" id="L186">                    Verify.verifyNotNull(context);</span>
+<span class="nc" id="L187">                    Verify.verifyNotNull(core);</span>
 
                     try
                     {
-<span class="nc" id="L190">                        taskStream.source().reactor.enterCore();</span>
-<span class="nc" id="L191">                        context.set(currentThread, event, stack, null);</span>
-<span class="nc" id="L192">                        core.onMessage(context);</span>
+<span class="nc" id="L191">                        taskStream.source().reactor.enterCore();</span>
+<span class="nc" id="L192">                        context.set(currentThread, event, stack, null);</span>
+<span class="nc" id="L193">                        core.onMessage(context);</span>
                     }
-<span class="nc" id="L194">                    catch (Throwable ex1)</span>
+<span class="nc" id="L195">                    catch (Throwable ex1)</span>
                     {
                         try
                         {
-<span class="nc" id="L198">                            context.set(currentThread, event, stack, ex1);</span>
-<span class="nc" id="L199">                            core.onException(context);</span>
+<span class="nc" id="L199">                            context.set(currentThread, event, stack, ex1);</span>
+<span class="nc" id="L200">                            core.onException(context);</span>
                         }
-<span class="nc" id="L201">                        catch (Throwable ex2)</span>
+<span class="nc" id="L202">                        catch (Throwable ex2)</span>
                         {
                             try
                             {
-<span class="nc" id="L205">                                context.logger().warn(ex2);</span>
+<span class="nc" id="L206">                                context.logger().warn(ex2);</span>
                             }
-<span class="nc" id="L207">                            catch (Throwable ex3)</span>
+<span class="nc" id="L208">                            catch (Throwable ex3)</span>
                             {
                                 try
                                 {
-<span class="nc" id="L211">                                    cascade().defaultLogger().warn(ex3);</span>
+<span class="nc" id="L212">                                    cascade().defaultLogger().warn(ex3);</span>
                                 }
-<span class="nc" id="L213">                                catch (Throwable ex4)</span>
+<span class="nc" id="L214">                                catch (Throwable ex4)</span>
                                 {
-<span class="nc" id="L215">                                    ex1.printStackTrace(System.err);</span>
-<span class="nc" id="L216">                                    ex2.printStackTrace(System.err);</span>
-<span class="nc" id="L217">                                    ex3.printStackTrace(System.err);</span>
-<span class="nc" id="L218">                                    ex4.printStackTrace(System.err);</span>
-<span class="nc" id="L219">                                }</span>
-<span class="nc" id="L220">                            }</span>
-<span class="nc" id="L221">                        }</span>
+<span class="nc" id="L216">                                    ex1.printStackTrace(System.err);</span>
+<span class="nc" id="L217">                                    ex2.printStackTrace(System.err);</span>
+<span class="nc" id="L218">                                    ex3.printStackTrace(System.err);</span>
+<span class="nc" id="L219">                                    ex4.printStackTrace(System.err);</span>
+<span class="nc" id="L220">                                }</span>
+<span class="nc" id="L221">                            }</span>
+<span class="nc" id="L222">                        }</span>
                     }
                     finally
                     {
-<span class="nc" id="L225">                        context.set(currentThread, null, null, null);</span>
-<span class="nc" id="L226">                        taskStream.source().reactor.exitCore();</span>
-<span class="nc" id="L227">                    }</span>
+<span class="nc" id="L226">                        context.set(currentThread, null, null, null);</span>
+<span class="nc" id="L227">                        taskStream.source().reactor.exitCore();</span>
+<span class="nc" id="L228">                    }</span>
                 }
                 finally
                 {
-<span class="nc bnc" id="L231" title="All 8 branches missed.">                    if (taskStream != null)</span>
+<span class="nc bnc" id="L232" title="All 8 branches missed.">                    if (taskStream != null)</span>
                     {
-<span class="nc" id="L233">                        taskStream.release();</span>
+<span class="nc" id="L234">                        taskStream.release();</span>
                     }
                 }
             }
-<span class="nc bnc" id="L237" title="All 8 branches missed.">        }</span>
-<span class="nc" id="L238">    }</span>
+<span class="nc bnc" id="L238" title="All 8 branches missed.">        }</span>
+<span class="nc" id="L239">    }</span>
 
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

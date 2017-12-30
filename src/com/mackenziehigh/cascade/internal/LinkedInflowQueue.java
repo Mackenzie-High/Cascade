@@ -8,7 +8,7 @@ import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- *
+ * Linked-List based Inflow Queue.
  */
 public final class LinkedInflowQueue
         extends AbstractInflowQueue

@@ -15,13 +15,11 @@ import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Core;
 import com.mackenziehigh.cascade.CascadeSchema;
 import com.mackenziehigh.cascade.CascadeToken;
-import com.mackenziehigh.cascade.cores.Cores;
 import com.mackenziehigh.cascade.internal.EventDispatcher.ConcurrentEventSender;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 
 /**
  * TODO: The user must always specify a default pool.
@@ -30,151 +28,151 @@ public final class ConcreteSchema
         implements CascadeSchema
 {
     // TODO: Set uncaught exception handler
-<span class="fc" id="L33">    private final ThreadFactory defaultThreadFactory = new ThreadFactoryBuilder().setDaemon(false).build();</span>
+<span class="fc" id="L31">    private final ThreadFactory defaultThreadFactory = new ThreadFactoryBuilder().setDaemon(false).build();</span>
 
     private CascadeToken name;
 
-<span class="fc" id="L37">    private Scope scope = new Scope();</span>
+<span class="fc" id="L35">    private Scope scope = new Scope();</span>
 
-<span class="fc" id="L39">    private final Set&lt;DynamicPoolSchemaImp&gt; dynamicPools = Sets.newHashSet();</span>
+<span class="fc" id="L37">    private final Set&lt;DynamicPoolSchemaImp&gt; dynamicPools = Sets.newHashSet();</span>
 
-<span class="fc" id="L41">    private final Set&lt;FixedPoolSchemaImp&gt; fixedPools = Sets.newHashSet();</span>
+<span class="fc" id="L39">    private final Set&lt;FixedPoolSchemaImp&gt; fixedPools = Sets.newHashSet();</span>
 
-<span class="fc" id="L43">    private final Set&lt;CompositePoolSchemaImp&gt; compositePools = Sets.newHashSet();</span>
+<span class="fc" id="L41">    private final Set&lt;CompositePoolSchemaImp&gt; compositePools = Sets.newHashSet();</span>
 
-<span class="fc" id="L45">    private final Set&lt;PumpSchemaImp&gt; pumps = Sets.newHashSet();</span>
+<span class="fc" id="L43">    private final Set&lt;PumpSchemaImp&gt; pumps = Sets.newHashSet();</span>
 
-<span class="fc" id="L47">    private final Set&lt;ReactorSchemaImp&gt; reactors = Sets.newHashSet();</span>
+<span class="fc" id="L45">    private final Set&lt;ReactorSchemaImp&gt; reactors = Sets.newHashSet();</span>
 
-<span class="fc" id="L49">    private final Map&lt;CascadeToken, AllocationPool&gt; namesToPools = Maps.newHashMap();</span>
+<span class="fc" id="L47">    private final Map&lt;CascadeToken, AllocationPool&gt; namesToPools = Maps.newHashMap();</span>
 
-<span class="fc" id="L51">    private final Map&lt;CascadeToken, ConcretePump&gt; namesToPumps = Maps.newHashMap();</span>
+<span class="fc" id="L49">    private final Map&lt;CascadeToken, ConcretePump&gt; namesToPumps = Maps.newHashMap();</span>
 
-<span class="fc" id="L53">    private final Multimap&lt;CascadeToken, ConcreteReactor&gt; pumpsToReactors = LinkedListMultimap.create();</span>
+<span class="fc" id="L51">    private final Multimap&lt;CascadeToken, ConcreteReactor&gt; pumpsToReactors = LinkedListMultimap.create();</span>
 
     /**
      * Maps the name of a reactor to the corresponding queue.
      */
-<span class="fc" id="L58">    private final Map&lt;CascadeToken, InflowQueue&gt; reactorsToQueues = Maps.newConcurrentMap();</span>
+<span class="fc" id="L56">    private final Map&lt;CascadeToken, InflowQueue&gt; reactorsToQueues = Maps.newConcurrentMap();</span>
 
     private EventDispatcher dispatcher;
 
-<span class="fc" id="L62">    private final ConcreteCascade cascade = new ConcreteCascade();</span>
+<span class="fc" id="L60">    private final ConcreteCascade cascade = new ConcreteCascade();</span>
 
-<span class="fc" id="L64">    private final ConcreteAllocator allocator = new ConcreteAllocator(cascade);</span>
+<span class="fc" id="L62">    private final ConcreteAllocator allocator = new ConcreteAllocator(cascade);</span>
 
-<span class="fc" id="L66">    private CascadeLogger globalDefaultLogger = new StandardLogger(CascadeToken.create(&quot;default&quot;));</span>
+<span class="fc" id="L64">    private CascadeLogger globalDefaultLogger = new StandardLogger(CascadeToken.create(&quot;default&quot;));</span>
 
     public ConcreteSchema ()
-<span class="fc" id="L69">    {</span>
-<span class="fc" id="L70">        scope.logger = globalDefaultLogger;</span>
-<span class="fc" id="L71">    }</span>
+<span class="fc" id="L67">    {</span>
+<span class="fc" id="L68">        scope.logger = globalDefaultLogger;</span>
+<span class="fc" id="L69">    }</span>
 
     @Override
     public CascadeSchema named (final String name)
     {
-<span class="fc" id="L76">        preventChange(&quot;Name&quot;, this.name, name);</span>
-<span class="fc" id="L77">        this.name = convertName(name);</span>
-<span class="fc" id="L78">        return this;</span>
+<span class="fc" id="L74">        preventChange(&quot;Name&quot;, this.name, name);</span>
+<span class="fc" id="L75">        this.name = convertName(name);</span>
+<span class="fc" id="L76">        return this;</span>
     }
 
     @Override
     public CascadeSchema begin (final String name)
     {
-<span class="nc" id="L84">        Preconditions.checkNotNull(name, &quot;name&quot;);</span>
-<span class="nc" id="L85">        final CascadeToken token = CascadeToken.create(name);</span>
-<span class="nc" id="L86">        final Scope newScope = new Scope();</span>
-<span class="nc" id="L87">        newScope.below = scope;</span>
-<span class="nc bnc" id="L88" title="All 4 branches missed.">        newScope.namespace = token.isSimpleName() &amp;&amp; scope.namespace != null ? scope.namespace.append(name) : token;</span>
-<span class="nc" id="L89">        newScope.logger = scope.logger;</span>
-<span class="nc" id="L90">        newScope.loggerFactory = scope.loggerFactory;</span>
-<span class="nc" id="L91">        newScope.pool = scope.pool;</span>
-<span class="nc" id="L92">        newScope.pump = scope.pump;</span>
-<span class="nc" id="L93">        scope = newScope;</span>
-<span class="nc" id="L94">        return this;</span>
+<span class="nc" id="L82">        Preconditions.checkNotNull(name, &quot;name&quot;);</span>
+<span class="nc" id="L83">        final CascadeToken token = CascadeToken.create(name);</span>
+<span class="nc" id="L84">        final Scope newScope = new Scope();</span>
+<span class="nc" id="L85">        newScope.below = scope;</span>
+<span class="nc bnc" id="L86" title="All 4 branches missed.">        newScope.namespace = token.isSimpleName() &amp;&amp; scope.namespace != null ? scope.namespace.append(name) : token;</span>
+<span class="nc" id="L87">        newScope.logger = scope.logger;</span>
+<span class="nc" id="L88">        newScope.loggerFactory = scope.loggerFactory;</span>
+<span class="nc" id="L89">        newScope.pool = scope.pool;</span>
+<span class="nc" id="L90">        newScope.pump = scope.pump;</span>
+<span class="nc" id="L91">        scope = newScope;</span>
+<span class="nc" id="L92">        return this;</span>
     }
 
     @Override
     public CascadeSchema end ()
     {
-<span class="nc bnc" id="L100" title="All 2 branches missed.">        Preconditions.checkState(scope.below != null, &quot;At Bottom Scope&quot;);</span>
-<span class="nc" id="L101">        scope = scope.below;</span>
-<span class="nc" id="L102">        return this;</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        Preconditions.checkState(scope.below != null, &quot;At Bottom Scope&quot;);</span>
+<span class="nc" id="L99">        scope = scope.below;</span>
+<span class="nc" id="L100">        return this;</span>
 
     }
 
     @Override
     public CascadeSchema usingLogger (final CascadeLogger.Factory factory)
     {
-<span class="nc" id="L109">        scope.loggerFactory = factory;</span>
-<span class="nc" id="L110">        scope.logger = null;</span>
-<span class="nc" id="L111">        return this;</span>
+<span class="nc" id="L107">        scope.loggerFactory = factory;</span>
+<span class="nc" id="L108">        scope.logger = null;</span>
+<span class="nc" id="L109">        return this;</span>
     }
 
     @Override
     public CascadeSchema usingLogger (final CascadeLogger logger)
     {
-<span class="nc" id="L117">        scope.loggerFactory = null;</span>
-<span class="nc" id="L118">        scope.logger = logger;</span>
-<span class="nc" id="L119">        return this;</span>
+<span class="nc" id="L115">        scope.loggerFactory = null;</span>
+<span class="nc" id="L116">        scope.logger = logger;</span>
+<span class="nc" id="L117">        return this;</span>
     }
 
     @Override
     public CascadeSchema usingPool (final String name)
     {
-<span class="fc" id="L125">        scope.pool = convertName(name);</span>
-<span class="fc" id="L126">        return this;</span>
+<span class="fc" id="L123">        scope.pool = convertName(name);</span>
+<span class="fc" id="L124">        return this;</span>
     }
 
     @Override
     public CascadeSchema usingPump (final String name)
     {
-<span class="fc" id="L132">        scope.pump = convertName(name);</span>
-<span class="fc" id="L133">        return this;</span>
+<span class="fc" id="L130">        scope.pump = convertName(name);</span>
+<span class="fc" id="L131">        return this;</span>
     }
 
     @Override
     public DynamicPoolSchema addDynamicPool ()
     {
-<span class="fc" id="L139">        final DynamicPoolSchemaImp result = new DynamicPoolSchemaImp();</span>
-<span class="fc" id="L140">        dynamicPools.add(result);</span>
-<span class="fc" id="L141">        return result;</span>
+<span class="fc" id="L137">        final DynamicPoolSchemaImp result = new DynamicPoolSchemaImp();</span>
+<span class="fc" id="L138">        dynamicPools.add(result);</span>
+<span class="fc" id="L139">        return result;</span>
     }
 
     @Override
     public FixedPoolSchema addFixedPool ()
     {
-<span class="fc" id="L147">        final FixedPoolSchemaImp result = new FixedPoolSchemaImp();</span>
-<span class="fc" id="L148">        fixedPools.add(result);</span>
-<span class="fc" id="L149">        return result;</span>
+<span class="fc" id="L145">        final FixedPoolSchemaImp result = new FixedPoolSchemaImp();</span>
+<span class="fc" id="L146">        fixedPools.add(result);</span>
+<span class="fc" id="L147">        return result;</span>
     }
 
     @Override
     public CompositePoolSchema addCompositePool ()
     {
-<span class="nc" id="L155">        final CompositePoolSchemaImp result = new CompositePoolSchemaImp();</span>
-<span class="nc" id="L156">        compositePools.add(result);</span>
-<span class="nc" id="L157">        return result;</span>
+<span class="nc" id="L153">        final CompositePoolSchemaImp result = new CompositePoolSchemaImp();</span>
+<span class="nc" id="L154">        compositePools.add(result);</span>
+<span class="nc" id="L155">        return result;</span>
     }
 
     @Override
     public PumpSchema addPump ()
     {
-<span class="fc" id="L163">        final PumpSchemaImp result = new PumpSchemaImp();</span>
-<span class="fc" id="L164">        pumps.add(result);</span>
-<span class="fc" id="L165">        return result;</span>
+<span class="fc" id="L161">        final PumpSchemaImp result = new PumpSchemaImp();</span>
+<span class="fc" id="L162">        pumps.add(result);</span>
+<span class="fc" id="L163">        return result;</span>
     }
 
     @Override
     public ReactorSchema addReactor ()
     {
-<span class="fc" id="L171">        final ReactorSchemaImp result = new ReactorSchemaImp();</span>
-<span class="fc" id="L172">        result.defaultLogger = scope.logger;</span>
-<span class="fc" id="L173">        result.defaultLoggerFactory = scope.loggerFactory;</span>
-<span class="fc" id="L174">        result.defaultPool = scope.pool;</span>
-<span class="fc" id="L175">        result.defaultPump = scope.pump;</span>
-<span class="fc" id="L176">        reactors.add(result);</span>
-<span class="fc" id="L177">        return result;</span>
+<span class="fc" id="L169">        final ReactorSchemaImp result = new ReactorSchemaImp();</span>
+<span class="fc" id="L170">        result.defaultLogger = scope.logger;</span>
+<span class="fc" id="L171">        result.defaultLoggerFactory = scope.loggerFactory;</span>
+<span class="fc" id="L172">        result.defaultPool = scope.pool;</span>
+<span class="fc" id="L173">        result.defaultPump = scope.pump;</span>
+<span class="fc" id="L174">        reactors.add(result);</span>
+<span class="fc" id="L175">        return result;</span>
     }
 
     @Override
@@ -183,328 +181,328 @@ public final class ConcreteSchema
         /**
          * Global.
          */
-<span class="fc" id="L186">        cascade.setName(name);</span>
-<span class="fc" id="L187">        cascade.setAllocator(allocator);</span>
-<span class="fc" id="L188">        cascade.setDefaultLogger(globalDefaultLogger);</span>
+<span class="fc" id="L184">        cascade.setName(name);</span>
+<span class="fc" id="L185">        cascade.setAllocator(allocator);</span>
+<span class="fc" id="L186">        cascade.setDefaultLogger(globalDefaultLogger);</span>
 
         /**
          * Declare.
          */
-<span class="fc" id="L193">        dynamicPools.forEach(x -&gt; declare(x));</span>
-<span class="fc" id="L194">        fixedPools.forEach(x -&gt; declare(x));</span>
-<span class="pc" id="L195">        compositePools.forEach(x -&gt; declare(x));</span>
-<span class="fc" id="L196">        pumps.forEach(x -&gt; declare(x));</span>
-<span class="fc" id="L197">        reactors.forEach(x -&gt; declare(x));</span>
+<span class="fc" id="L191">        dynamicPools.forEach(x -&gt; declare(x));</span>
+<span class="fc" id="L192">        fixedPools.forEach(x -&gt; declare(x));</span>
+<span class="pc" id="L193">        compositePools.forEach(x -&gt; declare(x));</span>
+<span class="fc" id="L194">        pumps.forEach(x -&gt; declare(x));</span>
+<span class="fc" id="L195">        reactors.forEach(x -&gt; declare(x));</span>
 
         /**
          * Validate.
          */
-<span class="fc" id="L202">        dynamicPools.forEach(x -&gt; validate(x));</span>
-<span class="fc" id="L203">        fixedPools.forEach(x -&gt; validate(x));</span>
-<span class="pc" id="L204">        compositePools.forEach(x -&gt; validate(x));</span>
-<span class="fc" id="L205">        pumps.forEach(x -&gt; validate(x));</span>
-<span class="fc" id="L206">        reactors.forEach(x -&gt; validate(x));</span>
+<span class="fc" id="L200">        dynamicPools.forEach(x -&gt; validate(x));</span>
+<span class="fc" id="L201">        fixedPools.forEach(x -&gt; validate(x));</span>
+<span class="pc" id="L202">        compositePools.forEach(x -&gt; validate(x));</span>
+<span class="fc" id="L203">        pumps.forEach(x -&gt; validate(x));</span>
+<span class="fc" id="L204">        reactors.forEach(x -&gt; validate(x));</span>
 
         /**
          * Create the routing-table.
          */
-<span class="fc" id="L211">        reactors.forEach(x -&gt; reactorsToQueues.put(x.name, x.queue));</span>
-<span class="fc" id="L212">        dispatcher = new EventDispatcher(reactorsToQueues);</span>
-<span class="pc" id="L213">        reactors.forEach(s -&gt; s.subscriptions.forEach(e -&gt; dispatcher.register(s.name, e)));</span>
+<span class="fc" id="L209">        reactors.forEach(x -&gt; reactorsToQueues.put(x.name, x.queue));</span>
+<span class="fc" id="L210">        dispatcher = new EventDispatcher(reactorsToQueues);</span>
+<span class="pc" id="L211">        reactors.forEach(s -&gt; s.subscriptions.forEach(e -&gt; dispatcher.register(s.name, e)));</span>
 
         /**
          * Compile - Pass #1.
          */
-<span class="fc" id="L218">        dynamicPools.forEach(x -&gt; compile1(x));</span>
-<span class="fc" id="L219">        fixedPools.forEach(x -&gt; compile1(x));</span>
-<span class="pc" id="L220">        compositePools.forEach(x -&gt; compile1(x));</span>
+<span class="fc" id="L216">        dynamicPools.forEach(x -&gt; compile1(x));</span>
+<span class="fc" id="L217">        fixedPools.forEach(x -&gt; compile1(x));</span>
+<span class="pc" id="L218">        compositePools.forEach(x -&gt; compile1(x));</span>
 
         /**
          * Compile - Pass #2.
          */
-<span class="fc" id="L225">        reactors.forEach(x -&gt; compile2(x));</span>
+<span class="fc" id="L223">        reactors.forEach(x -&gt; compile2(x));</span>
 
         /**
          * Compile - Pass #3.
          */
-<span class="fc" id="L230">        pumps.forEach(x -&gt; compile3(x));</span>
+<span class="fc" id="L228">        pumps.forEach(x -&gt; compile3(x));</span>
 
         /**
          * Global.
          */
-<span class="fc" id="L235">        pumps.forEach(x -&gt; cascade.addPump(x.pump));</span>
-<span class="fc" id="L236">        reactors.forEach(x -&gt; cascade.addReactor(x.reactor));</span>
+<span class="fc" id="L233">        pumps.forEach(x -&gt; cascade.addPump(x.pump));</span>
+<span class="fc" id="L234">        reactors.forEach(x -&gt; cascade.addReactor(x.reactor));</span>
 
         /**
          * Verify.
          */
-<span class="fc" id="L241">        verifyCascade();</span>
-<span class="fc" id="L242">        dynamicPools.forEach(x -&gt; verify(x));</span>
-<span class="fc" id="L243">        fixedPools.forEach(x -&gt; verify(x));</span>
-<span class="pc" id="L244">        compositePools.forEach(x -&gt; verify(x));</span>
-<span class="fc" id="L245">        pumps.forEach(x -&gt; verify(x));</span>
-<span class="fc" id="L246">        reactors.forEach(x -&gt; verify(x));</span>
+<span class="fc" id="L239">        verifyCascade();</span>
+<span class="fc" id="L240">        dynamicPools.forEach(x -&gt; verify(x));</span>
+<span class="fc" id="L241">        fixedPools.forEach(x -&gt; verify(x));</span>
+<span class="pc" id="L242">        compositePools.forEach(x -&gt; verify(x));</span>
+<span class="fc" id="L243">        pumps.forEach(x -&gt; verify(x));</span>
+<span class="fc" id="L244">        reactors.forEach(x -&gt; verify(x));</span>
 
         /**
          * Verify - Self Tests.
          */
-<span class="fc" id="L251">        cascade.selfTest();</span>
-<span class="fc" id="L252">        pumps.forEach(x -&gt; x.pump.selfTest());</span>
-<span class="fc" id="L253">        reactors.forEach(x -&gt; x.reactor.selfTest());</span>
+<span class="fc" id="L249">        cascade.selfTest();</span>
+<span class="fc" id="L250">        pumps.forEach(x -&gt; x.pump.selfTest());</span>
+<span class="fc" id="L251">        reactors.forEach(x -&gt; x.reactor.selfTest());</span>
 
-<span class="fc" id="L255">        return cascade;</span>
+<span class="fc" id="L253">        return cascade;</span>
     }
 
     private void declare (final DynamicPoolSchemaImp object)
     {
 
-<span class="fc" id="L261">    }</span>
+<span class="fc" id="L259">    }</span>
 
     private void declare (final FixedPoolSchemaImp object)
     {
 
-<span class="fc" id="L266">    }</span>
+<span class="fc" id="L264">    }</span>
 
     private void declare (final CompositePoolSchemaImp object)
     {
 
-<span class="nc" id="L271">    }</span>
+<span class="nc" id="L269">    }</span>
 
     private void declare (final PumpSchemaImp object)
     {
 
-<span class="fc" id="L276">    }</span>
+<span class="fc" id="L274">    }</span>
 
     private void declare (final ReactorSchemaImp object)
     {
 
-<span class="fc" id="L281">    }</span>
+<span class="fc" id="L279">    }</span>
 
     private void validate (final DynamicPoolSchemaImp object)
     {
-<span class="pc bpc" id="L285" title="1 of 2 branches missed.">        require(&quot;Dynamic Pool: Unspecified Name&quot;, object.name != null);</span>
-<span class="pc bpc" id="L286" title="1 of 2 branches missed.">        require(&quot;Dynamic Pool: Unspecified Minimum Size&quot;, object.minimumSize != null);</span>
-<span class="pc bpc" id="L287" title="1 of 2 branches missed.">        require(&quot;Dynamic Pool: Unspecified Maximum Size&quot;, object.maximumSize != null);</span>
-<span class="pc bpc" id="L288" title="1 of 2 branches missed.">        require(&quot;Dynamic Pool: Minimum Size &gt; Maximum Size&quot;, object.minimumSize &lt;= object.maximumSize);</span>
-<span class="fc" id="L289">    }</span>
+<span class="pc bpc" id="L283" title="1 of 2 branches missed.">        require(&quot;Dynamic Pool: Unspecified Name&quot;, object.name != null);</span>
+<span class="pc bpc" id="L284" title="1 of 2 branches missed.">        require(&quot;Dynamic Pool: Unspecified Minimum Size&quot;, object.minimumSize != null);</span>
+<span class="pc bpc" id="L285" title="1 of 2 branches missed.">        require(&quot;Dynamic Pool: Unspecified Maximum Size&quot;, object.maximumSize != null);</span>
+<span class="pc bpc" id="L286" title="1 of 2 branches missed.">        require(&quot;Dynamic Pool: Minimum Size &gt; Maximum Size&quot;, object.minimumSize &lt;= object.maximumSize);</span>
+<span class="fc" id="L287">    }</span>
 
     private void validate (final FixedPoolSchemaImp object)
     {
-<span class="pc bpc" id="L293" title="1 of 2 branches missed.">        require(&quot;Fixed Pool: Unspecified Name&quot;, object.name != null);</span>
-<span class="pc bpc" id="L294" title="1 of 2 branches missed.">        require(&quot;Fixed Pool: Unspecified Minimum Size&quot;, object.minimumSize != null);</span>
-<span class="pc bpc" id="L295" title="1 of 2 branches missed.">        require(&quot;Fixed Pool: Unspecified Maximum Size&quot;, object.maximumSize != null);</span>
-<span class="pc bpc" id="L296" title="1 of 2 branches missed.">        require(&quot;Fixed Pool: Unspecified Buffer Count&quot;, object.bufferCount != null);</span>
-<span class="pc bpc" id="L297" title="1 of 2 branches missed.">        require(&quot;Fixed Pool: Minimum Size &gt; Maximum Size&quot;, object.minimumSize &lt;= object.maximumSize);</span>
-<span class="fc" id="L298">    }</span>
+<span class="pc bpc" id="L291" title="1 of 2 branches missed.">        require(&quot;Fixed Pool: Unspecified Name&quot;, object.name != null);</span>
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">        require(&quot;Fixed Pool: Unspecified Minimum Size&quot;, object.minimumSize != null);</span>
+<span class="pc bpc" id="L293" title="1 of 2 branches missed.">        require(&quot;Fixed Pool: Unspecified Maximum Size&quot;, object.maximumSize != null);</span>
+<span class="pc bpc" id="L294" title="1 of 2 branches missed.">        require(&quot;Fixed Pool: Unspecified Buffer Count&quot;, object.bufferCount != null);</span>
+<span class="pc bpc" id="L295" title="1 of 2 branches missed.">        require(&quot;Fixed Pool: Minimum Size &gt; Maximum Size&quot;, object.minimumSize &lt;= object.maximumSize);</span>
+<span class="fc" id="L296">    }</span>
 
     private void validate (final CompositePoolSchemaImp object)
     {
 
-<span class="nc" id="L303">    }</span>
+<span class="nc" id="L301">    }</span>
 
     private void validate (final PumpSchemaImp object)
     {
-<span class="pc bpc" id="L307" title="1 of 2 branches missed.">        require(&quot;Pump: Unspecified Name&quot;, object.name != null);</span>
-<span class="pc bpc" id="L308" title="1 of 2 branches missed.">        require(&quot;Pump: Unspecified Thread Count&quot;, object.threadCount != null);</span>
+<span class="pc bpc" id="L305" title="1 of 2 branches missed.">        require(&quot;Pump: Unspecified Name&quot;, object.name != null);</span>
+<span class="pc bpc" id="L306" title="1 of 2 branches missed.">        require(&quot;Pump: Unspecified Thread Count&quot;, object.threadCount != null);</span>
         // TODO: Thread Factory
-<span class="fc" id="L310">    }</span>
+<span class="fc" id="L308">    }</span>
 
     private void validate (final ReactorSchemaImp object)
     {
-<span class="pc bpc" id="L314" title="1 of 2 branches missed.">        require(&quot;Reactor: Unspecified Name&quot;, object.name != null);</span>
-<span class="pc bpc" id="L315" title="6 of 8 branches missed.">        require(&quot;Reactor: Unspecified Logger&quot;, object.logger != null || object.defaultLogger != null || object.loggerFactory != null || object.defaultLoggerFactory != null);</span>
-<span class="pc bpc" id="L316" title="2 of 4 branches missed.">        require(&quot;Reactor: Unspecified Allocation Pool&quot;, object.pool != null || object.defaultPool != null);</span>
-<span class="pc bpc" id="L317" title="1 of 4 branches missed.">        require(&quot;Reactor: Unspecified Pump&quot;, object.pump != null || object.defaultPump != null);</span>
-<span class="pc bpc" id="L318" title="1 of 2 branches missed.">        require(&quot;Reactor: Unspecified Core&quot;, object.core != null);</span>
-<span class="pc bpc" id="L319" title="1 of 2 branches missed.">        require(&quot;Reactor: Unspecified Queue Type&quot;, object.queueType != null);</span>
-<span class="fc" id="L320">    }</span>
+<span class="pc bpc" id="L312" title="1 of 2 branches missed.">        require(&quot;Reactor: Unspecified Name&quot;, object.name != null);</span>
+<span class="pc bpc" id="L313" title="6 of 8 branches missed.">        require(&quot;Reactor: Unspecified Logger&quot;, object.logger != null || object.defaultLogger != null || object.loggerFactory != null || object.defaultLoggerFactory != null);</span>
+<span class="pc bpc" id="L314" title="2 of 4 branches missed.">        require(&quot;Reactor: Unspecified Allocation Pool&quot;, object.pool != null || object.defaultPool != null);</span>
+<span class="pc bpc" id="L315" title="1 of 4 branches missed.">        require(&quot;Reactor: Unspecified Pump&quot;, object.pump != null || object.defaultPump != null);</span>
+<span class="pc bpc" id="L316" title="1 of 2 branches missed.">        require(&quot;Reactor: Unspecified Core&quot;, object.core != null);</span>
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">        require(&quot;Reactor: Unspecified Queue Type&quot;, object.queueType != null);</span>
+<span class="fc" id="L318">    }</span>
 
     private void compile1 (final DynamicPoolSchemaImp object)
     {
-<span class="fc" id="L324">        object.pool = allocator.addDynamicPool(object.name.name(),</span>
-<span class="fc" id="L325">                                               object.minimumSize,</span>
-<span class="fc" id="L326">                                               object.maximumSize);</span>
+<span class="fc" id="L322">        object.pool = allocator.addDynamicPool(object.name.name(),</span>
+<span class="fc" id="L323">                                               object.minimumSize,</span>
+<span class="fc" id="L324">                                               object.maximumSize);</span>
 
-<span class="fc" id="L328">        namesToPools.put(object.name, object.pool);</span>
-<span class="fc" id="L329">    }</span>
+<span class="fc" id="L326">        namesToPools.put(object.name, object.pool);</span>
+<span class="fc" id="L327">    }</span>
 
     private void compile1 (final FixedPoolSchemaImp object)
     {
-<span class="fc" id="L333">        object.pool = allocator.addFixedPool(object.name.name(),</span>
-<span class="fc" id="L334">                                             object.minimumSize,</span>
-<span class="fc" id="L335">                                             object.maximumSize,</span>
-<span class="fc" id="L336">                                             object.bufferCount);</span>
+<span class="fc" id="L331">        object.pool = allocator.addFixedPool(object.name.name(),</span>
+<span class="fc" id="L332">                                             object.minimumSize,</span>
+<span class="fc" id="L333">                                             object.maximumSize,</span>
+<span class="fc" id="L334">                                             object.bufferCount);</span>
 
-<span class="fc" id="L338">        namesToPools.put(object.name, object.pool);</span>
-<span class="fc" id="L339">    }</span>
+<span class="fc" id="L336">        namesToPools.put(object.name, object.pool);</span>
+<span class="fc" id="L337">    }</span>
 
     private void compile1 (final CompositePoolSchemaImp object)
     {
-<span class="nc" id="L343">        namesToPools.put(object.name, object.pool);</span>
-<span class="nc" id="L344">    }</span>
+<span class="nc" id="L341">        namesToPools.put(object.name, object.pool);</span>
+<span class="nc" id="L342">    }</span>
 
     private void compile2 (final ReactorSchemaImp object)
     {
-<span class="pc bpc" id="L348" title="1 of 2 branches missed.">        Verify.verify(object.name != null);</span>
-<span class="pc bpc" id="L349" title="1 of 2 branches missed.">        Verify.verify(object.core != null);</span>
-<span class="pc bpc" id="L350" title="1 of 2 branches missed.">        Verify.verify(object.getPool() != null);</span>
-<span class="pc bpc" id="L351" title="1 of 2 branches missed.">        Verify.verify(object.getLogger() != null);</span>
-<span class="pc bpc" id="L352" title="1 of 2 branches missed.">        Verify.verify(object.queue != null);</span>
+<span class="pc bpc" id="L346" title="1 of 2 branches missed.">        Verify.verify(object.name != null);</span>
+<span class="pc bpc" id="L347" title="1 of 2 branches missed.">        Verify.verify(object.core != null);</span>
+<span class="pc bpc" id="L348" title="1 of 2 branches missed.">        Verify.verify(object.getPool() != null);</span>
+<span class="pc bpc" id="L349" title="1 of 2 branches missed.">        Verify.verify(object.getLogger() != null);</span>
+<span class="pc bpc" id="L350" title="1 of 2 branches missed.">        Verify.verify(object.queue != null);</span>
 
-<span class="fc" id="L354">        final ConcurrentEventSender sender = dispatcher.lookup(object.name);</span>
+<span class="fc" id="L352">        final ConcurrentEventSender sender = dispatcher.lookup(object.name);</span>
 
-<span class="fc bfc" id="L356" title="All 2 branches covered.">        object.pump = object.pump == null ? object.defaultPump : object.pump;</span>
+<span class="fc bfc" id="L354" title="All 2 branches covered.">        object.pump = object.pump == null ? object.defaultPump : object.pump;</span>
 
-<span class="fc" id="L358">        object.reactor = new ConcreteReactor(cascade,</span>
+<span class="fc" id="L356">        object.reactor = new ConcreteReactor(cascade,</span>
                                              object.name,
                                              object.core,
-<span class="fc" id="L361">                                             object.getPool(),</span>
+<span class="fc" id="L359">                                             object.getPool(),</span>
                                              object.pump,
-<span class="fc" id="L363">                                             object.getLogger(),</span>
-<span class="fc" id="L364">                                             ImmutableMap.of(), // TODO</span>
+<span class="fc" id="L361">                                             object.getLogger(),</span>
+<span class="fc" id="L362">                                             ImmutableMap.of(), // TODO</span>
                                              object.queue,
                                              sender);
 
-<span class="fc" id="L368">        pumpsToReactors.put(object.pump, object.reactor);</span>
-<span class="fc" id="L369">    }</span>
+<span class="fc" id="L366">        pumpsToReactors.put(object.pump, object.reactor);</span>
+<span class="fc" id="L367">    }</span>
 
     private void compile3 (final PumpSchemaImp object)
     {
-<span class="fc bfc" id="L373" title="All 2 branches covered.">        final ThreadFactory factory = object.threadFactory != null ? object.threadFactory : defaultThreadFactory;</span>
+<span class="fc bfc" id="L371" title="All 2 branches covered.">        final ThreadFactory factory = object.threadFactory != null ? object.threadFactory : defaultThreadFactory;</span>
 
-<span class="fc" id="L375">        object.pump = new ConcretePump(cascade,</span>
+<span class="fc" id="L373">        object.pump = new ConcretePump(cascade,</span>
                                        object.name,
-<span class="fc" id="L377">                                       pumpsToReactors.get(object.name),</span>
+<span class="fc" id="L375">                                       pumpsToReactors.get(object.name),</span>
                                        factory,
-<span class="fc" id="L379">                                       object.threadCount);</span>
+<span class="fc" id="L377">                                       object.threadCount);</span>
 
-<span class="fc" id="L381">        namesToPumps.put(object.pump.name(), object.pump);</span>
-<span class="fc" id="L382">    }</span>
+<span class="fc" id="L379">        namesToPumps.put(object.pump.name(), object.pump);</span>
+<span class="fc" id="L380">    }</span>
 
     private void verifyCascade ()
     {
-<span class="fc" id="L386">        Verify.verifyNotNull(cascade.name());</span>
-<span class="fc" id="L387">        Verify.verifyNotNull(cascade.uuid());</span>
-<span class="fc" id="L388">        Verify.verifyNotNull(cascade.allocator());</span>
-<span class="fc" id="L389">        Verify.verifyNotNull(cascade.phase());</span>
-<span class="fc" id="L390">        Verify.verifyNotNull(cascade.defaultLogger());</span>
-<span class="fc" id="L391">        Verify.verifyNotNull(cascade.pumps());</span>
-<span class="fc" id="L392">        Verify.verifyNotNull(cascade.reactors());</span>
-<span class="fc" id="L393">        Verify.verify(cascade.name().equals(name));</span>
-<span class="fc" id="L394">        Verify.verify(cascade.name().toString().equals(cascade.toString()));</span>
-<span class="fc" id="L395">        Verify.verify(cascade.name().name().equals(cascade.toString()));</span>
-<span class="fc" id="L396">        Verify.verify(cascade.defaultLogger().equals(globalDefaultLogger));     // TODO: Make sure this is always true!</span>
-<span class="fc" id="L397">        Verify.verify(cascade.phase().equals(Cascade.ExecutionPhase.INITIAL));</span>
-<span class="fc" id="L398">    }</span>
+<span class="fc" id="L384">        Verify.verifyNotNull(cascade.name());</span>
+<span class="fc" id="L385">        Verify.verifyNotNull(cascade.uuid());</span>
+<span class="fc" id="L386">        Verify.verifyNotNull(cascade.allocator());</span>
+<span class="fc" id="L387">        Verify.verifyNotNull(cascade.phase());</span>
+<span class="fc" id="L388">        Verify.verifyNotNull(cascade.defaultLogger());</span>
+<span class="fc" id="L389">        Verify.verifyNotNull(cascade.pumps());</span>
+<span class="fc" id="L390">        Verify.verifyNotNull(cascade.reactors());</span>
+<span class="fc" id="L391">        Verify.verify(cascade.name().equals(name));</span>
+<span class="fc" id="L392">        Verify.verify(cascade.name().toString().equals(cascade.toString()));</span>
+<span class="fc" id="L393">        Verify.verify(cascade.name().name().equals(cascade.toString()));</span>
+<span class="fc" id="L394">        Verify.verify(cascade.defaultLogger().equals(globalDefaultLogger));     // TODO: Make sure this is always true!</span>
+<span class="fc" id="L395">        Verify.verify(cascade.phase().equals(Cascade.ExecutionPhase.INITIAL));</span>
+<span class="fc" id="L396">    }</span>
 
     private void verify (final DynamicPoolSchemaImp object)
     {
-<span class="fc" id="L402">        Verify.verifyNotNull(object.pool);</span>
-<span class="fc" id="L403">        Verify.verifyNotNull(object.name);</span>
-<span class="fc" id="L404">        Verify.verifyNotNull(object.minimumSize);</span>
-<span class="fc" id="L405">        Verify.verifyNotNull(object.maximumSize);</span>
-<span class="pc bpc" id="L406" title="1 of 2 branches missed.">        Verify.verify(object.minimumSize &gt;= 0);</span>
-<span class="pc bpc" id="L407" title="1 of 2 branches missed.">        Verify.verify(object.maximumSize &gt;= 0);</span>
-<span class="pc bpc" id="L408" title="1 of 2 branches missed.">        Verify.verify(object.minimumSize &lt;= object.maximumSize);</span>
-<span class="fc" id="L409">        Verify.verify(object.pool.name().equals(object.name.name()));</span>
-<span class="fc" id="L410">        Verify.verify(object.minimumSize.equals(object.pool.minimumAllocationSize()));</span>
-<span class="fc" id="L411">        Verify.verify(object.maximumSize.equals(object.pool.maximumAllocationSize()));</span>
-<span class="pc bpc" id="L412" title="1 of 2 branches missed.">        Verify.verify(object.pool.isFixed() == false);</span>
-<span class="pc bpc" id="L413" title="1 of 2 branches missed.">        Verify.verify(object.pool.size().isPresent() == false);</span>
-<span class="pc bpc" id="L414" title="1 of 2 branches missed.">        Verify.verify(object.pool.capacity().isPresent() == false);</span>
-<span class="fc" id="L415">        Verify.verify(object.pool.allocator().equals(cascade.allocator()));</span>
-<span class="fc" id="L416">        Verify.verify(cascade.allocator().pools().get(object.name.name()).equals(object.pool));</span>
-<span class="fc" id="L417">        Verify.verify(cascade.equals(object.pool.allocator().cascade()));</span>
-<span class="fc" id="L418">    }</span>
+<span class="fc" id="L400">        Verify.verifyNotNull(object.pool);</span>
+<span class="fc" id="L401">        Verify.verifyNotNull(object.name);</span>
+<span class="fc" id="L402">        Verify.verifyNotNull(object.minimumSize);</span>
+<span class="fc" id="L403">        Verify.verifyNotNull(object.maximumSize);</span>
+<span class="pc bpc" id="L404" title="1 of 2 branches missed.">        Verify.verify(object.minimumSize &gt;= 0);</span>
+<span class="pc bpc" id="L405" title="1 of 2 branches missed.">        Verify.verify(object.maximumSize &gt;= 0);</span>
+<span class="pc bpc" id="L406" title="1 of 2 branches missed.">        Verify.verify(object.minimumSize &lt;= object.maximumSize);</span>
+<span class="fc" id="L407">        Verify.verify(object.pool.name().equals(object.name.name()));</span>
+<span class="fc" id="L408">        Verify.verify(object.minimumSize.equals(object.pool.minimumAllocationSize()));</span>
+<span class="fc" id="L409">        Verify.verify(object.maximumSize.equals(object.pool.maximumAllocationSize()));</span>
+<span class="pc bpc" id="L410" title="1 of 2 branches missed.">        Verify.verify(object.pool.isFixed() == false);</span>
+<span class="pc bpc" id="L411" title="1 of 2 branches missed.">        Verify.verify(object.pool.size().isPresent() == false);</span>
+<span class="pc bpc" id="L412" title="1 of 2 branches missed.">        Verify.verify(object.pool.capacity().isPresent() == false);</span>
+<span class="fc" id="L413">        Verify.verify(object.pool.allocator().equals(cascade.allocator()));</span>
+<span class="fc" id="L414">        Verify.verify(cascade.allocator().pools().get(object.name.name()).equals(object.pool));</span>
+<span class="fc" id="L415">        Verify.verify(cascade.equals(object.pool.allocator().cascade()));</span>
+<span class="fc" id="L416">    }</span>
 
     private void verify (final FixedPoolSchemaImp object)
     {
-<span class="fc" id="L422">        Verify.verifyNotNull(object.pool);</span>
-<span class="fc" id="L423">        Verify.verifyNotNull(object.name);</span>
-<span class="fc" id="L424">        Verify.verifyNotNull(object.minimumSize);</span>
-<span class="fc" id="L425">        Verify.verifyNotNull(object.maximumSize);</span>
-<span class="fc" id="L426">        Verify.verifyNotNull(object.bufferCount);</span>
-<span class="pc bpc" id="L427" title="1 of 2 branches missed.">        Verify.verify(object.minimumSize &gt;= 0);</span>
-<span class="pc bpc" id="L428" title="1 of 2 branches missed.">        Verify.verify(object.maximumSize &gt;= 0);</span>
-<span class="pc bpc" id="L429" title="1 of 2 branches missed.">        Verify.verify(object.minimumSize &lt;= object.maximumSize);</span>
-<span class="pc bpc" id="L430" title="1 of 2 branches missed.">        Verify.verify(object.bufferCount &gt;= 0);</span>
-<span class="fc" id="L431">        Verify.verify(object.pool.name().equals(object.name.name()));</span>
-<span class="fc" id="L432">        Verify.verify(object.minimumSize.equals(object.pool.minimumAllocationSize()));</span>
-<span class="fc" id="L433">        Verify.verify(object.maximumSize.equals(object.pool.maximumAllocationSize()));</span>
-<span class="fc" id="L434">        Verify.verify(object.pool.isFixed());</span>
-<span class="fc" id="L435">        Verify.verify(object.pool.size().isPresent());</span>
-<span class="fc" id="L436">        Verify.verify(object.pool.capacity().isPresent());</span>
-<span class="pc bpc" id="L437" title="1 of 2 branches missed.">        Verify.verify(object.pool.size().getAsLong() == 0);</span>
-<span class="pc bpc" id="L438" title="1 of 2 branches missed.">        Verify.verify(object.pool.capacity().getAsLong() == object.bufferCount);</span>
-<span class="fc" id="L439">        Verify.verify(object.pool.allocator().equals(cascade.allocator()));</span>
-<span class="fc" id="L440">        Verify.verify(cascade.allocator().pools().get(object.name.name()).equals(object.pool));</span>
-<span class="fc" id="L441">        Verify.verify(cascade.equals(object.pool.allocator().cascade()));</span>
-<span class="fc" id="L442">    }</span>
+<span class="fc" id="L420">        Verify.verifyNotNull(object.pool);</span>
+<span class="fc" id="L421">        Verify.verifyNotNull(object.name);</span>
+<span class="fc" id="L422">        Verify.verifyNotNull(object.minimumSize);</span>
+<span class="fc" id="L423">        Verify.verifyNotNull(object.maximumSize);</span>
+<span class="fc" id="L424">        Verify.verifyNotNull(object.bufferCount);</span>
+<span class="pc bpc" id="L425" title="1 of 2 branches missed.">        Verify.verify(object.minimumSize &gt;= 0);</span>
+<span class="pc bpc" id="L426" title="1 of 2 branches missed.">        Verify.verify(object.maximumSize &gt;= 0);</span>
+<span class="pc bpc" id="L427" title="1 of 2 branches missed.">        Verify.verify(object.minimumSize &lt;= object.maximumSize);</span>
+<span class="pc bpc" id="L428" title="1 of 2 branches missed.">        Verify.verify(object.bufferCount &gt;= 0);</span>
+<span class="fc" id="L429">        Verify.verify(object.pool.name().equals(object.name.name()));</span>
+<span class="fc" id="L430">        Verify.verify(object.minimumSize.equals(object.pool.minimumAllocationSize()));</span>
+<span class="fc" id="L431">        Verify.verify(object.maximumSize.equals(object.pool.maximumAllocationSize()));</span>
+<span class="fc" id="L432">        Verify.verify(object.pool.isFixed());</span>
+<span class="fc" id="L433">        Verify.verify(object.pool.size().isPresent());</span>
+<span class="fc" id="L434">        Verify.verify(object.pool.capacity().isPresent());</span>
+<span class="pc bpc" id="L435" title="1 of 2 branches missed.">        Verify.verify(object.pool.size().getAsLong() == 0);</span>
+<span class="pc bpc" id="L436" title="1 of 2 branches missed.">        Verify.verify(object.pool.capacity().getAsLong() == object.bufferCount);</span>
+<span class="fc" id="L437">        Verify.verify(object.pool.allocator().equals(cascade.allocator()));</span>
+<span class="fc" id="L438">        Verify.verify(cascade.allocator().pools().get(object.name.name()).equals(object.pool));</span>
+<span class="fc" id="L439">        Verify.verify(cascade.equals(object.pool.allocator().cascade()));</span>
+<span class="fc" id="L440">    }</span>
 
     private void verify (final CompositePoolSchemaImp object)
     {
 
-<span class="nc" id="L447">    }</span>
+<span class="nc" id="L445">    }</span>
 
     private void verify (final PumpSchemaImp object)
     {
-<span class="fc" id="L451">        Verify.verifyNotNull(object.pump);</span>
-<span class="fc" id="L452">        Verify.verifyNotNull(object.name);</span>
-<span class="fc" id="L453">        Verify.verifyNotNull(object.threadCount);</span>
+<span class="fc" id="L449">        Verify.verifyNotNull(object.pump);</span>
+<span class="fc" id="L450">        Verify.verifyNotNull(object.name);</span>
+<span class="fc" id="L451">        Verify.verifyNotNull(object.threadCount);</span>
 //        Verify.verifyNotNull(object.threadFactory); TODO: ??????????????????????????
-<span class="fc" id="L455">        Verify.verify(cascade.equals(object.pump.cascade()));</span>
-<span class="fc" id="L456">        Verify.verify(object.pump.name().equals(object.name));</span>
-<span class="pc bpc" id="L457" title="1 of 2 branches missed.">        Verify.verify(object.pump.threads().size() == object.threadCount);</span>
-<span class="fc" id="L458">        Verify.verify(cascade.pumps().get(object.name).equals(object.pump));</span>
-<span class="fc" id="L459">    }</span>
+<span class="fc" id="L453">        Verify.verify(cascade.equals(object.pump.cascade()));</span>
+<span class="fc" id="L454">        Verify.verify(object.pump.name().equals(object.name));</span>
+<span class="pc bpc" id="L455" title="1 of 2 branches missed.">        Verify.verify(object.pump.threads().size() == object.threadCount);</span>
+<span class="fc" id="L456">        Verify.verify(cascade.pumps().get(object.name).equals(object.pump));</span>
+<span class="fc" id="L457">    }</span>
 
     private void verify (final ReactorSchemaImp object)
     {
-<span class="fc" id="L463">        Verify.verifyNotNull(object.reactor);</span>
-<span class="fc" id="L464">        Verify.verifyNotNull(object.core);</span>
-<span class="fc" id="L465">        Verify.verifyNotNull(object.name);</span>
-<span class="fc" id="L466">        Verify.verifyNotNull(object.queueType);</span>
-<span class="fc" id="L467">        Verify.verifyNotNull(object.queueCapacity);</span>
-<span class="fc" id="L468">        Verify.verifyNotNull(object.queue);</span>
-<span class="fc" id="L469">        Verify.verifyNotNull(object.getLogger());</span>
-<span class="fc" id="L470">        Verify.verifyNotNull(object.getPool());</span>
-<span class="fc" id="L471">        Verify.verifyNotNull(object.getPump());</span>
-<span class="fc" id="L472">        Verify.verify(cascade.equals(object.reactor.cascade()));</span>
-<span class="fc" id="L473">        Verify.verify(object.reactor.name().equals(object.name));</span>
-<span class="fc" id="L474">        Verify.verify(object.reactor.allocator().equals(cascade.allocator()));</span>
-<span class="fc" id="L475">        Verify.verify(object.reactor.pool().equals(object.getPool()));</span>
-<span class="fc" id="L476">        Verify.verify(object.reactor.core().equals(object.core));</span>
-<span class="fc" id="L477">        Verify.verify(object.reactor.input().equals(object.queue));</span>
-<span class="pc bpc" id="L478" title="1 of 2 branches missed.">        Verify.verify(object.reactor.queueCapacity() == object.queueCapacity);</span>
+<span class="fc" id="L461">        Verify.verifyNotNull(object.reactor);</span>
+<span class="fc" id="L462">        Verify.verifyNotNull(object.core);</span>
+<span class="fc" id="L463">        Verify.verifyNotNull(object.name);</span>
+<span class="fc" id="L464">        Verify.verifyNotNull(object.queueType);</span>
+<span class="fc" id="L465">        Verify.verifyNotNull(object.queueCapacity);</span>
+<span class="fc" id="L466">        Verify.verifyNotNull(object.queue);</span>
+<span class="fc" id="L467">        Verify.verifyNotNull(object.getLogger());</span>
+<span class="fc" id="L468">        Verify.verifyNotNull(object.getPool());</span>
+<span class="fc" id="L469">        Verify.verifyNotNull(object.getPump());</span>
+<span class="fc" id="L470">        Verify.verify(cascade.equals(object.reactor.cascade()));</span>
+<span class="fc" id="L471">        Verify.verify(object.reactor.name().equals(object.name));</span>
+<span class="fc" id="L472">        Verify.verify(object.reactor.allocator().equals(cascade.allocator()));</span>
+<span class="fc" id="L473">        Verify.verify(object.reactor.pool().equals(object.getPool()));</span>
+<span class="fc" id="L474">        Verify.verify(object.reactor.core().equals(object.core));</span>
+<span class="fc" id="L475">        Verify.verify(object.reactor.input().equals(object.queue));</span>
+<span class="pc bpc" id="L476" title="1 of 2 branches missed.">        Verify.verify(object.reactor.queueCapacity() == object.queueCapacity);</span>
         // Verify.verify(object.reactor.logger().equals(object.getLogger())); TODO: currently may differ becasue getLogger does not cache!!!
-<span class="fc" id="L480">        Verify.verify(object.reactor.pump().name().equals(object.pump));</span>
-<span class="fc" id="L481">        Verify.verify(cascade.pumps().get(object.reactor.pump().name()).equals(object.reactor.pump()));</span>
-<span class="fc" id="L482">        Verify.verify(cascade.reactors().get(object.reactor.name()).equals(object.reactor));</span>
-<span class="fc" id="L483">        Verify.verify(object.reactor.pump().reactors().contains(object.reactor));</span>
-<span class="fc" id="L484">    }</span>
+<span class="fc" id="L478">        Verify.verify(object.reactor.pump().name().equals(object.pump));</span>
+<span class="fc" id="L479">        Verify.verify(cascade.pumps().get(object.reactor.pump().name()).equals(object.reactor.pump()));</span>
+<span class="fc" id="L480">        Verify.verify(cascade.reactors().get(object.reactor.name()).equals(object.reactor));</span>
+<span class="fc" id="L481">        Verify.verify(object.reactor.pump().reactors().contains(object.reactor));</span>
+<span class="fc" id="L482">    }</span>
 
     private void require (final String message,
                           final boolean condition)
     {
-<span class="pc bpc" id="L489" title="1 of 2 branches missed.">        if (condition == false)</span>
+<span class="pc bpc" id="L487" title="1 of 2 branches missed.">        if (condition == false)</span>
         {
-<span class="nc" id="L491">            throw new IllegalStateException(message);</span>
+<span class="nc" id="L489">            throw new IllegalStateException(message);</span>
         }
-<span class="fc" id="L493">    }</span>
+<span class="fc" id="L491">    }</span>
 
     private CascadeToken convertName (final String name)
     {
-<span class="fc" id="L497">        Preconditions.checkNotNull(name, &quot;name&quot;);</span>
+<span class="fc" id="L495">        Preconditions.checkNotNull(name, &quot;name&quot;);</span>
 
-<span class="fc" id="L499">        final CascadeToken token = CascadeToken.create(name);</span>
+<span class="fc" id="L497">        final CascadeToken token = CascadeToken.create(name);</span>
 
-<span class="pc bpc" id="L501" title="2 of 4 branches missed.">        if (token.isSimpleName() &amp;&amp; scope.namespace != null)</span>
+<span class="pc bpc" id="L499" title="2 of 4 branches missed.">        if (token.isSimpleName() &amp;&amp; scope.namespace != null)</span>
         {
-<span class="nc" id="L503">            return scope.namespace.append(name);</span>
+<span class="nc" id="L501">            return scope.namespace.append(name);</span>
         }
         else
         {
-<span class="fc" id="L507">            return token;</span>
+<span class="fc" id="L505">            return token;</span>
         }
     }
 
@@ -512,16 +510,16 @@ public final class ConcreteSchema
                                 final Object original,
                                 final Object value)
     {
-<span class="pc bpc" id="L515" title="1 of 2 branches missed.">        if (original != null)</span>
+<span class="pc bpc" id="L513" title="1 of 2 branches missed.">        if (original != null)</span>
         {
-<span class="nc" id="L517">            throw new IllegalStateException(String.format(&quot;Redefinition of %s (%s, %s)&quot;,</span>
+<span class="nc" id="L515">            throw new IllegalStateException(String.format(&quot;Redefinition of %s (%s, %s)&quot;,</span>
                                                           entity,
-<span class="nc" id="L519">                                                          String.valueOf(original),</span>
-<span class="nc" id="L520">                                                          String.valueOf(value)));</span>
+<span class="nc" id="L517">                                                          String.valueOf(original),</span>
+<span class="nc" id="L518">                                                          String.valueOf(value)));</span>
         }
-<span class="fc" id="L522">    }</span>
+<span class="fc" id="L520">    }</span>
 
-<span class="fc" id="L524">    private final class DynamicPoolSchemaImp</span>
+<span class="fc" id="L522">    private final class DynamicPoolSchemaImp</span>
             implements DynamicPoolSchema
     {
         public CascadeToken name;
@@ -535,29 +533,29 @@ public final class ConcreteSchema
         @Override
         public DynamicPoolSchema named (final String name)
         {
-<span class="fc" id="L538">            preventChange(&quot;Pool Name&quot;, this.name, name);</span>
-<span class="fc" id="L539">            this.name = convertName(name);</span>
-<span class="fc" id="L540">            return this;</span>
+<span class="fc" id="L536">            preventChange(&quot;Pool Name&quot;, this.name, name);</span>
+<span class="fc" id="L537">            this.name = convertName(name);</span>
+<span class="fc" id="L538">            return this;</span>
         }
 
         @Override
         public DynamicPoolSchema withMinimumSize (final int bound)
         {
-<span class="fc" id="L546">            preventChange(&quot;Minimum Size&quot;, this.minimumSize, bound);</span>
-<span class="fc" id="L547">            this.minimumSize = bound;</span>
-<span class="fc" id="L548">            return this;</span>
+<span class="fc" id="L544">            preventChange(&quot;Minimum Size&quot;, this.minimumSize, bound);</span>
+<span class="fc" id="L545">            this.minimumSize = bound;</span>
+<span class="fc" id="L546">            return this;</span>
         }
 
         @Override
         public DynamicPoolSchema withMaximumSize (int bound)
         {
-<span class="fc" id="L554">            preventChange(&quot;Maximum Size&quot;, this.maximumSize, bound);</span>
-<span class="fc" id="L555">            this.maximumSize = bound;</span>
-<span class="fc" id="L556">            return this;</span>
+<span class="fc" id="L552">            preventChange(&quot;Maximum Size&quot;, this.maximumSize, bound);</span>
+<span class="fc" id="L553">            this.maximumSize = bound;</span>
+<span class="fc" id="L554">            return this;</span>
         }
     };
 
-<span class="fc" id="L560">    private final class FixedPoolSchemaImp</span>
+<span class="fc" id="L558">    private final class FixedPoolSchemaImp</span>
             implements FixedPoolSchema
     {
         public CascadeToken name;
@@ -573,75 +571,75 @@ public final class ConcreteSchema
         @Override
         public FixedPoolSchema named (final String name)
         {
-<span class="fc" id="L576">            preventChange(&quot;Pool Name&quot;, this.name, name);</span>
-<span class="fc" id="L577">            this.name = convertName(name);</span>
-<span class="fc" id="L578">            return this;</span>
+<span class="fc" id="L574">            preventChange(&quot;Pool Name&quot;, this.name, name);</span>
+<span class="fc" id="L575">            this.name = convertName(name);</span>
+<span class="fc" id="L576">            return this;</span>
         }
 
         @Override
         public FixedPoolSchema withMinimumSize (final int bound)
         {
-<span class="fc" id="L584">            preventChange(&quot;Minimum Size&quot;, this.minimumSize, bound);</span>
-<span class="fc" id="L585">            this.minimumSize = bound;</span>
-<span class="fc" id="L586">            return this;</span>
+<span class="fc" id="L582">            preventChange(&quot;Minimum Size&quot;, this.minimumSize, bound);</span>
+<span class="fc" id="L583">            this.minimumSize = bound;</span>
+<span class="fc" id="L584">            return this;</span>
         }
 
         @Override
         public FixedPoolSchema withMaximumSize (final int bound)
         {
-<span class="fc" id="L592">            preventChange(&quot;Maximum Size&quot;, this.maximumSize, bound);</span>
-<span class="fc" id="L593">            this.maximumSize = bound;</span>
-<span class="fc" id="L594">            return this;</span>
+<span class="fc" id="L590">            preventChange(&quot;Maximum Size&quot;, this.maximumSize, bound);</span>
+<span class="fc" id="L591">            this.maximumSize = bound;</span>
+<span class="fc" id="L592">            return this;</span>
         }
 
         @Override
         public FixedPoolSchema withBufferCount (final int count)
         {
-<span class="fc" id="L600">            preventChange(&quot;Buffer Count&quot;, this.bufferCount, count);</span>
-<span class="fc" id="L601">            this.bufferCount = count;</span>
-<span class="fc" id="L602">            return this;</span>
+<span class="fc" id="L598">            preventChange(&quot;Buffer Count&quot;, this.bufferCount, count);</span>
+<span class="fc" id="L599">            this.bufferCount = count;</span>
+<span class="fc" id="L600">            return this;</span>
         }
 
     };
 
-<span class="nc" id="L607">    private final class CompositePoolSchemaImp</span>
+<span class="nc" id="L605">    private final class CompositePoolSchemaImp</span>
             implements CompositePoolSchema
     {
         public CascadeToken name;
 
         public CascadeToken fallback;
 
-<span class="nc" id="L614">        public final Set&lt;CascadeToken&gt; members = Sets.newHashSet();</span>
+<span class="nc" id="L612">        public final Set&lt;CascadeToken&gt; members = Sets.newHashSet();</span>
 
         public AllocationPool pool;
 
         @Override
         public CompositePoolSchema named (final String name)
         {
-<span class="nc" id="L621">            preventChange(&quot;Pool Name&quot;, this.name, name);</span>
-<span class="nc" id="L622">            this.name = convertName(name);</span>
-<span class="nc" id="L623">            return this;</span>
+<span class="nc" id="L619">            preventChange(&quot;Pool Name&quot;, this.name, name);</span>
+<span class="nc" id="L620">            this.name = convertName(name);</span>
+<span class="nc" id="L621">            return this;</span>
         }
 
         @Override
         public CompositePoolSchema withFallbackPool (final String name)
         {
-<span class="nc" id="L629">            final CascadeToken token = convertName(name);</span>
-<span class="nc" id="L630">            preventChange(&quot;Fallback Pool&quot;, this.fallback, token);</span>
-<span class="nc" id="L631">            return this;</span>
+<span class="nc" id="L627">            final CascadeToken token = convertName(name);</span>
+<span class="nc" id="L628">            preventChange(&quot;Fallback Pool&quot;, this.fallback, token);</span>
+<span class="nc" id="L629">            return this;</span>
         }
 
         @Override
         public CompositePoolSchema withMemberPool (final String name)
         {
-<span class="nc" id="L637">            final CascadeToken member = convertName(name);</span>
-<span class="nc" id="L638">            members.add(member);</span>
-<span class="nc" id="L639">            return this;</span>
+<span class="nc" id="L635">            final CascadeToken member = convertName(name);</span>
+<span class="nc" id="L636">            members.add(member);</span>
+<span class="nc" id="L637">            return this;</span>
         }
 
     };
 
-<span class="fc" id="L644">    private final class PumpSchemaImp</span>
+<span class="fc" id="L642">    private final class PumpSchemaImp</span>
             implements PumpSchema
     {
 
@@ -656,39 +654,39 @@ public final class ConcreteSchema
         @Override
         public PumpSchema named (final String name)
         {
-<span class="fc" id="L659">            preventChange(&quot;Pump Name&quot;, this.name, name);</span>
-<span class="fc" id="L660">            this.name = convertName(name);</span>
-<span class="fc" id="L661">            return this;</span>
+<span class="fc" id="L657">            preventChange(&quot;Pump Name&quot;, this.name, name);</span>
+<span class="fc" id="L658">            this.name = convertName(name);</span>
+<span class="fc" id="L659">            return this;</span>
         }
 
         @Override
         public PumpSchema usingThreadFactory (final ThreadFactory factory)
         {
-<span class="fc" id="L667">            preventChange(&quot;Thread Factory&quot;, this.threadFactory, threadFactory);</span>
-<span class="fc" id="L668">            this.threadFactory = factory;</span>
-<span class="fc" id="L669">            return this;</span>
+<span class="fc" id="L665">            preventChange(&quot;Thread Factory&quot;, this.threadFactory, threadFactory);</span>
+<span class="fc" id="L666">            this.threadFactory = factory;</span>
+<span class="fc" id="L667">            return this;</span>
         }
 
         @Override
         public PumpSchema withThreadCount (final int count)
         {
-<span class="fc" id="L675">            preventChange(&quot;Buffer Count&quot;, this.threadCount, count);</span>
-<span class="fc" id="L676">            this.threadCount = count;</span>
-<span class="fc" id="L677">            return this;</span>
+<span class="fc" id="L673">            preventChange(&quot;Buffer Count&quot;, this.threadCount, count);</span>
+<span class="fc" id="L674">            this.threadCount = count;</span>
+<span class="fc" id="L675">            return this;</span>
         }
 
     };
 
-<span class="pc" id="L682">    private enum QueueType</span>
+<span class="pc" id="L680">    private enum QueueType</span>
     {
-<span class="fc" id="L684">        LINEAR_LINKED,</span>
-<span class="fc" id="L685">        LINEAR_ARRAY,</span>
-<span class="fc" id="L686">        LINEAR_SHARED,</span>
-<span class="fc" id="L687">        CIRCULAR_LINKED,</span>
-<span class="fc" id="L688">        CIRCULAR_ARRAY,</span>
+<span class="fc" id="L682">        LINEAR_LINKED,</span>
+<span class="fc" id="L683">        LINEAR_ARRAY,</span>
+<span class="fc" id="L684">        LINEAR_SHARED,</span>
+<span class="fc" id="L685">        CIRCULAR_LINKED,</span>
+<span class="fc" id="L686">        CIRCULAR_ARRAY,</span>
     }
 
-<span class="fc" id="L691">    private final class ReactorSchemaImp</span>
+<span class="fc" id="L689">    private final class ReactorSchemaImp</span>
             implements ReactorSchema
     {
 
@@ -700,7 +698,7 @@ public final class ConcreteSchema
 
         public CascadeLogger.Factory loggerFactory;
 
-<span class="fc" id="L703">        public CascadeLogger defaultLogger = new StandardLogger(CascadeToken.create(&quot;TODO&quot;));</span>
+<span class="fc" id="L701">        public CascadeLogger defaultLogger = new StandardLogger(CascadeToken.create(&quot;TODO&quot;));</span>
 
         public CascadeLogger.Factory defaultLoggerFactory;
 
@@ -720,139 +718,139 @@ public final class ConcreteSchema
 
         public Integer backlogCapacity;
 
-<span class="fc" id="L723">        public final SortedSet&lt;CascadeToken&gt; subscriptions = Sets.newTreeSet();</span>
+<span class="fc" id="L721">        public final SortedSet&lt;CascadeToken&gt; subscriptions = Sets.newTreeSet();</span>
 
         public ConcreteReactor reactor;
 
         public CascadeLogger getLogger ()
         {
-<span class="pc bpc" id="L729" title="1 of 2 branches missed.">            if (logger != null)</span>
+<span class="pc bpc" id="L727" title="1 of 2 branches missed.">            if (logger != null)</span>
             {
-<span class="nc" id="L731">                return logger;</span>
+<span class="nc" id="L729">                return logger;</span>
             }
-<span class="pc bpc" id="L733" title="1 of 2 branches missed.">            else if (loggerFactory != null)</span>
+<span class="pc bpc" id="L731" title="1 of 2 branches missed.">            else if (loggerFactory != null)</span>
             {
-<span class="nc" id="L735">                return loggerFactory.create(name); // TODO: Should this be cached? Currently called multiple times potentially.</span>
+<span class="nc" id="L733">                return loggerFactory.create(name); // TODO: Should this be cached? Currently called multiple times potentially.</span>
             }
-<span class="pc bpc" id="L737" title="1 of 2 branches missed.">            else if (defaultLogger != null)</span>
+<span class="pc bpc" id="L735" title="1 of 2 branches missed.">            else if (defaultLogger != null)</span>
             {
-<span class="fc" id="L739">                return defaultLogger;</span>
+<span class="fc" id="L737">                return defaultLogger;</span>
             }
-<span class="nc bnc" id="L741" title="All 2 branches missed.">            else if (defaultLoggerFactory != null)</span>
+<span class="nc bnc" id="L739" title="All 2 branches missed.">            else if (defaultLoggerFactory != null)</span>
             {
-<span class="nc" id="L743">                return defaultLoggerFactory.create(name);</span>
+<span class="nc" id="L741">                return defaultLoggerFactory.create(name);</span>
             }
             else
             {
-<span class="nc" id="L747">                return new StandardLogger(name); // TODO: Dev Null Logger Instead</span>
+<span class="nc" id="L745">                return new StandardLogger(name); // TODO: Dev Null Logger Instead</span>
             }
         }
 
         public AllocationPool getPool ()
         {
-<span class="pc bpc" id="L753" title="1 of 2 branches missed.">            if (pool != null)</span>
+<span class="pc bpc" id="L751" title="1 of 2 branches missed.">            if (pool != null)</span>
             {
-<span class="nc" id="L755">                return namesToPools.get(pool);</span>
+<span class="nc" id="L753">                return namesToPools.get(pool);</span>
             }
-<span class="pc bpc" id="L757" title="1 of 2 branches missed.">            else if (defaultPool != null)</span>
+<span class="pc bpc" id="L755" title="1 of 2 branches missed.">            else if (defaultPool != null)</span>
             {
-<span class="fc" id="L759">                return namesToPools.get(defaultPool);</span>
+<span class="fc" id="L757">                return namesToPools.get(defaultPool);</span>
             }
             else
             {
-<span class="nc" id="L763">                return allocator.defaultPool();</span>
+<span class="nc" id="L761">                return allocator.defaultPool();</span>
             }
         }
 
         public ConcretePump getPump ()
         {
-<span class="pc bpc" id="L769" title="1 of 2 branches missed.">            if (pump != null)</span>
+<span class="pc bpc" id="L767" title="1 of 2 branches missed.">            if (pump != null)</span>
             {
-<span class="fc" id="L771">                return namesToPumps.get(pump);</span>
+<span class="fc" id="L769">                return namesToPumps.get(pump);</span>
             }
             else
             {
-<span class="nc bnc" id="L775" title="All 2 branches missed.">                Verify.verify(defaultPump != null);</span>
-<span class="nc" id="L776">                return namesToPumps.get(defaultPump);</span>
+<span class="nc bnc" id="L773" title="All 2 branches missed.">                Verify.verify(defaultPump != null);</span>
+<span class="nc" id="L774">                return namesToPumps.get(defaultPump);</span>
             }
         }
 
         @Override
         public ReactorSchema named (final String name)
         {
-<span class="fc" id="L783">            preventChange(&quot;Reactor Name&quot;, this.name, name);</span>
-<span class="fc" id="L784">            this.name = convertName(name);</span>
-<span class="fc" id="L785">            return this;</span>
+<span class="fc" id="L781">            preventChange(&quot;Reactor Name&quot;, this.name, name);</span>
+<span class="fc" id="L782">            this.name = convertName(name);</span>
+<span class="fc" id="L783">            return this;</span>
         }
 
         @Override
         public ReactorSchema withCore (final CascadeReactor.Core core)
         {
-<span class="fc" id="L791">            preventChange(&quot;Core&quot;, this.core, core);</span>
-<span class="fc" id="L792">            subscriptions.addAll(core.initialSubscriptions());</span>
-<span class="fc" id="L793">            this.core = core;</span>
-<span class="fc" id="L794">            return this;</span>
+<span class="fc" id="L789">            preventChange(&quot;Core&quot;, this.core, core);</span>
+<span class="fc" id="L790">            subscriptions.addAll(core.initialSubscriptions());</span>
+<span class="fc" id="L791">            this.core = core;</span>
+<span class="fc" id="L792">            return this;</span>
         }
 
         @Override
         public ReactorSchema usingLogger (final CascadeLogger.Factory factory)
         {
-<span class="nc" id="L800">            this.loggerFactory = factory;</span>
-<span class="nc" id="L801">            return this;</span>
+<span class="nc" id="L798">            this.loggerFactory = factory;</span>
+<span class="nc" id="L799">            return this;</span>
         }
 
         @Override
         public ReactorSchema usingLogger (final CascadeLogger logger)
         {
-<span class="nc" id="L807">            this.logger = logger;</span>
-<span class="nc" id="L808">            return this;</span>
+<span class="nc" id="L805">            this.logger = logger;</span>
+<span class="nc" id="L806">            return this;</span>
         }
 
         @Override
         public ReactorSchema usingPool (final String name)
         {
-<span class="nc" id="L814">            this.pool = convertName(name);</span>
-<span class="nc" id="L815">            return this;</span>
+<span class="nc" id="L812">            this.pool = convertName(name);</span>
+<span class="nc" id="L813">            return this;</span>
         }
 
         @Override
         public ReactorSchema usingPump (final String name)
         {
-<span class="fc" id="L821">            this.pump = convertName(name);</span>
-<span class="fc" id="L822">            return this;</span>
+<span class="fc" id="L819">            this.pump = convertName(name);</span>
+<span class="fc" id="L820">            return this;</span>
         }
 
         @Override
         public ReactorSchema withArrayQueue (final int queueCapacity)
         {
-<span class="fc" id="L828">            final QueueType type = QueueType.LINEAR_ARRAY;</span>
-<span class="fc" id="L829">            preventChange(&quot;Queue Type&quot;, this.queueType, type);</span>
-<span class="fc" id="L830">            this.queueType = type;</span>
-<span class="fc" id="L831">            this.queueCapacity = queueCapacity;</span>
-<span class="fc" id="L832">            this.queue = new ArrayInflowQueue(allocator, queueCapacity);</span>
-<span class="fc" id="L833">            return this;</span>
+<span class="fc" id="L826">            final QueueType type = QueueType.LINEAR_ARRAY;</span>
+<span class="fc" id="L827">            preventChange(&quot;Queue Type&quot;, this.queueType, type);</span>
+<span class="fc" id="L828">            this.queueType = type;</span>
+<span class="fc" id="L829">            this.queueCapacity = queueCapacity;</span>
+<span class="fc" id="L830">            this.queue = new ArrayInflowQueue(allocator, queueCapacity);</span>
+<span class="fc" id="L831">            return this;</span>
         }
 
         @Override
         public ReactorSchema withLinkedQueue (final int queueCapacity)
         {
-<span class="nc" id="L839">            final QueueType type = QueueType.LINEAR_LINKED;</span>
-<span class="nc" id="L840">            preventChange(&quot;Queue Type&quot;, this.queueType, type);</span>
-<span class="nc" id="L841">            this.queueType = type;</span>
-<span class="nc" id="L842">            this.queueCapacity = queueCapacity;</span>
-<span class="nc" id="L843">            return this;</span>
+<span class="nc" id="L837">            final QueueType type = QueueType.LINEAR_LINKED;</span>
+<span class="nc" id="L838">            preventChange(&quot;Queue Type&quot;, this.queueType, type);</span>
+<span class="nc" id="L839">            this.queueType = type;</span>
+<span class="nc" id="L840">            this.queueCapacity = queueCapacity;</span>
+<span class="nc" id="L841">            return this;</span>
         }
 
         @Override
         public ReactorSchema subscribeTo (final String event)
         {
-<span class="nc" id="L849">            final CascadeToken token = CascadeToken.create(event);</span>
-<span class="nc" id="L850">            subscriptions.add(token);</span>
-<span class="nc" id="L851">            return this;</span>
+<span class="nc" id="L847">            final CascadeToken token = CascadeToken.create(event);</span>
+<span class="nc" id="L848">            subscriptions.add(token);</span>
+<span class="nc" id="L849">            return this;</span>
         }
     };
 
-<span class="fc" id="L855">    private final class Scope</span>
+<span class="fc" id="L853">    private final class Scope</span>
     {
         public CascadeToken namespace;
 
@@ -867,33 +865,5 @@ public final class ConcreteSchema
         public Scope below;
     }
 
-    public static void main (String[] args)
-            throws InterruptedException
-    {
-<span class="nc" id="L873">        final CascadeSchema cs = new ConcreteSchema().named(&quot;Schema1&quot;);</span>
-
-<span class="nc" id="L875">        cs.addDynamicPool().named(&quot;default&quot;).withMinimumSize(0).withMaximumSize(256);</span>
-<span class="nc" id="L876">        cs.addFixedPool().named(&quot;pool2&quot;).withMinimumSize(512).withMaximumSize(768).withBufferCount(10);</span>
-<span class="nc" id="L877">        cs.addCompositePool().named(&quot;pool3&quot;).withMemberPool(&quot;default&quot;).withMemberPool(&quot;pool2&quot;);</span>
-
-<span class="nc" id="L879">        cs.addPump().named(&quot;pump1&quot;).withThreadCount(3);</span>
-
-<span class="nc" id="L881">        cs.usingPool(&quot;default&quot;).usingPump(&quot;pump1&quot;);</span>
-
-<span class="nc" id="L883">        cs.addReactor()</span>
-<span class="nc" id="L884">                .named(&quot;clock1&quot;)</span>
-<span class="nc" id="L885">                .withCore(Cores.newTicker().withPeriod(50, TimeUnit.MILLISECONDS).withFormatMonotonicNanos().sendTo(&quot;tickTock&quot;).build())</span>
-<span class="nc" id="L886">                .withArrayQueue(100);</span>
-
-<span class="nc" id="L888">        cs.addReactor()</span>
-<span class="nc" id="L889">                .named(&quot;printer1&quot;)</span>
-<span class="nc" id="L890">                .withArrayQueue(100)</span>
-<span class="nc" id="L891">                .withCore(Cores.from(x -&gt; System.out.println(&quot;X = &quot; + x.message().asString() + &quot;, Thread = &quot; + Thread.currentThread().getId())))</span>
-<span class="nc" id="L892">                .subscribeTo(&quot;tickTock&quot;);</span>
-
-<span class="nc" id="L894">        final Cascade cas = cs.build();</span>
-
-<span class="nc" id="L896">        cas.start();</span>
-<span class="nc" id="L897">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

@@ -117,7 +117,7 @@ public final class EventDispatcher
         }
         finally
         {
-<span class="pc" id="L120">            lock.unlock();</span>
+<span class="fc" id="L120">            lock.unlock();</span>
 <span class="fc" id="L121">        }</span>
 <span class="fc" id="L122">    }</span>
 
@@ -126,7 +126,7 @@ public final class EventDispatcher
     {
 <span class="fc" id="L127">        final InflowQueue handler = subscribersToInflowQueues.get(subscriberId);</span>
 
-<span class="pc bpc" id="L129" title="1 of 2 branches missed.">        if (handler != null)</span>
+<span class="fc bfc" id="L129" title="All 2 branches covered.">        if (handler != null)</span>
         {
             /**
              * Subscribe the subscriber to the event-channel.
@@ -144,7 +144,7 @@ public final class EventDispatcher
 <span class="fc" id="L144">        }</span>
         else
         {
-<span class="nc" id="L147">            throw new IllegalArgumentException(&quot;No Such Subscriber: &quot; + subscriberId);</span>
+<span class="fc" id="L147">            throw new IllegalArgumentException(&quot;No Such Subscriber: &quot; + subscriberId);</span>
         }
 <span class="fc" id="L149">    }</span>
 
@@ -176,9 +176,9 @@ public final class EventDispatcher
          * If no one was subscribed to the event,
          * then an this should simply be a no-op.
          */
-<span class="pc bpc" id="L179" title="1 of 2 branches missed.">        if (eventsToSubscriberQueues.containsKey(eventId) == false)</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">        if (eventsToSubscriberQueues.containsKey(eventId) == false)</span>
         {
-<span class="nc" id="L181">            return;</span>
+<span class="fc" id="L181">            return;</span>
         }
 
         /**

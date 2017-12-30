@@ -40,7 +40,8 @@ public final class StandardLogger
                               Throwable message)
     {
 <span class="nc" id="L42">        logger.warning(message.getMessage()); // TODO</span>
-<span class="nc" id="L43">        return this;</span>
+<span class="nc" id="L43">        message.printStackTrace(System.err);</span>
+<span class="nc" id="L44">        return this;</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

@@ -376,7 +376,7 @@ import java.util.stream.Collectors;
 <span class="nc" id="L376">    }</span>
 
     private void invokeEventHandler (final CascadeReactor reactor,
-                                     final UnsafeConsumer&lt;Context&gt; action)
+                                     final Handler&lt;Context&gt; action)
     {
 <span class="nc" id="L381">        final Thread currentThread = Thread.currentThread();</span>
 <span class="nc" id="L382">        final ConcreteContext context = new ConcreteContext(reactor);</span>
