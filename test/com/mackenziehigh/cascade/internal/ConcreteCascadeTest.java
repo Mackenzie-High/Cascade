@@ -1,7 +1,9 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.mackenziehigh.cascade.CascadeReactor;
+import com.mackenziehigh.cascade.CascadeReactor.Context;
 import com.mackenziehigh.cascade.CascadeReactor.Core;
+import static junit.framework.Assert.fail;
 import org.junit.Test;
 
 /**
@@ -12,58 +14,117 @@ public final class ConcreteCascadeTest
     @Test
     public void testLifeCycle ()
     {
-        final Core chernobyl = new CascadeReactor.Core()
+        final StringBuffer buffer = new StringBuffer();
+
+        final Core core1 = new CascadeReactor.Core()
         {
             @Override
-            public void onException (CascadeReactor.Context context)
+            public void onSetup (final Context context)
                     throws Throwable
             {
-                Core.super.onException(context);
+                buffer.append('A');
             }
 
             @Override
-            public void onDestroy (CascadeReactor.Context context)
+            public void onStart (final Context context)
                     throws Throwable
             {
-                Core.super.onDestroy(context);
+                buffer.append('B');
+            }
+
+            @Override
+            public void onMessage (final Context context)
+                    throws Throwable
+            {
+                buffer.append('C');
+            }
+
+            @Override
+            public void onStop (final Context context)
+                    throws Throwable
+            {
+                buffer.append('D');
             }
 
             @Override
             public boolean isDestroyable ()
                     throws Throwable
             {
-                return Core.super.isDestroyable();
+                buffer.append('E');
+                return true;
             }
 
             @Override
-            public void onStop (CascadeReactor.Context context)
+            public void onDestroy (final Context context)
                     throws Throwable
             {
-                Core.super.onStop(context);
+                buffer.append('F');
             }
 
             @Override
-            public void onMessage (CascadeReactor.Context context)
+            public void onException (final Context context)
                     throws Throwable
             {
-                Core.super.onMessage(context);
+                buffer.append('G');
             }
-
-            @Override
-            public void onStart (CascadeReactor.Context context)
-                    throws Throwable
-            {
-                Core.super.onStart(context);
-            }
-
-            @Override
-            public void onSetup (CascadeReactor.Context context)
-                    throws Throwable
-            {
-                Core.super.onSetup(context);
-            }
-
         };
 
+        final Core core2 = new CascadeReactor.Core()
+        {
+            @Override
+            public void onSetup (final Context context)
+                    throws Throwable
+            {
+                buffer.append('a');
+            }
+
+            @Override
+            public void onStart (final Context context)
+                    throws Throwable
+            {
+                buffer.append('b');
+            }
+
+            @Override
+            public void onMessage (final Context context)
+                    throws Throwable
+            {
+                buffer.append('c');
+            }
+
+            @Override
+            public void onStop (final Context context)
+                    throws Throwable
+            {
+                buffer.append('d');
+            }
+
+            @Override
+            public boolean isDestroyable ()
+                    throws Throwable
+            {
+                buffer.append('e');
+                return true;
+            }
+
+            @Override
+            public void onDestroy (final Context context)
+                    throws Throwable
+            {
+                buffer.append('f');
+            }
+
+            @Override
+            public void onException (final Context context)
+                    throws Throwable
+            {
+                buffer.append('g');
+            }
+        };
+
+//        final CascadeSchema schema = CascadeSchema.createSimple();
+//        schema.addReactor().named("reactor1").withCore(core1).withLinkedQueue(16);
+//        final Cascade cascade = schema.build();
+        fail();
     }
 }

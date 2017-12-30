@@ -16,7 +16,7 @@ public final class ArrayInflowQueueTest
 
 
     {
-        allocator.addDynamicPool("default", 0, Integer.MAX_VALUE);
+        allocator.addDynamicPool(CascadeToken.create("default"), 0, Integer.MAX_VALUE);
     }
 
     /**
@@ -376,7 +376,7 @@ public final class ArrayInflowQueueTest
         System.out.println("Test: 20171228012924826400");
 
         final ConcreteAllocator alloc = new ConcreteAllocator();
-        alloc.addFixedPool("default", 0, 100, 10);
+        alloc.addFixedPool(CascadeToken.create("default"), 0, 100, 10);
 
         final AtomicInteger callbacks = new AtomicInteger();
         final OperandStack message = alloc.newOperandStack();

@@ -16,7 +16,7 @@ public final class LinkedInflowQueueTest
 
 
     {
-        allocator.addDynamicPool("default", 0, Integer.MAX_VALUE);
+        allocator.addDynamicPool(CascadeToken.create("default"), 0, Integer.MAX_VALUE);
     }
 
     /**
@@ -315,7 +315,7 @@ public final class LinkedInflowQueueTest
         System.out.println("Test: 20171228102607792217");
 
         final ConcreteAllocator alloc = new ConcreteAllocator();
-        alloc.addFixedPool("default", 0, 100, 10);
+        alloc.addFixedPool(CascadeToken.create("default"), 0, 100, 10);
 
         final AtomicInteger callbacks = new AtomicInteger();
         final CascadeAllocator.OperandStack message = alloc.newOperandStack();

@@ -4,7 +4,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
-import com.mackenziehigh.cascade.internal.Utils;
+import com.mackenziehigh.cascade.CascadeToken;
 import com.mackenziehigh.cascade.internal.PositiveIntRangeMap.RangeEntry;
 import java.util.Collections;
 import java.util.List;
@@ -412,34 +412,25 @@ public final class ConcreteAllocator
     public final class DynamicAllocationPool
             implements AllocationPool
     {
-        private final String name;
-
-        private final String simpleName;
+        private final CascadeToken name;
 
         private final int minimumSize;
 
         private final int maximumSize;
 
-        public DynamicAllocationPool (final String name,
+        public DynamicAllocationPool (final CascadeToken name,
                                       final int minimumSize,
                                       final int maximumSize)
         {
             this.name = name;
-            this.simpleName = Utils.getSimpleName(name);
             this.minimumSize = minimumSize;
             this.maximumSize = maximumSize;
         }
 
         @Override
-        public String name ()
+        public CascadeToken name ()
         {
             return name;
-        }
-
-        @Override
-        public String simpleName ()
-        {
-            return simpleName;
         }
 
         @Override
@@ -495,9 +486,7 @@ public final class ConcreteAllocator
     public final class FixedAllocationPool
             implements AllocationPool
     {
-        private final String name;
-
-        private final String simpleName;
+        private final CascadeToken name;
 
         private final int minimumSize;
 
@@ -509,13 +498,12 @@ public final class ConcreteAllocator
 
         private final Consumer<StandardOperand> onFree;
 
-        public FixedAllocationPool (final String name,
+        public FixedAllocationPool (final CascadeToken name,
                                     final int minimumSize,
                                     final int maximumSize,
                                     final int capacity)
         {
             this.name = name;
-            this.simpleName = Utils.getSimpleName(name);
             this.minimumSize = minimumSize;
             this.maximumSize = maximumSize;
             this.capacity = capacity;
@@ -541,13 +529,7 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public String name ()
-        {
-            return name;
-        }
-
-        @Override
-        public String simpleName ()
+        public CascadeToken name ()
         {
             return name;
         }
@@ -604,9 +586,7 @@ public final class ConcreteAllocator
     public final class CompositeAllocationPool
             implements AllocationPool
     {
-        private final String name;
-
-        private final String simpleName;
+        private final CascadeToken name;
 
         private final int minimumSize;
 
@@ -620,12 +600,11 @@ public final class ConcreteAllocator
          */
         private final PositiveIntRangeMap<AllocationPool> lookup;
 
-        public CompositeAllocationPool (final String name,
+        public CompositeAllocationPool (final CascadeToken name,
                                         final AllocationPool fallback,
                                         final List<AllocationPool> pools)
         {
             this.name = name;
-            this.simpleName = Utils.getSimpleName(name);
 
             this.fallback = fallback;
 
@@ -641,15 +620,9 @@ public final class ConcreteAllocator
         }
 
         @Override
-        public String name ()
+        public CascadeToken name ()
         {
             return name;
-        }
-
-        @Override
-        public String simpleName ()
-        {
-            return simpleName;
         }
 
         @Override
@@ -705,9 +678,9 @@ public final class ConcreteAllocator
 
     private Cascade cascade;
 
-    private final Map<String, AllocationPool> pools = new ConcurrentHashMap<>();
+    private final Map<CascadeToken, AllocationPool> pools = new ConcurrentHashMap<>();
 
-    private final Map<String, AllocationPool> unmodPools = Collections.unmodifiableMap(pools);
+    private final Map<CascadeToken, AllocationPool> unmodPools = Collections.unmodifiableMap(pools);
 
     /**
      * Constructor, for testing purposes.
@@ -739,7 +712,7 @@ public final class ConcreteAllocator
      * @param maximumSize is the maximum size of allocations in the pool.
      * @return the new pool.
      */
-    public AllocationPool addDynamicPool (final String name,
+    public AllocationPool addDynamicPool (final CascadeToken name,
                                           final int minimumSize,
                                           final int maximumSize)
     {
@@ -761,7 +734,7 @@ public final class ConcreteAllocator
      * @param capacity is the maximum number of allocations in the pool at one time.
      * @return the new pool.
      */
-    public AllocationPool addFixedPool (final String name,
+    public AllocationPool addFixedPool (final CascadeToken name,
                                         final int minimumSize,
                                         final int maximumSize,
                                         final int capacity)
@@ -783,7 +756,7 @@ public final class ConcreteAllocator
      * @param delegates are the pools that the new pool will be composed of.
      * @return the new pool.
      */
-    public AllocationPool addCompositePool (final String name,
+    public AllocationPool addCompositePool (final CascadeToken name,
                                             final AllocationPool fallback,
                                             final List<AllocationPool> delegates)
     {
@@ -811,7 +784,7 @@ public final class ConcreteAllocator
     }
 
     @Override
-    public Map<String, AllocationPool> pools ()
+    public Map<CascadeToken, AllocationPool> pools ()
     {
         return unmodPools;
     }
@@ -819,7 +792,7 @@ public final class ConcreteAllocator
     @Override
     public AllocationPool defaultPool ()
     {
-        final AllocationPool pool = unmodPools.get("default");
+        final AllocationPool pool = unmodPools.get(CascadeToken.create("default"));
 
         if (pool == null)
         {

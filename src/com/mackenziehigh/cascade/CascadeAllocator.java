@@ -101,16 +101,9 @@ public interface CascadeAllocator
         /**
          * Getter.
          *
-         * @return the user-defined full-name of this pool.
+         * @return the user-defined name of this pool.
          */
-        public String name ();
-
-        /**
-         * Getter.
-         *
-         * @return the user-defined simple-name of this pool.
-         */
-        public String simpleName ();
+        public CascadeToken name ();
 
         /**
          * Getter.
@@ -789,16 +782,12 @@ public interface CascadeAllocator
      * The map will include the default-pool.
      * </p>
      *
-     * @return a map that maps the full-names of pools to the pools themselves.
+     * @return a map that maps the names of pools to the pools themselves.
      */
-    public Map<String, AllocationPool> pools ();
+    public Map<CascadeToken, AllocationPool> pools ();
 
     /**
      * Getter.
-     *
-     * <p>
-     * The name of the default-pool must be "default".
-     * </p>
      *
      * @return the default-pool.
      * @throws IllegalStateException if no default pool exists.

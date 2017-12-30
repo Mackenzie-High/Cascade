@@ -120,7 +120,7 @@ public final class EventDispatcherTest
         System.out.println("Test: 20171228222253469537");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        allocator.addDynamicPool("default", 0, 128);
+        allocator.addDynamicPool(CascadeToken.create("default"), 0, 128);
         final OperandStack stack = allocator.newOperandStack();
         final Map<CascadeToken, InflowQueue> reactors = Maps.newHashMap();
         reactors.put(CascadeToken.create("A"), new ArrayInflowQueue(allocator, 128));
@@ -172,7 +172,7 @@ public final class EventDispatcherTest
         System.out.println("Test: 20171229010604023927");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        allocator.addDynamicPool("default", 0, 128);
+        allocator.addDynamicPool(CascadeToken.create("default"), 0, 128);
         final Map<CascadeToken, InflowQueue> reactors = Maps.newHashMap();
         reactors.put(CascadeToken.create("A"), new ArrayInflowQueue(allocator, 128));
         reactors.put(CascadeToken.create("B"), new ArrayInflowQueue(allocator, 128));

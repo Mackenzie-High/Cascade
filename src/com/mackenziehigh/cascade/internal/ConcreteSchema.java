@@ -30,7 +30,7 @@ public final class ConcreteSchema
     // TODO: Set uncaught exception handler
     private final ThreadFactory defaultThreadFactory = new ThreadFactoryBuilder().setDaemon(false).build();
 
-    private CascadeToken name;
+    private final CascadeToken name;
 
     private Scope scope = new Scope();
 
@@ -63,17 +63,10 @@ public final class ConcreteSchema
 
     private CascadeLogger globalDefaultLogger = new StandardLogger(CascadeToken.create("default"));
 
-    public ConcreteSchema ()
+    public ConcreteSchema (final String name)
     {
+        this.name = CascadeToken.create(name);
         scope.logger = globalDefaultLogger;
-    }
-
-    @Override
-    public CascadeSchema named (final String name)
-    {
-        preventChange("Name", this.name, name);
-        this.name = convertName(name);
-        return this;
     }
 
     @Override
@@ -98,7 +91,6 @@ public final class ConcreteSchema
         Preconditions.checkState(scope.below != null, "At Bottom Scope");
         scope = scope.below;
         return this;
-
     }
 
     @Override
@@ -132,41 +124,58 @@ public final class ConcreteSchema
     }
 
     @Override
-    public DynamicPoolSchema addDynamicPool ()
+    public CascadeSchema usingLinkedQueue (int capacity)
+    {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public CascadeSchema usingArrayQueue (int capacity)
+    {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public DynamicPoolSchema addDynamicPool (final String name)
     {
         final DynamicPoolSchemaImp result = new DynamicPoolSchemaImp();
+        result.name = convertName(name);
         dynamicPools.add(result);
         return result;
     }
 
     @Override
-    public FixedPoolSchema addFixedPool ()
+    public FixedPoolSchema addFixedPool (final String name)
     {
         final FixedPoolSchemaImp result = new FixedPoolSchemaImp();
+        result.name = convertName(name);
         fixedPools.add(result);
         return result;
     }
 
     @Override
-    public CompositePoolSchema addCompositePool ()
+    public CompositePoolSchema addCompositePool (final String name)
     {
         final CompositePoolSchemaImp result = new CompositePoolSchemaImp();
+        result.name = convertName(name);
         compositePools.add(result);
         return result;
     }
 
     @Override
-    public PumpSchema addPump ()
+    public PumpSchema addPump (final String name)
     {
         final PumpSchemaImp result = new PumpSchemaImp();
+        result.name = convertName(name);
         pumps.add(result);
         return result;
     }
 
     @Override
-    public ReactorSchema addReactor ()
+    public ReactorSchema addReactor (final String name)
     {
         final ReactorSchemaImp result = new ReactorSchemaImp();
+        result.name = convertName(name);
         result.defaultLogger = scope.logger;
         result.defaultLoggerFactory = scope.loggerFactory;
         result.defaultPool = scope.pool;
@@ -184,15 +193,6 @@ public final class ConcreteSchema
         cascade.setName(name);
         cascade.setAllocator(allocator);
         cascade.setDefaultLogger(globalDefaultLogger);
-
-        /**
-         * Declare.
-         */
-        dynamicPools.forEach(x -> declare(x));
-        fixedPools.forEach(x -> declare(x));
-        compositePools.forEach(x -> declare(x));
-        pumps.forEach(x -> declare(x));
-        reactors.forEach(x -> declare(x));
 
         /**
          * Validate.
@@ -253,57 +253,39 @@ public final class ConcreteSchema
         return cascade;
     }
 
-    private void declare (final DynamicPoolSchemaImp object)
-    {
-
-    }
-
-    private void declare (final FixedPoolSchemaImp object)
-    {
-
-    }
-
-    private void declare (final CompositePoolSchemaImp object)
-    {
-
-    }
-
-    private void declare (final PumpSchemaImp object)
-    {
-
-    }
-
-    private void declare (final ReactorSchemaImp object)
-    {
-
-    }
-
     private void validate (final DynamicPoolSchemaImp object)
     {
-        require("Dynamic Pool: Unspecified Name", object.name != null);
         require("Dynamic Pool: Unspecified Minimum Size", object.minimumSize != null);
         require("Dynamic Pool: Unspecified Maximum Size", object.maximumSize != null);
+        require("Dynamic Pool: Minimum Size < 0", object.minimumSize >= 0);
+        require("Dynamic Pool: Maximum Size < 0", object.maximumSize >= 0);
         require("Dynamic Pool: Minimum Size > Maximum Size", object.minimumSize <= object.maximumSize);
     }
 
     private void validate (final FixedPoolSchemaImp object)
     {
-        require("Fixed Pool: Unspecified Name", object.name != null);
         require("Fixed Pool: Unspecified Minimum Size", object.minimumSize != null);
         require("Fixed Pool: Unspecified Maximum Size", object.maximumSize != null);
         require("Fixed Pool: Unspecified Buffer Count", object.bufferCount != null);
+        require("Fixed Pool: Minimum Size < 0", object.minimumSize >= 0);
+        require("Fixed Pool: Maximum Size < 0", object.maximumSize >= 0);
+        require("Fixed Pool: Buffer Count < 0", object.bufferCount >= 0);
         require("Fixed Pool: Minimum Size > Maximum Size", object.minimumSize <= object.maximumSize);
     }
 
     private void validate (final CompositePoolSchemaImp object)
     {
-
+        require("Composite Pool: Unspecified Minimum Size", object.minimumSize != null);
+        require("Composite Pool: Unspecified Maximum Size", object.maximumSize != null);
+        require("Composite Pool: Minimum Size < 0", object.minimumSize >= 0);
+        require("Composite Pool: Maximum Size < 0", object.maximumSize >= 0);
     }
 
     private void validate (final PumpSchemaImp object)
     {
         require("Pump: Unspecified Name", object.name != null);
         require("Pump: Unspecified Thread Count", object.threadCount != null);
+        require("Pump: Thread Count < 0", object.threadCount >= 0);
         // TODO: Thread Factory
     }
 
@@ -319,7 +301,7 @@ public final class ConcreteSchema
 
     private void compile1 (final DynamicPoolSchemaImp object)
     {
-        object.pool = allocator.addDynamicPool(object.name.name(),
+        object.pool = allocator.addDynamicPool(object.name,
                                                object.minimumSize,
                                                object.maximumSize);
 
@@ -328,7 +310,7 @@ public final class ConcreteSchema
 
     private void compile1 (final FixedPoolSchemaImp object)
     {
-        object.pool = allocator.addFixedPool(object.name.name(),
+        object.pool = allocator.addFixedPool(object.name,
                                              object.minimumSize,
                                              object.maximumSize,
                                              object.bufferCount);
@@ -404,14 +386,14 @@ public final class ConcreteSchema
         Verify.verify(object.minimumSize >= 0);
         Verify.verify(object.maximumSize >= 0);
         Verify.verify(object.minimumSize <= object.maximumSize);
-        Verify.verify(object.pool.name().equals(object.name.name()));
+        Verify.verify(object.pool.name().equals(object.name));
         Verify.verify(object.minimumSize.equals(object.pool.minimumAllocationSize()));
         Verify.verify(object.maximumSize.equals(object.pool.maximumAllocationSize()));
         Verify.verify(object.pool.isFixed() == false);
         Verify.verify(object.pool.size().isPresent() == false);
         Verify.verify(object.pool.capacity().isPresent() == false);
         Verify.verify(object.pool.allocator().equals(cascade.allocator()));
-        Verify.verify(cascade.allocator().pools().get(object.name.name()).equals(object.pool));
+        Verify.verify(cascade.allocator().pools().get(object.name).equals(object.pool));
         Verify.verify(cascade.equals(object.pool.allocator().cascade()));
     }
 
@@ -426,7 +408,7 @@ public final class ConcreteSchema
         Verify.verify(object.maximumSize >= 0);
         Verify.verify(object.minimumSize <= object.maximumSize);
         Verify.verify(object.bufferCount >= 0);
-        Verify.verify(object.pool.name().equals(object.name.name()));
+        Verify.verify(object.pool.name().equals(object.name));
         Verify.verify(object.minimumSize.equals(object.pool.minimumAllocationSize()));
         Verify.verify(object.maximumSize.equals(object.pool.maximumAllocationSize()));
         Verify.verify(object.pool.isFixed());
@@ -435,7 +417,7 @@ public final class ConcreteSchema
         Verify.verify(object.pool.size().getAsLong() == 0);
         Verify.verify(object.pool.capacity().getAsLong() == object.bufferCount);
         Verify.verify(object.pool.allocator().equals(cascade.allocator()));
-        Verify.verify(cascade.allocator().pools().get(object.name.name()).equals(object.pool));
+        Verify.verify(cascade.allocator().pools().get(object.name).equals(object.pool));
         Verify.verify(cascade.equals(object.pool.allocator().cascade()));
     }
 
@@ -506,19 +488,6 @@ public final class ConcreteSchema
         }
     }
 
-    private void preventChange (final String entity,
-                                final Object original,
-                                final Object value)
-    {
-        if (original != null)
-        {
-            throw new IllegalStateException(String.format("Redefinition of %s (%s, %s)",
-                                                          entity,
-                                                          String.valueOf(original),
-                                                          String.valueOf(value)));
-        }
-    }
-
     private final class DynamicPoolSchemaImp
             implements DynamicPoolSchema
     {
@@ -531,17 +500,8 @@ public final class ConcreteSchema
         public AllocationPool pool;
 
         @Override
-        public DynamicPoolSchema named (final String name)
-        {
-            preventChange("Pool Name", this.name, name);
-            this.name = convertName(name);
-            return this;
-        }
-
-        @Override
         public DynamicPoolSchema withMinimumSize (final int bound)
         {
-            preventChange("Minimum Size", this.minimumSize, bound);
             this.minimumSize = bound;
             return this;
         }
@@ -549,9 +509,14 @@ public final class ConcreteSchema
         @Override
         public DynamicPoolSchema withMaximumSize (int bound)
         {
-            preventChange("Maximum Size", this.maximumSize, bound);
             this.maximumSize = bound;
             return this;
+        }
+
+        @Override
+        public DynamicPoolSchema makeGlobalDefault ()
+        {
+            throw new UnsupportedOperationException("Not supported yet.");
         }
     };
 
@@ -569,17 +534,8 @@ public final class ConcreteSchema
         public AllocationPool pool;
 
         @Override
-        public FixedPoolSchema named (final String name)
-        {
-            preventChange("Pool Name", this.name, name);
-            this.name = convertName(name);
-            return this;
-        }
-
-        @Override
         public FixedPoolSchema withMinimumSize (final int bound)
         {
-            preventChange("Minimum Size", this.minimumSize, bound);
             this.minimumSize = bound;
             return this;
         }
@@ -587,7 +543,6 @@ public final class ConcreteSchema
         @Override
         public FixedPoolSchema withMaximumSize (final int bound)
         {
-            preventChange("Maximum Size", this.maximumSize, bound);
             this.maximumSize = bound;
             return this;
         }
@@ -595,9 +550,14 @@ public final class ConcreteSchema
         @Override
         public FixedPoolSchema withBufferCount (final int count)
         {
-            preventChange("Buffer Count", this.bufferCount, count);
             this.bufferCount = count;
             return this;
+        }
+
+        @Override
+        public FixedPoolSchema makeGlobalDefault ()
+        {
+            throw new UnsupportedOperationException("Not supported yet.");
         }
 
     };
@@ -607,6 +567,10 @@ public final class ConcreteSchema
     {
         public CascadeToken name;
 
+        public Integer minimumSize;
+
+        public Integer maximumSize;
+
         public CascadeToken fallback;
 
         public final Set<CascadeToken> members = Sets.newHashSet();
@@ -614,18 +578,9 @@ public final class ConcreteSchema
         public AllocationPool pool;
 
         @Override
-        public CompositePoolSchema named (final String name)
-        {
-            preventChange("Pool Name", this.name, name);
-            this.name = convertName(name);
-            return this;
-        }
-
-        @Override
         public CompositePoolSchema withFallbackPool (final String name)
         {
             final CascadeToken token = convertName(name);
-            preventChange("Fallback Pool", this.fallback, token);
             return this;
         }
 
@@ -635,6 +590,24 @@ public final class ConcreteSchema
             final CascadeToken member = convertName(name);
             members.add(member);
             return this;
+        }
+
+        @Override
+        public CompositePoolSchema withMinimumSize (int bound)
+        {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public CompositePoolSchema withMaximumSize (int bound)
+        {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public CompositePoolSchema makeGlobalDefault ()
+        {
+            throw new UnsupportedOperationException("Not supported yet.");
         }
 
     };
@@ -652,17 +625,8 @@ public final class ConcreteSchema
         public ConcretePump pump;
 
         @Override
-        public PumpSchema named (final String name)
-        {
-            preventChange("Pump Name", this.name, name);
-            this.name = convertName(name);
-            return this;
-        }
-
-        @Override
         public PumpSchema usingThreadFactory (final ThreadFactory factory)
         {
-            preventChange("Thread Factory", this.threadFactory, threadFactory);
             this.threadFactory = factory;
             return this;
         }
@@ -670,7 +634,6 @@ public final class ConcreteSchema
         @Override
         public PumpSchema withThreadCount (final int count)
         {
-            preventChange("Buffer Count", this.threadCount, count);
             this.threadCount = count;
             return this;
         }
@@ -681,9 +644,6 @@ public final class ConcreteSchema
     {
         LINEAR_LINKED,
         LINEAR_ARRAY,
-        LINEAR_SHARED,
-        CIRCULAR_LINKED,
-        CIRCULAR_ARRAY,
     }
 
     private final class ReactorSchemaImp
@@ -776,20 +736,17 @@ public final class ConcreteSchema
         }
 
         @Override
-        public ReactorSchema named (final String name)
+        public ReactorSchema withCore (final CascadeReactor.Core core)
         {
-            preventChange("Reactor Name", this.name, name);
-            this.name = convertName(name);
+            subscriptions.addAll(core.initialSubscriptions());
+            this.core = core;
             return this;
         }
 
         @Override
-        public ReactorSchema withCore (final CascadeReactor.Core core)
+        public ReactorSchema withCore (final CascadeReactor.CoreBuilder core)
         {
-            preventChange("Core", this.core, core);
-            subscriptions.addAll(core.initialSubscriptions());
-            this.core = core;
-            return this;
+            return withCore(core.build());
         }
 
         @Override
@@ -824,7 +781,6 @@ public final class ConcreteSchema
         public ReactorSchema withArrayQueue (final int queueCapacity)
         {
             final QueueType type = QueueType.LINEAR_ARRAY;
-            preventChange("Queue Type", this.queueType, type);
             this.queueType = type;
             this.queueCapacity = queueCapacity;
             this.queue = new ArrayInflowQueue(allocator, queueCapacity);
@@ -835,7 +791,6 @@ public final class ConcreteSchema
         public ReactorSchema withLinkedQueue (final int queueCapacity)
         {
             final QueueType type = QueueType.LINEAR_LINKED;
-            preventChange("Queue Type", this.queueType, type);
             this.queueType = type;
             this.queueCapacity = queueCapacity;
             return this;
