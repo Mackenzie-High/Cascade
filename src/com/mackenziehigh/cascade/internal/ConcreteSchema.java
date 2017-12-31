@@ -327,7 +327,7 @@ public final class ConcreteSchema
     {
         if (built)
         {
-            throw new IllegalStateException("build() was already called once!");
+            throw new IllegalStateException("Already Built!");
         }
         else
         {

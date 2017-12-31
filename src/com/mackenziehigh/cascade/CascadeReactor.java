@@ -600,6 +600,13 @@ public interface CascadeReactor
     /**
      * Getter.
      *
+     * @return the number of event-messages processed thus far.
+     */
+    public long eventCount ();
+
+    /**
+     * Getter.
+     *
      * @return an immutable set containing the full-names of the event-channels
      * that this reactor is currently interested in receiving event-messages from.
      */

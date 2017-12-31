@@ -132,6 +132,12 @@ public final class ConcreteContext
     }
 
     @Override
+    public long eventCount ()
+    {
+        return reactor.eventCount();
+    }
+
+    @Override
     public Set<CascadeToken> subscriptions ()
     {
         return reactor.subscriptions();

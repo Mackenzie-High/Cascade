@@ -1062,4 +1062,33 @@ public final class ConcreteSchemaTest
         assertEquals(517, earth.queueCapacity());
         assertEquals(623, mars.queueCapacity());
     }
+
+    /**
+     * Test: 20171231060142521411
+     *
+     * <p>
+     * Case: build() was already called.
+     * </p>
+     */
+    @Test
+    public void test20171231060142521411 ()
+    {
+        System.out.println("Test: 20171231060142521411");
+
+        try
+        {
+            final CascadeSchema cs = new ConcreteSchema("schema");
+            cs.enter("planets");
+            cs.addDynamicPool("Mercury").makeGlobalDefault();
+            cs.addPump("Venus");
+            cs.addReactor("Earth").withCore(Utils.nop()).usingPool("Mercury").usingPump("Venus");
+            cs.build();
+            cs.build();
+            fail();
+        }
+        catch (RuntimeException ex)
+        {
+            assertTrue(ex.getMessage().toLowerCase().contains("already built"));
+        }
+    }
 }

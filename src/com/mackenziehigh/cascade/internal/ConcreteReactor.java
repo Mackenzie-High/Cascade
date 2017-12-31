@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  *
@@ -36,6 +37,8 @@ public final class ConcreteReactor
     private final EventDispatcher dispatcher;
 
     private final EventDispatcher.ConcurrentEventSender sender;
+
+    private final AtomicLong eventCounter = new AtomicLong();
 
     /**
      * This flag is used as a sanity check to ensure that the core()
@@ -142,6 +145,12 @@ public final class ConcreteReactor
     }
 
     @Override
+    public long eventCount ()
+    {
+        return eventCounter.get();
+    }
+
+    @Override
     public Set<CascadeToken> subscriptions ()
     {
         return dispatcher.subscriptionsOf(name);
@@ -190,6 +199,8 @@ public final class ConcreteReactor
     {
         Verify.verify(coreLock.compareAndSet(false, true),
                       "core() is already being executed!");
+
+        eventCounter.incrementAndGet();
     }
 
     public void exitCore ()
