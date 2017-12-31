@@ -75,7 +75,7 @@ public final class PositiveIntRangeMap&lt;E&gt;
          * If the first user-specified range does not start at zero,
          * then add a null-valued range at the beginning.
          */
-<span class="pc bpc" id="L78" title="1 of 4 branches missed.">        if (entries.size() &gt; 0 &amp;&amp; entries.get(0).minimum != 0)</span>
+<span class="fc bfc" id="L78" title="All 4 branches covered.">        if (entries.size() &gt; 0 &amp;&amp; entries.get(0).minimum != 0)</span>
         {
 <span class="fc" id="L80">            gaps.add(new RangeEntry&lt;&gt;(0, entries.get(0).minimum - 1, null));</span>
         }
@@ -84,7 +84,7 @@ public final class PositiveIntRangeMap&lt;E&gt;
          * If the last user-specified range does not end at the max integer value,
          * then add a null-valued range at the end.
          */
-<span class="pc bpc" id="L87" title="2 of 4 branches missed.">        if (entries.size() &gt; 0 &amp;&amp; entries.get(entries.size() - 1).maximum &lt; Integer.MAX_VALUE)</span>
+<span class="pc bpc" id="L87" title="1 of 4 branches missed.">        if (entries.size() &gt; 0 &amp;&amp; entries.get(entries.size() - 1).maximum &lt; Integer.MAX_VALUE)</span>
         {
 <span class="fc" id="L89">            gaps.add(new RangeEntry&lt;&gt;(entries.get(entries.size() - 1).maximum + 1, Integer.MAX_VALUE, null));</span>
         }
@@ -144,7 +144,7 @@ public final class PositiveIntRangeMap&lt;E&gt;
     public E search (final int key)
     {
 <span class="pc bpc" id="L146" title="1 of 2 branches missed.">        Preconditions.checkArgument(key &gt;= 0, &quot;key &lt; 0&quot;);</span>
-<span class="pc bpc" id="L147" title="1 of 2 branches missed.">        return entries.isEmpty() ? null : binarySearch(key, 0, entries.size() - 1);</span>
+<span class="fc bfc" id="L147" title="All 2 branches covered.">        return entries.isEmpty() ? null : binarySearch(key, 0, entries.size() - 1);</span>
     }
 
     private E binarySearch (final int key,

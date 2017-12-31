@@ -4,7 +4,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
-import com.mackenziehigh.cascade.internal.Utils;
+import com.mackenziehigh.cascade.CascadeToken;
 import com.mackenziehigh.cascade.internal.PositiveIntRangeMap.RangeEntry;
 import java.util.Collections;
 import java.util.List;
@@ -277,25 +277,25 @@ public final class ConcreteAllocator
                                               final int offset,
                                               final int length)
         {
-<span class="fc bfc" id="L280" title="All 2 branches covered.">            if (isStackEmpty())</span>
+<span class="pc bpc" id="L280" title="1 of 2 branches missed.">            if (isStackEmpty())</span>
             {
-<span class="fc" id="L282">                throw new IllegalStateException(&quot;Empty Stack&quot;);</span>
+<span class="nc" id="L282">                throw new IllegalStateException(&quot;Empty Stack&quot;);</span>
             }
-<span class="pc bpc" id="L284" title="1 of 2 branches missed.">            else if (buffer == null)</span>
+<span class="fc bfc" id="L284" title="All 2 branches covered.">            else if (buffer == null)</span>
             {
-<span class="nc" id="L286">                throw new NullPointerException(&quot;buffer&quot;);</span>
+<span class="fc" id="L286">                throw new NullPointerException(&quot;buffer&quot;);</span>
             }
-<span class="pc bpc" id="L288" title="1 of 2 branches missed.">            else if (offset &lt; 0)</span>
+<span class="fc bfc" id="L288" title="All 2 branches covered.">            else if (offset &lt; 0)</span>
             {
-<span class="nc" id="L290">                throw new IndexOutOfBoundsException(&quot;offset &lt; 0&quot;);</span>
+<span class="fc" id="L290">                throw new IndexOutOfBoundsException(&quot;offset &lt; 0&quot;);</span>
             }
-<span class="pc bpc" id="L292" title="1 of 2 branches missed.">            else if (offset &gt;= buffer.length)</span>
+<span class="fc bfc" id="L292" title="All 2 branches covered.">            else if (offset &gt;= buffer.length)</span>
             {
-<span class="nc" id="L294">                throw new IndexOutOfBoundsException(&quot;offset &gt;= buffer.length&quot;);</span>
+<span class="fc" id="L294">                throw new IndexOutOfBoundsException(&quot;offset &gt;= buffer.length&quot;);</span>
             }
-<span class="pc bpc" id="L296" title="1 of 2 branches missed.">            else if (offset + length &gt; buffer.length)</span>
+<span class="fc bfc" id="L296" title="All 2 branches covered.">            else if (offset + length &gt; buffer.length)</span>
             {
-<span class="nc" id="L298">                throw new IllegalArgumentException(&quot;offset + length &gt;= buffer.length&quot;);</span>
+<span class="fc" id="L298">                throw new IllegalArgumentException(&quot;offset + length &gt;= buffer.length&quot;);</span>
             }
             else
             {
@@ -412,58 +412,49 @@ public final class ConcreteAllocator
     public final class DynamicAllocationPool
             implements AllocationPool
     {
-        private final String name;
-
-        private final String simpleName;
+        private final CascadeToken name;
 
         private final int minimumSize;
 
         private final int maximumSize;
 
-        public DynamicAllocationPool (final String name,
+        public DynamicAllocationPool (final CascadeToken name,
                                       final int minimumSize,
                                       final int maximumSize)
-<span class="fc" id="L426">        {</span>
-<span class="fc" id="L427">            this.name = name;</span>
-<span class="fc" id="L428">            this.simpleName = Utils.getSimpleName(name);</span>
-<span class="fc" id="L429">            this.minimumSize = minimumSize;</span>
-<span class="fc" id="L430">            this.maximumSize = maximumSize;</span>
-<span class="fc" id="L431">        }</span>
+<span class="fc" id="L424">        {</span>
+<span class="fc" id="L425">            this.name = name;</span>
+<span class="fc" id="L426">            this.minimumSize = minimumSize;</span>
+<span class="fc" id="L427">            this.maximumSize = maximumSize;</span>
+<span class="fc" id="L428">        }</span>
 
         @Override
-        public String name ()
+        public CascadeToken name ()
         {
-<span class="fc" id="L436">            return name;</span>
-        }
-
-        @Override
-        public String simpleName ()
-        {
-<span class="nc" id="L442">            return simpleName;</span>
+<span class="fc" id="L433">            return name;</span>
         }
 
         @Override
         public boolean isFixed ()
         {
-<span class="fc" id="L448">            return false;</span>
+<span class="fc" id="L439">            return false;</span>
         }
 
         @Override
         public int minimumAllocationSize ()
         {
-<span class="fc" id="L454">            return minimumSize;</span>
+<span class="fc" id="L445">            return minimumSize;</span>
         }
 
         @Override
         public int maximumAllocationSize ()
         {
-<span class="fc" id="L460">            return maximumSize;</span>
+<span class="fc" id="L451">            return maximumSize;</span>
         }
 
         @Override
         public CascadeAllocator allocator ()
         {
-<span class="fc" id="L466">            return ALLOCATOR;</span>
+<span class="fc" id="L457">            return ALLOCATOR;</span>
         }
 
         @Override
@@ -474,16 +465,16 @@ public final class ConcreteAllocator
         {
             try
             {
-<span class="fc" id="L477">                checkAlloc(this, stack, buffer, offset, length);</span>
-<span class="fc" id="L478">                final StandardOperandStack operands = (StandardOperandStack) stack;</span>
-<span class="fc" id="L479">                final StandardOperand operand = new StandardOperand(this, null, length);</span>
-<span class="fc" id="L480">                operand.init(buffer, offset, length, operands.top);</span>
-<span class="fc" id="L481">                operands.performSet(operand);</span>
-<span class="fc" id="L482">                return true;</span>
+<span class="fc" id="L468">                checkAlloc(this, stack, buffer, offset, length);</span>
+<span class="fc" id="L469">                final StandardOperandStack operands = (StandardOperandStack) stack;</span>
+<span class="fc" id="L470">                final StandardOperand operand = new StandardOperand(this, null, length);</span>
+<span class="fc" id="L471">                operand.init(buffer, offset, length, operands.top);</span>
+<span class="fc" id="L472">                operands.performSet(operand);</span>
+<span class="fc" id="L473">                return true;</span>
             }
-<span class="nc" id="L484">            catch (OutOfMemoryError ex)</span>
+<span class="nc" id="L475">            catch (OutOfMemoryError ex)</span>
             {
-<span class="nc" id="L486">                return false;</span>
+<span class="nc" id="L477">                return false;</span>
             }
         }
     }
@@ -495,9 +486,7 @@ public final class ConcreteAllocator
     public final class FixedAllocationPool
             implements AllocationPool
     {
-        private final String name;
-
-        private final String simpleName;
+        private final CascadeToken name;
 
         private final int minimumSize;
 
@@ -509,71 +498,64 @@ public final class ConcreteAllocator
 
         private final Consumer&lt;StandardOperand&gt; onFree;
 
-        public FixedAllocationPool (final String name,
+        public FixedAllocationPool (final CascadeToken name,
                                     final int minimumSize,
                                     final int maximumSize,
                                     final int capacity)
-<span class="fc" id="L516">        {</span>
-<span class="fc" id="L517">            this.name = name;</span>
-<span class="fc" id="L518">            this.simpleName = Utils.getSimpleName(name);</span>
-<span class="fc" id="L519">            this.minimumSize = minimumSize;</span>
-<span class="fc" id="L520">            this.maximumSize = maximumSize;</span>
-<span class="fc" id="L521">            this.capacity = capacity;</span>
-<span class="fc" id="L522">            this.freePool = new ArrayBlockingQueue&lt;&gt;(capacity);</span>
-<span class="fc" id="L523">            this.onFree = x -&gt; freePool.offer(x);</span>
+<span class="fc" id="L505">        {</span>
+<span class="fc" id="L506">            this.name = name;</span>
+<span class="fc" id="L507">            this.minimumSize = minimumSize;</span>
+<span class="fc" id="L508">            this.maximumSize = maximumSize;</span>
+<span class="fc" id="L509">            this.capacity = capacity;</span>
+<span class="fc" id="L510">            this.freePool = new ArrayBlockingQueue&lt;&gt;(capacity);</span>
+<span class="fc" id="L511">            this.onFree = x -&gt; freePool.offer(x);</span>
 
-<span class="fc bfc" id="L525" title="All 2 branches covered.">            for (int i = 0; i &lt; capacity; i++)</span>
+<span class="fc bfc" id="L513" title="All 2 branches covered.">            for (int i = 0; i &lt; capacity; i++)</span>
             {
-<span class="fc" id="L527">                freePool.offer(new StandardOperand(this, onFree, maximumSize));</span>
+<span class="fc" id="L515">                freePool.offer(new StandardOperand(this, onFree, maximumSize));</span>
             }
-<span class="fc" id="L529">        }</span>
+<span class="fc" id="L517">        }</span>
 
         @Override
         public OptionalLong size ()
         {
-<span class="fc" id="L534">            return OptionalLong.of(capacity - freePool.size());</span>
+<span class="fc" id="L522">            return OptionalLong.of(capacity - freePool.size());</span>
         }
 
         @Override
         public OptionalLong capacity ()
         {
-<span class="fc" id="L540">            return OptionalLong.of(capacity);</span>
+<span class="fc" id="L528">            return OptionalLong.of(capacity);</span>
         }
 
         @Override
-        public String name ()
+        public CascadeToken name ()
         {
-<span class="fc" id="L546">            return name;</span>
-        }
-
-        @Override
-        public String simpleName ()
-        {
-<span class="nc" id="L552">            return name;</span>
+<span class="fc" id="L534">            return name;</span>
         }
 
         @Override
         public boolean isFixed ()
         {
-<span class="fc" id="L558">            return true;</span>
+<span class="fc" id="L540">            return true;</span>
         }
 
         @Override
         public int minimumAllocationSize ()
         {
-<span class="fc" id="L564">            return minimumSize;</span>
+<span class="fc" id="L546">            return minimumSize;</span>
         }
 
         @Override
         public int maximumAllocationSize ()
         {
-<span class="fc" id="L570">            return maximumSize;</span>
+<span class="fc" id="L552">            return maximumSize;</span>
         }
 
         @Override
         public CascadeAllocator allocator ()
         {
-<span class="fc" id="L576">            return ALLOCATOR;</span>
+<span class="fc" id="L558">            return ALLOCATOR;</span>
         }
 
         @Override
@@ -582,17 +564,17 @@ public final class ConcreteAllocator
                                  final int offset,
                                  final int length)
         {
-<span class="fc" id="L585">            checkAlloc(this, stack, buffer, offset, length);</span>
-<span class="fc" id="L586">            final StandardOperandStack operands = (StandardOperandStack) stack;</span>
-<span class="fc" id="L587">            final StandardOperand operand = freePool.poll();</span>
-<span class="fc bfc" id="L588" title="All 2 branches covered.">            if (operand == null)</span>
+<span class="fc" id="L567">            checkAlloc(this, stack, buffer, offset, length);</span>
+<span class="fc" id="L568">            final StandardOperandStack operands = (StandardOperandStack) stack;</span>
+<span class="fc" id="L569">            final StandardOperand operand = freePool.poll();</span>
+<span class="fc bfc" id="L570" title="All 2 branches covered.">            if (operand == null)</span>
             {
-<span class="fc" id="L590">                return false;</span>
+<span class="fc" id="L572">                return false;</span>
             }
-<span class="pc bpc" id="L592" title="1 of 4 branches missed.">            Verify.verify(operands.top == null || operands.top.refCount &gt;= 1);</span>
-<span class="fc" id="L593">            operand.init(buffer, offset, length, operands.top);</span>
-<span class="fc" id="L594">            operands.performSet(operand);</span>
-<span class="fc" id="L595">            return true;</span>
+<span class="pc bpc" id="L574" title="1 of 4 branches missed.">            Verify.verify(operands.top == null || operands.top.refCount &gt;= 1);</span>
+<span class="fc" id="L575">            operand.init(buffer, offset, length, operands.top);</span>
+<span class="fc" id="L576">            operands.performSet(operand);</span>
+<span class="fc" id="L577">            return true;</span>
         }
 
     }
@@ -604,9 +586,7 @@ public final class ConcreteAllocator
     public final class CompositeAllocationPool
             implements AllocationPool
     {
-        private final String name;
-
-        private final String simpleName;
+        private final CascadeToken name;
 
         private final int minimumSize;
 
@@ -620,60 +600,55 @@ public final class ConcreteAllocator
          */
         private final PositiveIntRangeMap&lt;AllocationPool&gt; lookup;
 
-        public CompositeAllocationPool (final String name,
+        public CompositeAllocationPool (final CascadeToken name,
                                         final AllocationPool fallback,
                                         final List&lt;AllocationPool&gt; pools)
-<span class="fc" id="L626">        {</span>
-<span class="fc" id="L627">            this.name = name;</span>
-<span class="fc" id="L628">            this.simpleName = Utils.getSimpleName(name);</span>
+<span class="fc" id="L606">        {</span>
+<span class="fc" id="L607">            this.name = name;</span>
 
-<span class="fc" id="L630">            this.fallback = fallback;</span>
+<span class="fc" id="L609">            this.fallback = fallback;</span>
 
-<span class="fc bfc" id="L632" title="All 2 branches covered.">            final int min1 = fallback == null ? Integer.MAX_VALUE : fallback.minimumAllocationSize();</span>
-<span class="fc" id="L633">            final int min2 = pools.stream().mapToInt(x -&gt; x.minimumAllocationSize()).min().getAsInt();</span>
-<span class="fc" id="L634">            this.minimumSize = Math.min(min1, min2);</span>
+<span class="fc bfc" id="L611" title="All 4 branches covered.">            final boolean none = fallback == null &amp;&amp; pools.isEmpty();</span>
 
-<span class="fc bfc" id="L636" title="All 2 branches covered.">            final int max1 = fallback == null ? Integer.MIN_VALUE : fallback.maximumAllocationSize();</span>
-<span class="fc" id="L637">            final int max2 = pools.stream().mapToInt(x -&gt; x.maximumAllocationSize()).max().getAsInt();</span>
-<span class="fc" id="L638">            this.maximumSize = Math.max(max1, max2);</span>
+<span class="fc bfc" id="L613" title="All 2 branches covered.">            final int min1 = fallback == null ? Integer.MAX_VALUE : fallback.minimumAllocationSize();</span>
+<span class="fc" id="L614">            final int min2 = pools.stream().mapToInt(x -&gt; x.minimumAllocationSize()).min().orElse(min1);</span>
+<span class="fc bfc" id="L615" title="All 2 branches covered.">            this.minimumSize = none ? 0 : Math.min(min1, min2);</span>
 
-<span class="fc" id="L640">            this.lookup = new PositiveIntRangeMap&lt;&gt;(pools.stream().map(x -&gt; new RangeEntry&lt;&gt;(x.minimumAllocationSize(), x.maximumAllocationSize(), x)).collect(Collectors.toList()));</span>
-<span class="fc" id="L641">        }</span>
+<span class="fc bfc" id="L617" title="All 2 branches covered.">            final int max1 = fallback == null ? Integer.MIN_VALUE : fallback.maximumAllocationSize();</span>
+<span class="fc" id="L618">            final int max2 = pools.stream().mapToInt(x -&gt; x.maximumAllocationSize()).max().orElse(max1);</span>
+<span class="fc bfc" id="L619" title="All 2 branches covered.">            this.maximumSize = none ? 0 : Math.max(max1, max2);</span>
 
-        @Override
-        public String name ()
-        {
-<span class="fc" id="L646">            return name;</span>
-        }
+<span class="fc" id="L621">            this.lookup = new PositiveIntRangeMap&lt;&gt;(pools.stream().map(x -&gt; new RangeEntry&lt;&gt;(x.minimumAllocationSize(), x.maximumAllocationSize(), x)).collect(Collectors.toList()));</span>
+<span class="fc" id="L622">        }</span>
 
         @Override
-        public String simpleName ()
+        public CascadeToken name ()
         {
-<span class="nc" id="L652">            return simpleName;</span>
+<span class="fc" id="L627">            return name;</span>
         }
 
         @Override
         public boolean isFixed ()
         {
-<span class="fc" id="L658">            return false;</span>
+<span class="fc" id="L633">            return false;</span>
         }
 
         @Override
         public int minimumAllocationSize ()
         {
-<span class="fc" id="L664">            return minimumSize;</span>
+<span class="fc" id="L639">            return minimumSize;</span>
         }
 
         @Override
         public int maximumAllocationSize ()
         {
-<span class="fc" id="L670">            return maximumSize;</span>
+<span class="fc" id="L645">            return maximumSize;</span>
         }
 
         @Override
         public CascadeAllocator allocator ()
         {
-<span class="fc" id="L676">            return ALLOCATOR;</span>
+<span class="fc" id="L651">            return ALLOCATOR;</span>
         }
 
         @Override
@@ -682,40 +657,44 @@ public final class ConcreteAllocator
                                  final int offset,
                                  final int length)
         {
-<span class="fc" id="L685">            checkAlloc(this, stack, buffer, offset, length);</span>
-<span class="fc" id="L686">            final AllocationPool match = lookup.search(length);</span>
-<span class="fc bfc" id="L687" title="All 2 branches covered.">            final AllocationPool pool = match == null ? fallback : match;</span>
-<span class="pc bpc" id="L688" title="1 of 2 branches missed.">            if (pool == null)</span>
+<span class="fc" id="L660">            checkAlloc(this, stack, buffer, offset, length);</span>
+<span class="fc" id="L661">            final AllocationPool match = lookup.search(length);</span>
+<span class="fc bfc" id="L662" title="All 2 branches covered.">            final AllocationPool pool = match == null ? fallback : match;</span>
+<span class="pc bpc" id="L663" title="1 of 2 branches missed.">            if (pool == null)</span>
             {
-<span class="nc" id="L690">                throw new IllegalArgumentException(&quot;No Applicable Delegate Pool&quot;);</span>
+<span class="nc" id="L665">                throw new IllegalArgumentException(&quot;No Applicable Delegate Pool&quot;);</span>
             }
 
-<span class="fc" id="L693">            final boolean firstTry = pool.tryAlloc(stack, buffer, offset, length);</span>
+<span class="fc" id="L668">            final boolean firstTry = pool.tryAlloc(stack, buffer, offset, length);</span>
 
-<span class="fc bfc" id="L695" title="All 4 branches covered.">            if (firstTry == false &amp;&amp; fallback != null)</span>
+<span class="fc bfc" id="L670" title="All 4 branches covered.">            if (firstTry == false &amp;&amp; fallback != null)</span>
             {
-<span class="fc" id="L697">                return fallback.tryAlloc(stack, buffer, offset, length);</span>
+<span class="fc" id="L672">                return fallback.tryAlloc(stack, buffer, offset, length);</span>
             }
             else
             {
-<span class="fc" id="L701">                return firstTry;</span>
+<span class="fc" id="L676">                return firstTry;</span>
             }
         }
     }
 
+<span class="fc" id="L681">    private final CascadeToken DEFAULT = CascadeToken.create(&quot;default&quot;);</span>
+
     private Cascade cascade;
 
-<span class="fc" id="L708">    private final Map&lt;String, AllocationPool&gt; pools = new ConcurrentHashMap&lt;&gt;();</span>
+<span class="fc" id="L685">    private final Map&lt;CascadeToken, AllocationPool&gt; pools = new ConcurrentHashMap&lt;&gt;();</span>
 
-<span class="fc" id="L710">    private final Map&lt;String, AllocationPool&gt; unmodPools = Collections.unmodifiableMap(pools);</span>
+<span class="fc" id="L687">    private final Map&lt;CascadeToken, AllocationPool&gt; unmodPools = Collections.unmodifiableMap(pools);</span>
+
+    private volatile AllocationPool defaultPool;
 
     /**
      * Constructor, for testing purposes.
      */
     public ConcreteAllocator ()
     {
-<span class="fc" id="L717">        this(null);</span>
-<span class="fc" id="L718">    }</span>
+<span class="fc" id="L696">        this(null);</span>
+<span class="fc" id="L697">    }</span>
 
     /**
      * Constructor, for production.
@@ -723,9 +702,9 @@ public final class ConcreteAllocator
      * @param owner owns this allocator.
      */
     public ConcreteAllocator (final Cascade owner)
-<span class="fc" id="L726">    {</span>
-<span class="fc" id="L727">        this.cascade = owner;</span>
-<span class="fc" id="L728">    }</span>
+<span class="fc" id="L705">    {</span>
+<span class="fc" id="L706">        this.cascade = owner;</span>
+<span class="fc" id="L707">    }</span>
 
     /**
      * Use this method to add a new dynamic allocation-pool to this allocator.
@@ -739,13 +718,13 @@ public final class ConcreteAllocator
      * @param maximumSize is the maximum size of allocations in the pool.
      * @return the new pool.
      */
-    public AllocationPool addDynamicPool (final String name,
+    public AllocationPool addDynamicPool (final CascadeToken name,
                                           final int minimumSize,
                                           final int maximumSize)
     {
-<span class="fc" id="L746">        final AllocationPool pool = new DynamicAllocationPool(name, minimumSize, maximumSize);</span>
-<span class="fc" id="L747">        pools.put(name, pool);</span>
-<span class="fc" id="L748">        return pool;</span>
+<span class="fc" id="L725">        final AllocationPool pool = new DynamicAllocationPool(name, minimumSize, maximumSize);</span>
+<span class="fc" id="L726">        pools.put(name, pool);</span>
+<span class="fc" id="L727">        return pool;</span>
     }
 
     /**
@@ -761,14 +740,14 @@ public final class ConcreteAllocator
      * @param capacity is the maximum number of allocations in the pool at one time.
      * @return the new pool.
      */
-    public AllocationPool addFixedPool (final String name,
+    public AllocationPool addFixedPool (final CascadeToken name,
                                         final int minimumSize,
                                         final int maximumSize,
                                         final int capacity)
     {
-<span class="fc" id="L769">        final AllocationPool pool = new FixedAllocationPool(name, minimumSize, maximumSize, capacity);</span>
-<span class="fc" id="L770">        pools.put(name, pool);</span>
-<span class="fc" id="L771">        return pool;</span>
+<span class="fc" id="L748">        final AllocationPool pool = new FixedAllocationPool(name, minimumSize, maximumSize, capacity);</span>
+<span class="fc" id="L749">        pools.put(name, pool);</span>
+<span class="fc" id="L750">        return pool;</span>
     }
 
     /**
@@ -783,53 +762,65 @@ public final class ConcreteAllocator
      * @param delegates are the pools that the new pool will be composed of.
      * @return the new pool.
      */
-    public AllocationPool addCompositePool (final String name,
+    public AllocationPool addCompositePool (final CascadeToken name,
                                             final AllocationPool fallback,
                                             final List&lt;AllocationPool&gt; delegates)
     {
-<span class="fc" id="L790">        final AllocationPool pool = new CompositeAllocationPool(name, fallback, delegates);</span>
-<span class="fc" id="L791">        pools.put(name, pool);</span>
-<span class="fc" id="L792">        return pool;</span>
+<span class="fc" id="L769">        final AllocationPool pool = new CompositeAllocationPool(name, fallback, delegates);</span>
+<span class="fc" id="L770">        pools.put(name, pool);</span>
+<span class="fc" id="L771">        return pool;</span>
     }
 
     @Override
     public Cascade cascade ()
     {
-<span class="fc" id="L798">        return cascade;</span>
+<span class="fc" id="L777">        return cascade;</span>
     }
 
     @Override
     public OperandStack newOperandStack ()
     {
-<span class="fc" id="L804">        return new StandardOperandStack();</span>
+<span class="fc" id="L783">        return new StandardOperandStack();</span>
     }
 
     @Override
     public OperandArray newOperandArray (final int size)
     {
-<span class="fc" id="L810">        return new StandardOperandArray(size);</span>
+<span class="fc" id="L789">        return new StandardOperandArray(size);</span>
     }
 
     @Override
-    public Map&lt;String, AllocationPool&gt; pools ()
+    public Map&lt;CascadeToken, AllocationPool&gt; pools ()
     {
-<span class="fc" id="L816">        return unmodPools;</span>
+<span class="fc" id="L795">        return unmodPools;</span>
     }
 
     @Override
     public AllocationPool defaultPool ()
     {
-<span class="fc" id="L822">        final AllocationPool pool = unmodPools.get(&quot;default&quot;);</span>
-
-<span class="fc bfc" id="L824" title="All 2 branches covered.">        if (pool == null)</span>
+<span class="fc bfc" id="L801" title="All 2 branches covered.">        if (defaultPool != null)</span>
         {
-<span class="fc" id="L826">            throw new IllegalStateException(&quot;No Default Pool Exists&quot;);</span>
+<span class="fc" id="L803">            return defaultPool;</span>
+        }
+
+<span class="fc" id="L806">        final AllocationPool pool = pools.get(DEFAULT);</span>
+
+<span class="fc bfc" id="L808" title="All 2 branches covered.">        if (pool != null) // Depreciated, for old unit-tests only.</span>
+        {
+<span class="fc" id="L810">            return pool;</span>
         }
         else
         {
-<span class="fc" id="L830">            return pool;</span>
+<span class="fc" id="L814">            throw new IllegalStateException(&quot;No Default Pool Exists&quot;);</span>
         }
     }
+
+    public synchronized void setDefaultPool (final CascadeToken name)
+    {
+<span class="pc bpc" id="L820" title="1 of 2 branches missed.">        Verify.verify(defaultPool == null);</span>
+<span class="fc" id="L821">        defaultPool = pools.get(name);</span>
+<span class="fc" id="L822">        Verify.verifyNotNull(defaultPool);</span>
+<span class="fc" id="L823">    }</span>
 
     private void checkAlloc (final AllocationPool pool,
                              final OperandStack stack,
@@ -838,42 +829,42 @@ public final class ConcreteAllocator
                              final int length)
     {
 
-<span class="pc bpc" id="L841" title="1 of 2 branches missed.">        if (stack == null)</span>
+<span class="pc bpc" id="L832" title="1 of 2 branches missed.">        if (stack == null)</span>
         {
-<span class="nc" id="L843">            throw new NullPointerException(&quot;stack&quot;);</span>
+<span class="nc" id="L834">            throw new NullPointerException(&quot;stack&quot;);</span>
         }
-<span class="fc bfc" id="L845" title="All 2 branches covered.">        else if (pool.allocator().equals(stack.allocator()) == false)</span>
+<span class="fc bfc" id="L836" title="All 2 branches covered.">        else if (pool.allocator().equals(stack.allocator()) == false)</span>
         {
-<span class="fc" id="L847">            throw new AllocatorMismatchException(pool.allocator(), stack.allocator());</span>
+<span class="fc" id="L838">            throw new AllocatorMismatchException(pool.allocator(), stack.allocator());</span>
         }
-<span class="pc bpc" id="L849" title="1 of 2 branches missed.">        else if (buffer == null)</span>
+<span class="pc bpc" id="L840" title="1 of 2 branches missed.">        else if (buffer == null)</span>
         {
-<span class="nc" id="L851">            throw new NullPointerException(&quot;buffer&quot;);</span>
+<span class="nc" id="L842">            throw new NullPointerException(&quot;buffer&quot;);</span>
         }
-<span class="fc bfc" id="L853" title="All 2 branches covered.">        else if (offset &lt; 0)</span>
+<span class="fc bfc" id="L844" title="All 2 branches covered.">        else if (offset &lt; 0)</span>
         {
-<span class="fc" id="L855">            throw new IndexOutOfBoundsException(&quot;offset &lt; 0&quot;);</span>
+<span class="fc" id="L846">            throw new IndexOutOfBoundsException(&quot;offset &lt; 0&quot;);</span>
         }
-<span class="fc bfc" id="L857" title="All 4 branches covered.">        else if (offset &gt; 0 &amp;&amp; offset &gt;= buffer.length)</span>
+<span class="fc bfc" id="L848" title="All 4 branches covered.">        else if (offset &gt; 0 &amp;&amp; offset &gt;= buffer.length)</span>
         {
-<span class="fc" id="L859">            throw new IndexOutOfBoundsException(&quot;offset &gt; 0 &amp;&amp; offset &gt;= buffer.length&quot;);</span>
+<span class="fc" id="L850">            throw new IndexOutOfBoundsException(&quot;offset &gt; 0 &amp;&amp; offset &gt;= buffer.length&quot;);</span>
         }
-<span class="fc bfc" id="L861" title="All 2 branches covered.">        else if (length &lt; pool.minimumAllocationSize())</span>
+<span class="fc bfc" id="L852" title="All 2 branches covered.">        else if (length &lt; pool.minimumAllocationSize())</span>
         {
-<span class="fc" id="L863">            throw new IllegalArgumentException(&quot;length &lt; minimumAllocationSize()&quot;);</span>
+<span class="fc" id="L854">            throw new IllegalArgumentException(&quot;length &lt; minimumAllocationSize()&quot;);</span>
         }
-<span class="pc bpc" id="L865" title="1 of 2 branches missed.">        else if (length &gt; pool.maximumAllocationSize())</span>
+<span class="pc bpc" id="L856" title="1 of 2 branches missed.">        else if (length &gt; pool.maximumAllocationSize())</span>
         {
-<span class="nc" id="L867">            throw new IllegalArgumentException(&quot;length &gt; maximumAllocationSize()&quot;);</span>
+<span class="nc" id="L858">            throw new IllegalArgumentException(&quot;length &gt; maximumAllocationSize()&quot;);</span>
         }
-<span class="pc bpc" id="L869" title="1 of 4 branches missed.">        else if (offset &gt; 0 &amp;&amp; offset + length &gt;= buffer.length)</span>
+<span class="pc bpc" id="L860" title="1 of 4 branches missed.">        else if (offset &gt; 0 &amp;&amp; offset + length &gt;= buffer.length)</span>
         {
-<span class="fc" id="L871">            throw new IllegalArgumentException(&quot;offset &gt; 0 &amp;&amp; offset + length &gt;= buffer.length&quot;);</span>
+<span class="fc" id="L862">            throw new IllegalArgumentException(&quot;offset &gt; 0 &amp;&amp; offset + length &gt;= buffer.length&quot;);</span>
         }
-<span class="fc bfc" id="L873" title="All 2 branches covered.">        else if (offset + length &gt; buffer.length)</span>
+<span class="fc bfc" id="L864" title="All 2 branches covered.">        else if (offset + length &gt; buffer.length)</span>
         {
-<span class="fc" id="L875">            throw new IllegalArgumentException(&quot;offset + length &gt; buffer.length&quot;);</span>
+<span class="fc" id="L866">            throw new IllegalArgumentException(&quot;offset + length &gt; buffer.length&quot;);</span>
         }
-<span class="fc" id="L877">    }</span>
+<span class="fc" id="L868">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

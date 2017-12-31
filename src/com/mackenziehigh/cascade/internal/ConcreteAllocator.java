@@ -608,13 +608,15 @@ public final class ConcreteAllocator
 
             this.fallback = fallback;
 
+            final boolean none = fallback == null && pools.isEmpty();
+
             final int min1 = fallback == null ? Integer.MAX_VALUE : fallback.minimumAllocationSize();
-            final int min2 = pools.stream().mapToInt(x -> x.minimumAllocationSize()).min().getAsInt();
-            this.minimumSize = Math.min(min1, min2);
+            final int min2 = pools.stream().mapToInt(x -> x.minimumAllocationSize()).min().orElse(min1);
+            this.minimumSize = none ? 0 : Math.min(min1, min2);
 
             final int max1 = fallback == null ? Integer.MIN_VALUE : fallback.maximumAllocationSize();
-            final int max2 = pools.stream().mapToInt(x -> x.maximumAllocationSize()).max().getAsInt();
-            this.maximumSize = Math.max(max1, max2);
+            final int max2 = pools.stream().mapToInt(x -> x.maximumAllocationSize()).max().orElse(max1);
+            this.maximumSize = none ? 0 : Math.max(max1, max2);
 
             this.lookup = new PositiveIntRangeMap<>(pools.stream().map(x -> new RangeEntry<>(x.minimumAllocationSize(), x.maximumAllocationSize(), x)).collect(Collectors.toList()));
         }
@@ -676,11 +678,15 @@ public final class ConcreteAllocator
         }
     }
 
+    private final CascadeToken DEFAULT = CascadeToken.create("default");
+
     private Cascade cascade;
 
     private final Map<CascadeToken, AllocationPool> pools = new ConcurrentHashMap<>();
 
     private final Map<CascadeToken, AllocationPool> unmodPools = Collections.unmodifiableMap(pools);
+
+    private volatile AllocationPool defaultPool;
 
     /**
      * Constructor, for testing purposes.
@@ -792,16 +798,28 @@ public final class ConcreteAllocator
     @Override
     public AllocationPool defaultPool ()
     {
-        final AllocationPool pool = unmodPools.get(CascadeToken.create("default"));
-
-        if (pool == null)
+        if (defaultPool != null)
         {
-            throw new IllegalStateException("No Default Pool Exists");
+            return defaultPool;
         }
-        else
+
+        final AllocationPool pool = pools.get(DEFAULT);
+
+        if (pool != null) // Depreciated, for old unit-tests only.
         {
             return pool;
         }
+        else
+        {
+            throw new IllegalStateException("No Default Pool Exists");
+        }
+    }
+
+    public synchronized void setDefaultPool (final CascadeToken name)
+    {
+        Verify.verify(defaultPool == null);
+        defaultPool = pools.get(name);
+        Verify.verifyNotNull(defaultPool);
     }
 
     private void checkAlloc (final AllocationPool pool,

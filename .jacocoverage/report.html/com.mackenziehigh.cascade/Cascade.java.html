@@ -52,13 +52,6 @@ public interface Cascade
     /**
      * Getter.
      *
-     * @return the logger for use, if no other logger is more appropriate.
-     */
-    public CascadeLogger defaultLogger ();
-
-    /**
-     * Getter.
-     *
      * @return the allocator used by this system.
      */
     public CascadeAllocator allocator ();

@@ -168,7 +168,6 @@ public final class ConcretePump
                     }
                     catch (InterruptedException ex)
                     {
-                        cascade().defaultLogger().warn(ex);
                         Thread.currentThread().interrupt();
                         continue;
                     }
@@ -207,17 +206,7 @@ public final class ConcretePump
                             }
                             catch (Throwable ex3)
                             {
-                                try
-                                {
-                                    cascade().defaultLogger().warn(ex3);
-                                }
-                                catch (Throwable ex4)
-                                {
-                                    ex1.printStackTrace(System.err);
-                                    ex2.printStackTrace(System.err);
-                                    ex3.printStackTrace(System.err);
-                                    ex4.printStackTrace(System.err);
-                                }
+                                // Pass
                             }
                         }
                     }

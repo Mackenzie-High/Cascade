@@ -1,11 +1,9 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Verify;
-import com.google.common.collect.ImmutableSet;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadePump;
 import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Context;
@@ -27,8 +25,6 @@ public final class ConcreteCascade
     private volatile CascadeToken name;
 
     private final UUID uuid = UUID.randomUUID();
-
-    private volatile CascadeLogger defaultLogger;
 
     private volatile CascadeAllocator allocator;
 
@@ -54,7 +50,6 @@ public final class ConcreteCascade
         Verify.verifyNotNull(name());
         Verify.verifyNotNull(uuid());
         Verify.verifyNotNull(phase());
-        Verify.verifyNotNull(defaultLogger());
         Verify.verifyNotNull(pumps());
         Verify.verifyNotNull(reactors());
 
@@ -83,24 +78,19 @@ public final class ConcreteCascade
          */
         if (reactors.size() > 0)
         {
-            Verify.verify(reactors().values().stream().map(x -> x.pump()).collect(Collectors.toSet()).equals(ImmutableSet.copyOf(pumps().values())));
+            Verify.verify(pumps().values().containsAll(reactors().values().stream().map(x -> x.pump()).collect(Collectors.toSet())));
         }
 
         /**
          * Verify that all of the reactors known-by the pumps
          * are also directly known by this object as well.
          */
-        Verify.verify(pumps().values().stream().map(x -> x.reactors()).flatMap(x -> x.stream()).collect(Collectors.toSet()).equals(ImmutableSet.copyOf(reactors().values())));
+        Verify.verify(reactors().values().containsAll(pumps().values().stream().map(x -> x.reactors()).flatMap(x -> x.stream()).collect(Collectors.toSet())));
     }
 
     public void setName (final CascadeToken value)
     {
         name = value;
-    }
-
-    public void setDefaultLogger (final CascadeLogger value)
-    {
-        defaultLogger = value;
     }
 
     public void setAllocator (final CascadeAllocator value)
@@ -128,12 +118,6 @@ public final class ConcreteCascade
     public UUID uuid ()
     {
         return uuid;
-    }
-
-    @Override
-    public CascadeLogger defaultLogger ()
-    {
-        return defaultLogger;
     }
 
     @Override
@@ -246,7 +230,7 @@ public final class ConcreteCascade
             }
             catch (Throwable ex)
             {
-                safelyLog(ex);
+                // Pass
             }
         }
     }
@@ -342,7 +326,7 @@ public final class ConcreteCascade
                 }
                 catch (InterruptedException ex)
                 {
-                    safelyLog(ex);
+                    // Pass
                 }
             }
         }
@@ -360,7 +344,7 @@ public final class ConcreteCascade
             }
             catch (Throwable ex)
             {
-                safelyLog(ex);
+                // Pass
             }
         }
     }
@@ -398,22 +382,9 @@ public final class ConcreteCascade
                 }
                 catch (Throwable ex2)
                 {
-                    safelyLog(ex2);
+                    // Pass
                 }
             }
-        }
-    }
-
-    private void safelyLog (final Throwable ex1)
-    {
-        try
-        {
-            defaultLogger().warn(ex1);
-        }
-        catch (Throwable ex2)
-        {
-            ex1.printStackTrace(System.err);
-            ex2.printStackTrace(System.err);
         }
     }
 }

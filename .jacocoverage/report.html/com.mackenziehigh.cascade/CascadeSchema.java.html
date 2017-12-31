@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade;
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CascadeSchema.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade</a> &gt; <span class="el_source">CascadeSchema.java</span></div><h1>CascadeSchema.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade;
 
 import com.mackenziehigh.cascade.CascadeReactor.Core;
 import com.mackenziehigh.cascade.internal.ConcreteSchema;
@@ -28,40 +28,40 @@ public interface CascadeSchema
     /**
      * Describes an allocation-pool that uses on-demand memory allocation.
      *
-     * <p>
-     * This type of allocation-pool simply allocates a new <code>byte[]</code>
+     * &lt;p&gt;
+     * This type of allocation-pool simply allocates a new &lt;code&gt;byte[]&lt;/code&gt;
      * whenever an allocation request is made.
-     * </p>
+     * &lt;/p&gt;
      *
-     * <p>
-     * <b>Advantages:</b>
-     * <ul>
-     * <li>
+     * &lt;p&gt;
+     * &lt;b&gt;Advantages:&lt;/b&gt;
+     * &lt;ul&gt;
+     * &lt;li&gt;
      * Only the amount of memory that is actually needed is allocated per operand;
      * therefore, operands never have wasted padding.
-     * </li>
-     * <li>
+     * &lt;/li&gt;
+     * &lt;li&gt;
      * The amount of memory allocated by the pool may grow and shrink as needed,
      * rather than requiring a pre-allocated amount based on programmer expectations.
-     * </li>
-     * </ul>
-     * </p>
+     * &lt;/li&gt;
+     * &lt;/ul&gt;
+     * &lt;/p&gt;
      *
-     * <p>
-     * <b>Disadvantages:</b>
-     * <ul>
-     * <li>
+     * &lt;p&gt;
+     * &lt;b&gt;Disadvantages:&lt;/b&gt;
+     * &lt;ul&gt;
+     * &lt;li&gt;
      * Allocations put pressure on the garbage-collector. In particular, frequent large
      * allocations may have a negative performance impact, by causing the garbage-collector
      * to have to perform more frequent invasive collections. For example, the (G1) garbage
      * collector automatically promotes large objects to the old-generation.
-     * </li>
-     * </ul>
-     * </p>
+     * &lt;/li&gt;
+     * &lt;/ul&gt;
+     * &lt;/p&gt;
      *
-     * <p>
-     * The default minimum-size is zero and the default maximum-size is <code>Integer.MAX_VALUE</code>.
-     * </p>
+     * &lt;p&gt;
+     * The default minimum-size is zero and the default maximum-size is &lt;code&gt;Integer.MAX_VALUE&lt;/code&gt;.
+     * &lt;/p&gt;
      */
     public interface DynamicPoolSchema
             extends PoolSchema
@@ -92,48 +92,48 @@ public interface CascadeSchema
     /**
      * Describes an allocation-pool that uses preallocated memory.
      *
-     * <p>
+     * &lt;p&gt;
      * This type of allocation-pool simply allocates a a fixed number
-     * of <code>byte[]</code> buffers at startup. Whenever an allocation
+     * of &lt;code&gt;byte[]&lt;/code&gt; buffers at startup. Whenever an allocation
      * request is made, a free buffer is selected and used to fulfill
      * the request. When the buffer is no longer in-use, the buffer
      * is returned to the pool of available buffers.
-     * </p>
+     * &lt;/p&gt;
      *
-     * <p>
-     * <b>Advantages:</b>
-     * <ul>
-     * <li>
+     * &lt;p&gt;
+     * &lt;b&gt;Advantages:&lt;/b&gt;
+     * &lt;ul&gt;
+     * &lt;li&gt;
      * Since the buffers are reused, no pressure is put on the garbage-collector.
-     * </li>
-     * <li>
+     * &lt;/li&gt;
+     * &lt;li&gt;
      * The amount of memory allocated by the pool is effectively constant.
-     * </li>
-     * </ul>
-     * </p>
+     * &lt;/li&gt;
+     * &lt;/ul&gt;
+     * &lt;/p&gt;
      *
-     * <p>
-     * <b>Disadvantages:</b>
-     * <ul>
-     * <li>
+     * &lt;p&gt;
+     * &lt;b&gt;Disadvantages:&lt;/b&gt;
+     * &lt;ul&gt;
+     * &lt;li&gt;
      * The preallocated buffers have a fixed size; therefore,
      * memory will be wasted, if the requested allocation-size
      * is smaller than the size of the buffer.
-     * </li>
-     * <li>
+     * &lt;/li&gt;
+     * &lt;li&gt;
      * Since each allocation consumes one whole preallocated buffer,
      * there is a strict limit on the number of simultaneous allocations.
      * Specifically, no more allocations can be made than there are buffers
      * in the pool of preallocated buffers, even if wasted space is present.
-     * </li>
-     * <li>
+     * &lt;/li&gt;
+     * &lt;li&gt;
      * Programmers must carefully tune the number of preallocated buffers,
      * based solely upon their expectations of runtime behavior,
      * in order to ensure that an adequate number of buffers will be available
      * without exceeding the available system resources.
-     * </li>
-     * </ul>
-     * </p>
+     * &lt;/li&gt;
+     * &lt;/ul&gt;
+     * &lt;/p&gt;
      */
     public interface FixedPoolSchema
             extends PoolSchema
@@ -174,36 +174,36 @@ public interface CascadeSchema
     /**
      * Describes an allocation-pool that delegates to other allocation-pools.
      *
-     * <p>
+     * &lt;p&gt;
      * A composite-pool consists of a series of member-pools and an optional fallback-pool.
-     * </p>
+     * &lt;/p&gt;
      *
-     * <p>
+     * &lt;p&gt;
      * When an allocation request is made for (X) bytes, the composite-pool will attempt
      * to locate a member-pool whose minimum allocation-size is less-or-equal-to (X)
      * and whose maximum allocation-size is greater-or-equal-to (X). If such a member-pool
      * is found, then the allocation request will be forwarded to that member-pool.
      * If no such member-pool is found and a fallback-pool was specified,
      * then the allocation request will be forwarded to the fallback-pool.
-     * </p>
+     * &lt;/p&gt;
      *
-     * <p>
+     * &lt;p&gt;
      * As usual, each member-pool has its own minimum and maximum allocation-sizes.
      * None of the member-pools can have overlapping allocation-sizes.
      * No such restriction is placed onto the fallback-pool.
      * The member-pools are not required to be contiguous.
-     * </p>
+     * &lt;/p&gt;
      *
-     * <p>
+     * &lt;p&gt;
      * An logarithmic-time, O(log N), search algorithm is used to locate the matching member-pool.
      * Thus, using a composite-pool should not add a meaningful amount of allocation overhead.
-     * </p>
+     * &lt;/p&gt;
      *
-     * <p>
+     * &lt;p&gt;
      * The member-pools and the fallback-pool cannot themselves be composite-pools.
      * This avoids the possibility of recursively-defined composite-pools,
      * which would be prima facia erroneous.
-     * </p>
+     * &lt;/p&gt;
      */
     public interface CompositePoolSchema
             extends PoolSchema
@@ -212,10 +212,10 @@ public interface CascadeSchema
         /**
          * Setter.
          *
-         * <p>
+         * &lt;p&gt;
          * If the given name is a simple-name, when treated as a token,
          * then this method will prepend the current namespace onto the name.
-         * </p>
+         * &lt;/p&gt;
          *
          * @param name is the name of an allocation-pool to use,
          * if none of the other allocation-pools are appropriate.
@@ -226,14 +226,14 @@ public interface CascadeSchema
         /**
          * Setter.
          *
-         * <p>
+         * &lt;p&gt;
          * This method may be invoked multiple times.
-         * </p>
+         * &lt;/p&gt;
          *
-         * <p>
+         * &lt;p&gt;
          * If the given name is a simple-name, when treated as a token,
          * then this method will prepend the current namespace onto the name.
-         * </p>
+         * &lt;/p&gt;
          *
          * @param name is the name of an allocation-pool that this pool
          * will delegate to in order to perform allocations.
@@ -251,10 +251,10 @@ public interface CascadeSchema
     /**
      * Describes a pump consisting of a pool of threads.
      *
-     * <p>
+     * &lt;p&gt;
      * By default, the pool will have one thread,
      * which will be a non-daemon thread.
-     * </p>
+     * &lt;/p&gt;
      */
     public interface PumpSchema
     {
@@ -280,10 +280,10 @@ public interface CascadeSchema
     /**
      * Describes a reactor, its core, and its queue.
      *
-     * <p>
+     * &lt;p&gt;
      * If no queue, logger, pool, or pump settings are explicitly specified,
      * then the reactor will use the default setting from the enclosing scope.
-     * </p>
+     * &lt;/p&gt;
      */
     public interface ReactorSchema
     {
@@ -315,10 +315,10 @@ public interface CascadeSchema
         /**
          * Setter.
          *
-         * <p>
+         * &lt;p&gt;
          * If the given name is a simple-name, when treated as a token,
          * then this method will prepend the current namespace onto the name.
-         * </p>
+         * &lt;/p&gt;
          *
          * @param name identifies the allocation-pool for the reactor to use.
          * @return this.
@@ -328,10 +328,10 @@ public interface CascadeSchema
         /**
          * Setter.
          *
-         * <p>
+         * &lt;p&gt;
          * If the given name is a simple-name, when treated as a token,
          * then this method will prepend the current namespace onto the name.
-         * </p>
+         * &lt;/p&gt;
          *
          * @param name identifies the pump for the reactor to use.
          * @return this.
@@ -360,13 +360,13 @@ public interface CascadeSchema
          * This method causes the reactor to be subscribed to a named event-channel; therefore,
          * the reactor will receive any event-messages sent to that channel at runtime.
          *
-         * <p>
+         * &lt;p&gt;
          * This method may be invoked multiple times in order to subscribe to multiple event-channels.
-         * </p>
+         * &lt;/p&gt;
          *
-         * <p>
+         * &lt;p&gt;
          * Subsequent invocations of this method, given the same argument, are no-ops.
-         * </p>
+         * &lt;/p&gt;
          *
          * @param event is the exact name of the event-channel.
          * @return this.
@@ -377,11 +377,11 @@ public interface CascadeSchema
     /**
      * Use this method to enter a new scope.
      *
-     * <p>
+     * &lt;p&gt;
      * The default logger-factory, pool, and pump
      * of the current scope, if any, will be inherited by
      * the new scope.
-     * </p>
+     * &lt;/p&gt;
      *
      *
      * @param name is the namespace to enter.
@@ -404,10 +404,10 @@ public interface CascadeSchema
      * to use the allocation-pool with the given name, unless another
      * allocation-pool is explicitly specified for the reactor.
      *
-     * <p>
+     * &lt;p&gt;
      * If the given name is a simple-name, when treated as a token,
      * then this method will prepend the current namespace onto the name.
-     * </p>
+     * &lt;/p&gt;
      *
      * @param name identifies the default allocation-pool for reactors in this scope.
      * @return this.
@@ -419,10 +419,10 @@ public interface CascadeSchema
      * to use the pump with the given name, unless another pump
      * is explicitly specified for the reactor.
      *
-     * <p>
+     * &lt;p&gt;
      * If the given name is a simple-name, when treated as a token,
      * then this method will prepend the current namespace onto the name.
-     * </p>
+     * &lt;/p&gt;
      *
      * @param name identifies the default pump for reactors in this scope.
      * @return this.
@@ -452,10 +452,10 @@ public interface CascadeSchema
     /**
      * Use this method to add a dynamic allocation-pool.
      *
-     * <p>
+     * &lt;p&gt;
      * If the given name is a simple-name, when treated as a token,
      * then this method will prepend the current namespace onto the name.
-     * </p>
+     * &lt;/p&gt;
      *
      * @param name will be the name of the new pool.
      * @return this.
@@ -465,10 +465,10 @@ public interface CascadeSchema
     /**
      * Use this method to add a fixed allocation-pool.
      *
-     *      * <p>
+     *      * &lt;p&gt;
      * If the given name is a simple-name, when treated as a token,
      * then this method will prepend the current namespace onto the name.
-     * </p>
+     * &lt;/p&gt;
      *
      * @param name will be the name of the new pool.
      * @return this.
@@ -478,10 +478,10 @@ public interface CascadeSchema
     /**
      * Use this method to add a composite allocation-pool.
      *
-     * <p>
+     * &lt;p&gt;
      * If the given name is a simple-name, when treated as a token,
      * then this method will prepend the current namespace onto the name.
-     * </p>
+     * &lt;/p&gt;
      *
      * @param name will be the name of the new pool.
      * @return this.
@@ -491,10 +491,10 @@ public interface CascadeSchema
     /**
      * Use this method to add a pump.
      *
-     * <p>
+     * &lt;p&gt;
      * If the given name is a simple-name, when treated as a token,
      * then this method will prepend the current namespace onto the name.
-     * </p>
+     * &lt;/p&gt;
      *
      * @param name will be the name of the new pump.
      * @return this.
@@ -504,10 +504,10 @@ public interface CascadeSchema
     /**
      * Use this method to add a reactor.
      *
-     * <p>
+     * &lt;p&gt;
      * If the given name is a simple-name, when treated as a token,
      * then this method will prepend the current namespace onto the name.
-     * </p>
+     * &lt;/p&gt;
      *
      * @param name will be the name of the new reactor.
      * @return this.
@@ -529,7 +529,7 @@ public interface CascadeSchema
      */
     public static CascadeSchema create (final String name)
     {
-        return new ConcreteSchema(name);
+<span class="nc" id="L532">        return new ConcreteSchema(name);</span>
     }
 
     /**
@@ -541,11 +541,12 @@ public interface CascadeSchema
     public static CascadeSchema createSimple (final String name)
     {
         // TODO: Finish
-        final CascadeSchema schema = create(name);
-        schema.addDynamicPool("default").withMinimumSize(0).withMaximumSize(Integer.MAX_VALUE);
-        schema.addPump("pump").withThreadCount(Runtime.getRuntime().availableProcessors() + 1);
-        schema.usingPool("default");
-        schema.usingPump("pump");
-        return schema;
+<span class="nc" id="L544">        final CascadeSchema schema = create(name);</span>
+<span class="nc" id="L545">        schema.addDynamicPool(&quot;default&quot;).withMinimumSize(0).withMaximumSize(Integer.MAX_VALUE);</span>
+<span class="nc" id="L546">        schema.addPump(&quot;pump&quot;).withThreadCount(Runtime.getRuntime().availableProcessors() + 1);</span>
+<span class="nc" id="L547">        schema.usingPool(&quot;default&quot;);</span>
+<span class="nc" id="L548">        schema.usingPump(&quot;pump&quot;);</span>
+<span class="nc" id="L549">        return schema;</span>
     }
 }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

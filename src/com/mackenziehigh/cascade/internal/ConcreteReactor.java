@@ -1,7 +1,7 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Verify;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
@@ -37,7 +37,7 @@ public final class ConcreteReactor
 
     private final EventDispatcher.ConcurrentEventSender sender;
 
-    private final ImmutableMap<CascadeToken, CascadeSubscription> subscriptions;
+    private final Map<CascadeToken, CascadeSubscription> subscriptions = Maps.newConcurrentMap();
 
     /**
      * This flag is used as a sanity check to ensure that the core()
@@ -63,7 +63,7 @@ public final class ConcreteReactor
         this.pump = Objects.requireNonNull(pump);
         this.logger = Objects.requireNonNull(logger);
         this.input = Objects.requireNonNull(input);
-        this.subscriptions = ImmutableMap.copyOf(subscriptions);
+        this.subscriptions.putAll(subscriptions);
     }
 
     /**

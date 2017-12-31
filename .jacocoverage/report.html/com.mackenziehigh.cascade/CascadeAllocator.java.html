@@ -101,16 +101,9 @@ public interface CascadeAllocator
         /**
          * Getter.
          *
-         * @return the user-defined full-name of this pool.
+         * @return the user-defined name of this pool.
          */
-        public String name ();
-
-        /**
-         * Getter.
-         *
-         * @return the user-defined simple-name of this pool.
-         */
-        public String simpleName ();
+        public CascadeToken name ();
 
         /**
          * Getter.
@@ -134,7 +127,7 @@ public interface CascadeAllocator
          */
         public default OptionalLong size ()
         {
-<span class="fc" id="L137">            return OptionalLong.empty();</span>
+<span class="fc" id="L130">            return OptionalLong.empty();</span>
         }
 
         /**
@@ -152,7 +145,7 @@ public interface CascadeAllocator
          */
         public default OptionalLong capacity ()
         {
-<span class="fc" id="L155">            return OptionalLong.empty();</span>
+<span class="fc" id="L148">            return OptionalLong.empty();</span>
         }
 
         /**
@@ -188,11 +181,11 @@ public interface CascadeAllocator
                                    final int offset,
                                    final int length)
         {
-<span class="fc bfc" id="L191" title="All 2 branches covered.">            if (tryAlloc(stack, buffer, offset, length) == false)</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">            if (tryAlloc(stack, buffer, offset, length) == false)</span>
             {
-<span class="fc" id="L193">                throw new ExhaustedAllocationPoolException(this);</span>
+<span class="fc" id="L186">                throw new ExhaustedAllocationPoolException(this);</span>
             }
-<span class="fc" id="L195">        }</span>
+<span class="fc" id="L188">        }</span>
 
         /**
          * Use this method to allocate an operand.
@@ -338,9 +331,9 @@ public interface CascadeAllocator
          */
         public default OperandStack copy ()
         {
-<span class="fc" id="L341">            final OperandStack retval = allocator().newOperandStack();</span>
-<span class="fc" id="L342">            retval.set(this);</span>
-<span class="fc" id="L343">            return retval;</span>
+<span class="fc" id="L334">            final OperandStack retval = allocator().newOperandStack();</span>
+<span class="fc" id="L335">            retval.set(this);</span>
+<span class="fc" id="L336">            return retval;</span>
         }
 
         /**
@@ -352,7 +345,7 @@ public interface CascadeAllocator
          */
         public default OperandStack clear ()
         {
-<span class="fc" id="L355">            return set(null);</span>
+<span class="fc" id="L348">            return set(null);</span>
         }
 
         /**
@@ -361,8 +354,8 @@ public interface CascadeAllocator
         @Override
         public default void close ()
         {
-<span class="fc" id="L364">            clear();</span>
-<span class="fc" id="L365">        }</span>
+<span class="fc" id="L357">            clear();</span>
+<span class="fc" id="L358">        }</span>
 
         /**
          * Getter.
@@ -392,7 +385,7 @@ public interface CascadeAllocator
          */
         public default boolean isOperandEmpty ()
         {
-<span class="fc bfc" id="L395" title="All 2 branches covered.">            return operandSize() == 0;</span>
+<span class="fc bfc" id="L388" title="All 2 branches covered.">            return operandSize() == 0;</span>
         }
 
         /**
@@ -402,7 +395,7 @@ public interface CascadeAllocator
          */
         public default boolean isStackEmpty ()
         {
-<span class="fc bfc" id="L405" title="All 2 branches covered.">            return stackSize() == 0;</span>
+<span class="fc bfc" id="L398" title="All 2 branches covered.">            return stackSize() == 0;</span>
         }
 
         /**
@@ -430,7 +423,7 @@ public interface CascadeAllocator
          */
         public default OperandStack push (boolean value)
         {
-<span class="fc bfc" id="L433" title="All 2 branches covered.">            return push((byte) (value ? 1 : 0));</span>
+<span class="fc bfc" id="L426" title="All 2 branches covered.">            return push((byte) (value ? 1 : 0));</span>
         }
 
         /**
@@ -441,9 +434,9 @@ public interface CascadeAllocator
          */
         public default OperandStack push (byte value)
         {
-<span class="fc" id="L444">            final byte[] array = new byte[1];</span>
-<span class="fc" id="L445">            array[0] = value;</span>
-<span class="fc" id="L446">            return push(array);</span>
+<span class="fc" id="L437">            final byte[] array = new byte[1];</span>
+<span class="fc" id="L438">            array[0] = value;</span>
+<span class="fc" id="L439">            return push(array);</span>
         }
 
         /**
@@ -454,7 +447,7 @@ public interface CascadeAllocator
          */
         public default OperandStack push (short value)
         {
-<span class="fc" id="L457">            return push(Shorts.toByteArray(value));</span>
+<span class="fc" id="L450">            return push(Shorts.toByteArray(value));</span>
         }
 
         /**
@@ -465,7 +458,7 @@ public interface CascadeAllocator
          */
         public default OperandStack push (int value)
         {
-<span class="fc" id="L468">            return push(Ints.toByteArray(value));</span>
+<span class="fc" id="L461">            return push(Ints.toByteArray(value));</span>
         }
 
         /**
@@ -476,7 +469,7 @@ public interface CascadeAllocator
          */
         public default OperandStack push (long value)
         {
-<span class="fc" id="L479">            return push(Longs.toByteArray(value));</span>
+<span class="fc" id="L472">            return push(Longs.toByteArray(value));</span>
         }
 
         /**
@@ -487,7 +480,7 @@ public interface CascadeAllocator
          */
         public default OperandStack push (float value)
         {
-<span class="fc" id="L490">            return push(Float.floatToIntBits(value));</span>
+<span class="fc" id="L483">            return push(Float.floatToIntBits(value));</span>
         }
 
         /**
@@ -498,7 +491,7 @@ public interface CascadeAllocator
          */
         public default OperandStack push (double value)
         {
-<span class="fc" id="L501">            return push(Longs.toByteArray(Double.doubleToLongBits(value)));</span>
+<span class="fc" id="L494">            return push(Longs.toByteArray(Double.doubleToLongBits(value)));</span>
         }
 
         /**
@@ -514,8 +507,8 @@ public interface CascadeAllocator
          */
         public default OperandStack push (String value)
         {
-<span class="fc" id="L517">            Preconditions.checkNotNull(value, &quot;value&quot;);</span>
-<span class="fc" id="L518">            return push(value.getBytes(Charset.forName(&quot;UTF-8&quot;)));</span>
+<span class="fc" id="L510">            Preconditions.checkNotNull(value, &quot;value&quot;);</span>
+<span class="fc" id="L511">            return push(value.getBytes(Charset.forName(&quot;UTF-8&quot;)));</span>
         }
 
         /**
@@ -526,7 +519,7 @@ public interface CascadeAllocator
          */
         public default OperandStack push (byte[] value)
         {
-<span class="fc" id="L529">            return push(value, 0, value.length);</span>
+<span class="fc" id="L522">            return push(value, 0, value.length);</span>
         }
 
         /**
@@ -543,8 +536,8 @@ public interface CascadeAllocator
                                           int offset,
                                           int length)
         {
-<span class="fc" id="L546">            allocator().defaultPool().alloc(this, buffer, offset, length);</span>
-<span class="fc" id="L547">            return this;</span>
+<span class="fc" id="L539">            allocator().defaultPool().alloc(this, buffer, offset, length);</span>
+<span class="fc" id="L540">            return this;</span>
         }
 
         /**
@@ -569,7 +562,7 @@ public interface CascadeAllocator
          */
         public default int copyTo (byte[] buffer)
         {
-<span class="fc" id="L572">            return copyTo(buffer, 0);</span>
+<span class="fc" id="L565">            return copyTo(buffer, 0);</span>
         }
 
         /**
@@ -586,7 +579,7 @@ public interface CascadeAllocator
         public default int copyTo (byte[] buffer,
                                    int offset)
         {
-<span class="fc" id="L589">            return copyTo(buffer, offset, operandSize());</span>
+<span class="fc" id="L582">            return copyTo(buffer, offset, operandSize());</span>
         }
 
         /**
@@ -614,7 +607,7 @@ public interface CascadeAllocator
          */
         public default boolean asBoolean ()
         {
-<span class="fc bfc" id="L617" title="All 2 branches covered.">            return asByte() != 0;</span>
+<span class="fc bfc" id="L610" title="All 2 branches covered.">            return asByte() != 0;</span>
         }
 
         /**
@@ -626,8 +619,8 @@ public interface CascadeAllocator
          */
         public default byte asByte ()
         {
-<span class="fc bfc" id="L629" title="All 2 branches covered.">            Preconditions.checkState(operandSize() == 1, &quot;Wrong Size&quot;);</span>
-<span class="fc" id="L630">            return byteAt(0);</span>
+<span class="fc bfc" id="L622" title="All 2 branches covered.">            Preconditions.checkState(operandSize() == 1, &quot;Wrong Size&quot;);</span>
+<span class="fc" id="L623">            return byteAt(0);</span>
         }
 
         /**
@@ -643,8 +636,8 @@ public interface CascadeAllocator
          */
         public default short asShort ()
         {
-<span class="fc bfc" id="L646" title="All 2 branches covered.">            Preconditions.checkState(operandSize() == 2, &quot;Wrong Size&quot;);</span>
-<span class="fc" id="L647">            return Shorts.fromBytes(byteAt(0), byteAt(1));</span>
+<span class="fc bfc" id="L639" title="All 2 branches covered.">            Preconditions.checkState(operandSize() == 2, &quot;Wrong Size&quot;);</span>
+<span class="fc" id="L640">            return Shorts.fromBytes(byteAt(0), byteAt(1));</span>
         }
 
         /**
@@ -660,11 +653,11 @@ public interface CascadeAllocator
          */
         public default int asInt ()
         {
-<span class="fc bfc" id="L663" title="All 2 branches covered.">            Preconditions.checkState(operandSize() == 4, &quot;Wrong Size&quot;);</span>
-<span class="fc" id="L664">            return Ints.fromBytes(byteAt(0),</span>
-<span class="fc" id="L665">                                  byteAt(1),</span>
-<span class="fc" id="L666">                                  byteAt(2),</span>
-<span class="fc" id="L667">                                  byteAt(3));</span>
+<span class="fc bfc" id="L656" title="All 2 branches covered.">            Preconditions.checkState(operandSize() == 4, &quot;Wrong Size&quot;);</span>
+<span class="fc" id="L657">            return Ints.fromBytes(byteAt(0),</span>
+<span class="fc" id="L658">                                  byteAt(1),</span>
+<span class="fc" id="L659">                                  byteAt(2),</span>
+<span class="fc" id="L660">                                  byteAt(3));</span>
         }
 
         /**
@@ -680,15 +673,15 @@ public interface CascadeAllocator
          */
         public default long asLong ()
         {
-<span class="fc bfc" id="L683" title="All 2 branches covered.">            Preconditions.checkState(operandSize() == 8, &quot;Wrong Size&quot;);</span>
-<span class="fc" id="L684">            return Longs.fromBytes(byteAt(0),</span>
-<span class="fc" id="L685">                                   byteAt(1),</span>
-<span class="fc" id="L686">                                   byteAt(2),</span>
-<span class="fc" id="L687">                                   byteAt(3),</span>
-<span class="fc" id="L688">                                   byteAt(4),</span>
-<span class="fc" id="L689">                                   byteAt(5),</span>
-<span class="fc" id="L690">                                   byteAt(6),</span>
-<span class="fc" id="L691">                                   byteAt(7));</span>
+<span class="fc bfc" id="L676" title="All 2 branches covered.">            Preconditions.checkState(operandSize() == 8, &quot;Wrong Size&quot;);</span>
+<span class="fc" id="L677">            return Longs.fromBytes(byteAt(0),</span>
+<span class="fc" id="L678">                                   byteAt(1),</span>
+<span class="fc" id="L679">                                   byteAt(2),</span>
+<span class="fc" id="L680">                                   byteAt(3),</span>
+<span class="fc" id="L681">                                   byteAt(4),</span>
+<span class="fc" id="L682">                                   byteAt(5),</span>
+<span class="fc" id="L683">                                   byteAt(6),</span>
+<span class="fc" id="L684">                                   byteAt(7));</span>
         }
 
         /**
@@ -700,8 +693,8 @@ public interface CascadeAllocator
          */
         public default float asFloat ()
         {
-<span class="fc bfc" id="L703" title="All 2 branches covered.">            Preconditions.checkState(operandSize() == 4, &quot;Wrong Size&quot;);</span>
-<span class="fc" id="L704">            return Float.intBitsToFloat(asInt());</span>
+<span class="fc bfc" id="L696" title="All 2 branches covered.">            Preconditions.checkState(operandSize() == 4, &quot;Wrong Size&quot;);</span>
+<span class="fc" id="L697">            return Float.intBitsToFloat(asInt());</span>
         }
 
         /**
@@ -713,8 +706,8 @@ public interface CascadeAllocator
          */
         public default double asDouble ()
         {
-<span class="fc bfc" id="L716" title="All 2 branches covered.">            Preconditions.checkState(operandSize() == 8, &quot;Wrong Size&quot;);</span>
-<span class="fc" id="L717">            return Double.longBitsToDouble(asLong());</span>
+<span class="fc bfc" id="L709" title="All 2 branches covered.">            Preconditions.checkState(operandSize() == 8, &quot;Wrong Size&quot;);</span>
+<span class="fc" id="L710">            return Double.longBitsToDouble(asLong());</span>
         }
 
         /**
@@ -734,7 +727,7 @@ public interface CascadeAllocator
          */
         public default String asString ()
         {
-<span class="fc" id="L737">            return new String(asByteArray(), Charset.forName(&quot;UTF-8&quot;));</span>
+<span class="fc" id="L730">            return new String(asByteArray(), Charset.forName(&quot;UTF-8&quot;));</span>
         }
 
         /**
@@ -745,9 +738,9 @@ public interface CascadeAllocator
          */
         public default byte[] asByteArray ()
         {
-<span class="fc" id="L748">            final byte[] array = new byte[operandSize()];</span>
-<span class="fc" id="L749">            copyTo(array);</span>
-<span class="fc" id="L750">            return array;</span>
+<span class="fc" id="L741">            final byte[] array = new byte[operandSize()];</span>
+<span class="fc" id="L742">            copyTo(array);</span>
+<span class="fc" id="L743">            return array;</span>
         }
 
         /**
@@ -789,16 +782,12 @@ public interface CascadeAllocator
      * The map will include the default-pool.
      * &lt;/p&gt;
      *
-     * @return a map that maps the full-names of pools to the pools themselves.
+     * @return a map that maps the names of pools to the pools themselves.
      */
-    public Map&lt;String, AllocationPool&gt; pools ();
+    public Map&lt;CascadeToken, AllocationPool&gt; pools ();
 
     /**
      * Getter.
-     *
-     * &lt;p&gt;
-     * The name of the default-pool must be &quot;default&quot;.
-     * &lt;/p&gt;
      *
      * @return the default-pool.
      * @throws IllegalStateException if no default pool exists.

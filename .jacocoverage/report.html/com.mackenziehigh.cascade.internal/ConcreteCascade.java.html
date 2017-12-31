@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ConcreteCascade.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.internal</a> &gt; <span class="el_source">ConcreteCascade.java</span></div><h1>ConcreteCascade.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Verify;
-import com.google.common.collect.ImmutableSet;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadePump;
 import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Context;
@@ -21,155 +19,141 @@ import java.util.stream.Collectors;
 /**
  *
  */
-<span class="fc" id="L24">public final class ConcreteCascade</span>
+<span class="fc" id="L22">public final class ConcreteCascade</span>
         implements Cascade
 {
     private volatile CascadeToken name;
 
-<span class="fc" id="L29">    private final UUID uuid = UUID.randomUUID();</span>
-
-    private volatile CascadeLogger defaultLogger;
+<span class="fc" id="L27">    private final UUID uuid = UUID.randomUUID();</span>
 
     private volatile CascadeAllocator allocator;
 
-<span class="fc" id="L35">    private final SortedMap&lt;CascadeToken, ConcretePump&gt; pumps = new ConcurrentSkipListMap&lt;&gt;();</span>
+<span class="fc" id="L31">    private final SortedMap&lt;CascadeToken, ConcretePump&gt; pumps = new ConcurrentSkipListMap&lt;&gt;();</span>
 
-<span class="fc" id="L37">    private final SortedMap&lt;CascadeToken, CascadePump&gt; unmodPumps = Collections.unmodifiableSortedMap(pumps);</span>
+<span class="fc" id="L33">    private final SortedMap&lt;CascadeToken, CascadePump&gt; unmodPumps = Collections.unmodifiableSortedMap(pumps);</span>
 
-<span class="fc" id="L39">    private final SortedMap&lt;CascadeToken, ConcreteReactor&gt; reactors = new ConcurrentSkipListMap&lt;&gt;();</span>
+<span class="fc" id="L35">    private final SortedMap&lt;CascadeToken, ConcreteReactor&gt; reactors = new ConcurrentSkipListMap&lt;&gt;();</span>
 
-<span class="fc" id="L41">    private final SortedMap&lt;CascadeToken, CascadeReactor&gt; unmodReactors = Collections.unmodifiableSortedMap(reactors);</span>
+<span class="fc" id="L37">    private final SortedMap&lt;CascadeToken, CascadeReactor&gt; unmodReactors = Collections.unmodifiableSortedMap(reactors);</span>
 
-<span class="fc" id="L43">    private final AtomicInteger phaseIdx = new AtomicInteger();</span>
+<span class="fc" id="L39">    private final AtomicInteger phaseIdx = new AtomicInteger();</span>
 
-<span class="fc" id="L45">    private final AtomicBoolean startWasCalled = new AtomicBoolean();</span>
+<span class="fc" id="L41">    private final AtomicBoolean startWasCalled = new AtomicBoolean();</span>
 
-<span class="fc" id="L47">    private final AtomicBoolean stopWasCalled = new AtomicBoolean();</span>
+<span class="fc" id="L43">    private final AtomicBoolean stopWasCalled = new AtomicBoolean();</span>
 
     /**
      * Invariant Checking.
      */
     public void selfTest ()
     {
-<span class="fc" id="L54">        Verify.verifyNotNull(name());</span>
-<span class="fc" id="L55">        Verify.verifyNotNull(uuid());</span>
-<span class="fc" id="L56">        Verify.verifyNotNull(phase());</span>
-<span class="fc" id="L57">        Verify.verifyNotNull(defaultLogger());</span>
-<span class="fc" id="L58">        Verify.verifyNotNull(pumps());</span>
-<span class="fc" id="L59">        Verify.verifyNotNull(reactors());</span>
+<span class="fc" id="L50">        Verify.verifyNotNull(name());</span>
+<span class="fc" id="L51">        Verify.verifyNotNull(uuid());</span>
+<span class="fc" id="L52">        Verify.verifyNotNull(phase());</span>
+<span class="fc" id="L53">        Verify.verifyNotNull(pumps());</span>
+<span class="fc" id="L54">        Verify.verifyNotNull(reactors());</span>
 
-<span class="fc" id="L61">        Verify.verify(name().toString().equals(toString()));</span>
-<span class="fc" id="L62">        Verify.verify(phase().equals(ExecutionPhase.INITIAL));</span>
-<span class="fc" id="L63">        Verify.verify(allocator().cascade().equals(this));</span>
+<span class="fc" id="L56">        Verify.verify(name().toString().equals(toString()));</span>
+<span class="fc" id="L57">        Verify.verify(phase().equals(ExecutionPhase.INITIAL));</span>
+<span class="fc" id="L58">        Verify.verify(allocator().cascade().equals(this));</span>
 
-<span class="fc" id="L65">        Verify.verify(phase().equals(phase()));</span>
-<span class="fc" id="L66">        Verify.verify(uuid().equals(uuid()));</span>
+<span class="fc" id="L60">        Verify.verify(phase().equals(phase()));</span>
+<span class="fc" id="L61">        Verify.verify(uuid().equals(uuid()));</span>
 
         /**
          * pumps() must map the name of a pump to that pump.
          * Each pump must have this object as its cascade().
          */
-<span class="pc bpc" id="L72" title="2 of 4 branches missed.">        Verify.verify(pumps().values().stream().allMatch(x -&gt; x.cascade().equals(this) &amp;&amp; pumps().get(x.name()).equals(x)));</span>
+<span class="pc bpc" id="L67" title="2 of 4 branches missed.">        Verify.verify(pumps().values().stream().allMatch(x -&gt; x.cascade().equals(this) &amp;&amp; pumps().get(x.name()).equals(x)));</span>
 
         /**
          * reactors() must map the name of a reactor to that reactor.
          * Each reactor must have this object as its cascade().
          */
-<span class="pc bpc" id="L78" title="2 of 4 branches missed.">        Verify.verify(reactors().values().stream().allMatch(x -&gt; x.cascade().equals(this) &amp;&amp; reactors().get(x.name()).equals(x)));</span>
+<span class="pc bpc" id="L73" title="2 of 4 branches missed.">        Verify.verify(reactors().values().stream().allMatch(x -&gt; x.cascade().equals(this) &amp;&amp; reactors().get(x.name()).equals(x)));</span>
 
         /**
          * Verify that all of the pumps known-by the reactors
          * are also directly known by this object as well.
          */
-<span class="fc bfc" id="L84" title="All 2 branches covered.">        if (reactors.size() &gt; 0)</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">        if (reactors.size() &gt; 0)</span>
         {
-<span class="fc" id="L86">            Verify.verify(reactors().values().stream().map(x -&gt; x.pump()).collect(Collectors.toSet()).equals(ImmutableSet.copyOf(pumps().values())));</span>
+<span class="fc" id="L81">            Verify.verify(pumps().values().containsAll(reactors().values().stream().map(x -&gt; x.pump()).collect(Collectors.toSet())));</span>
         }
 
         /**
          * Verify that all of the reactors known-by the pumps
          * are also directly known by this object as well.
          */
-<span class="fc" id="L93">        Verify.verify(pumps().values().stream().map(x -&gt; x.reactors()).flatMap(x -&gt; x.stream()).collect(Collectors.toSet()).equals(ImmutableSet.copyOf(reactors().values())));</span>
-<span class="fc" id="L94">    }</span>
+<span class="fc" id="L88">        Verify.verify(reactors().values().containsAll(pumps().values().stream().map(x -&gt; x.reactors()).flatMap(x -&gt; x.stream()).collect(Collectors.toSet())));</span>
+<span class="fc" id="L89">    }</span>
 
     public void setName (final CascadeToken value)
     {
-<span class="fc" id="L98">        name = value;</span>
-<span class="fc" id="L99">    }</span>
-
-    public void setDefaultLogger (final CascadeLogger value)
-    {
-<span class="fc" id="L103">        defaultLogger = value;</span>
-<span class="fc" id="L104">    }</span>
+<span class="fc" id="L93">        name = value;</span>
+<span class="fc" id="L94">    }</span>
 
     public void setAllocator (final CascadeAllocator value)
     {
-<span class="fc" id="L108">        allocator = value;</span>
-<span class="fc" id="L109">    }</span>
+<span class="fc" id="L98">        allocator = value;</span>
+<span class="fc" id="L99">    }</span>
 
     public void addPump (final ConcretePump pump)
     {
-<span class="fc" id="L113">        pumps.put(pump.name(), pump);</span>
-<span class="fc" id="L114">    }</span>
+<span class="fc" id="L103">        pumps.put(pump.name(), pump);</span>
+<span class="fc" id="L104">    }</span>
 
     public void addReactor (final ConcreteReactor reactor)
     {
-<span class="fc" id="L118">        reactors.put(reactor.name(), reactor);</span>
-<span class="fc" id="L119">    }</span>
+<span class="fc" id="L108">        reactors.put(reactor.name(), reactor);</span>
+<span class="fc" id="L109">    }</span>
 
     @Override
     public CascadeToken name ()
     {
-<span class="fc" id="L124">        return name;</span>
+<span class="fc" id="L114">        return name;</span>
     }
 
     @Override
     public UUID uuid ()
     {
-<span class="fc" id="L130">        return uuid;</span>
-    }
-
-    @Override
-    public CascadeLogger defaultLogger ()
-    {
-<span class="fc" id="L136">        return defaultLogger;</span>
+<span class="fc" id="L120">        return uuid;</span>
     }
 
     @Override
     public CascadeAllocator allocator ()
     {
-<span class="fc" id="L142">        return allocator;</span>
+<span class="fc" id="L126">        return allocator;</span>
     }
 
     @Override
     public SortedMap&lt;CascadeToken, CascadePump&gt; pumps ()
     {
-<span class="fc" id="L148">        return unmodPumps;</span>
+<span class="fc" id="L132">        return unmodPumps;</span>
     }
 
     @Override
     public SortedMap&lt;CascadeToken, CascadeReactor&gt; reactors ()
     {
-<span class="fc" id="L154">        return unmodReactors;</span>
+<span class="fc" id="L138">        return unmodReactors;</span>
     }
 
     @Override
     public ExecutionPhase phase ()
     {
-<span class="fc" id="L160">        return ExecutionPhase.values()[phaseIdx.get()];</span>
+<span class="fc" id="L144">        return ExecutionPhase.values()[phaseIdx.get()];</span>
     }
 
     @Override
     public Cascade start ()
     {
-<span class="nc bnc" id="L166" title="All 2 branches missed.">        if (startWasCalled.compareAndSet(false, true))</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        if (startWasCalled.compareAndSet(false, true))</span>
         {
-<span class="nc" id="L168">            Verify.verify(phase().equals(ExecutionPhase.INITIAL));</span>
-<span class="nc" id="L169">            performStartOnNewThread();</span>
+<span class="nc" id="L152">            Verify.verify(phase().equals(ExecutionPhase.INITIAL));</span>
+<span class="nc" id="L153">            performStartOnNewThread();</span>
         }
 
-<span class="nc" id="L172">        return this;</span>
+<span class="nc" id="L156">        return this;</span>
     }
 
     @Override
@@ -177,28 +161,28 @@ import java.util.stream.Collectors;
     {
         // TODO: This causes problems, if stop is called during startup. Need to postpone.
 
-<span class="nc bnc" id="L180" title="All 2 branches missed.">        if (stopWasCalled.compareAndSet(false, true))</span>
+<span class="nc bnc" id="L164" title="All 2 branches missed.">        if (stopWasCalled.compareAndSet(false, true))</span>
         {
-<span class="nc" id="L182">            Verify.verify(phase().equals(ExecutionPhase.RUN));</span>
-<span class="nc" id="L183">            performStopOnNewThread();</span>
+<span class="nc" id="L166">            Verify.verify(phase().equals(ExecutionPhase.RUN));</span>
+<span class="nc" id="L167">            performStopOnNewThread();</span>
         }
 
-<span class="nc" id="L186">        return this;</span>
+<span class="nc" id="L170">        return this;</span>
     }
 
     @Override
     public String toString ()
     {
-<span class="fc" id="L192">        return name.name();</span>
+<span class="fc" id="L176">        return name.name();</span>
     }
 
     private void performStartOnNewThread ()
     {
-<span class="nc" id="L197">        final String threadName = &quot;Cascade Startup Thread (&quot; + uuid() + &quot;)&quot;;</span>
-<span class="nc" id="L198">        final Thread thread = new Thread(() -&gt; performStart(), threadName);</span>
-<span class="nc" id="L199">        thread.setDaemon(false);</span>
-<span class="nc" id="L200">        thread.start();</span>
-<span class="nc" id="L201">    }</span>
+<span class="nc" id="L181">        final String threadName = &quot;Cascade Startup Thread (&quot; + uuid() + &quot;)&quot;;</span>
+<span class="nc" id="L182">        final Thread thread = new Thread(() -&gt; performStart(), threadName);</span>
+<span class="nc" id="L183">        thread.setDaemon(false);</span>
+<span class="nc" id="L184">        thread.start();</span>
+<span class="nc" id="L185">    }</span>
 
     private void performStart ()
     {
@@ -212,209 +196,196 @@ import java.util.stream.Collectors;
          * pending startup; however, that would be a logic bug in the user program,
          * not something that we can reasonably deal with here.
          */
-<span class="nc" id="L215">        startThePumps();</span>
+<span class="nc" id="L199">        startThePumps();</span>
 
         /**
          * Per the contract, bring each reactor online.
          */
-<span class="nc" id="L220">        phaseIdx.incrementAndGet();</span>
-<span class="nc" id="L221">        invokeSetupOnEachReactor();</span>
+<span class="nc" id="L204">        phaseIdx.incrementAndGet();</span>
+<span class="nc" id="L205">        invokeSetupOnEachReactor();</span>
 
         /**
          * Per the contract, notify each reactor that the pumps have started
          * and all of the reactors have been brought online.
          */
-<span class="nc" id="L227">        phaseIdx.incrementAndGet();</span>
-<span class="nc" id="L228">        invokeStartOnEachReactor();</span>
+<span class="nc" id="L211">        phaseIdx.incrementAndGet();</span>
+<span class="nc" id="L212">        invokeStartOnEachReactor();</span>
 
         /**
          * The system is now running.
          */
-<span class="nc" id="L233">        phaseIdx.incrementAndGet();</span>
-<span class="nc" id="L234">        Verify.verify(phase().equals(ExecutionPhase.RUN));</span>
-<span class="nc" id="L235">    }</span>
+<span class="nc" id="L217">        phaseIdx.incrementAndGet();</span>
+<span class="nc" id="L218">        Verify.verify(phase().equals(ExecutionPhase.RUN));</span>
+<span class="nc" id="L219">    }</span>
 
     private void startThePumps ()
     {
-<span class="nc" id="L239">        Verify.verify(phase().equals(ExecutionPhase.INITIAL));</span>
+<span class="nc" id="L223">        Verify.verify(phase().equals(ExecutionPhase.INITIAL));</span>
 
-<span class="nc bnc" id="L241" title="All 2 branches missed.">        for (ConcretePump pump : pumps.values())</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">        for (ConcretePump pump : pumps.values())</span>
         {
             try
             {
-<span class="nc" id="L245">                pump.start();</span>
+<span class="nc" id="L229">                pump.start();</span>
             }
-<span class="nc" id="L247">            catch (Throwable ex)</span>
+<span class="nc" id="L231">            catch (Throwable ex)</span>
             {
-<span class="nc" id="L249">                safelyLog(ex);</span>
-<span class="nc" id="L250">            }</span>
-<span class="nc" id="L251">        }</span>
-<span class="nc" id="L252">    }</span>
+                // Pass
+<span class="nc" id="L234">            }</span>
+<span class="nc" id="L235">        }</span>
+<span class="nc" id="L236">    }</span>
 
     private void invokeSetupOnEachReactor ()
     {
-<span class="nc" id="L256">        Verify.verify(phase().equals(ExecutionPhase.SETUP));</span>
+<span class="nc" id="L240">        Verify.verify(phase().equals(ExecutionPhase.SETUP));</span>
 
-<span class="nc bnc" id="L258" title="All 2 branches missed.">        for (CascadeReactor reactor : reactors.values())</span>
+<span class="nc bnc" id="L242" title="All 2 branches missed.">        for (CascadeReactor reactor : reactors.values())</span>
         {
-<span class="nc" id="L260">            invokeEventHandler(reactor, ctx -&gt; reactor.core().onSetup(ctx));</span>
-<span class="nc" id="L261">        }</span>
-<span class="nc" id="L262">    }</span>
+<span class="nc" id="L244">            invokeEventHandler(reactor, ctx -&gt; reactor.core().onSetup(ctx));</span>
+<span class="nc" id="L245">        }</span>
+<span class="nc" id="L246">    }</span>
 
     private void invokeStartOnEachReactor ()
     {
-<span class="nc" id="L266">        Verify.verify(phase().equals(ExecutionPhase.START));</span>
+<span class="nc" id="L250">        Verify.verify(phase().equals(ExecutionPhase.START));</span>
 
-<span class="nc bnc" id="L268" title="All 2 branches missed.">        for (CascadeReactor reactor : reactors.values())</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">        for (CascadeReactor reactor : reactors.values())</span>
         {
-<span class="nc" id="L270">            invokeEventHandler(reactor, ctx -&gt; reactor.core().onStart(ctx));</span>
-<span class="nc" id="L271">        }</span>
-<span class="nc" id="L272">    }</span>
+<span class="nc" id="L254">            invokeEventHandler(reactor, ctx -&gt; reactor.core().onStart(ctx));</span>
+<span class="nc" id="L255">        }</span>
+<span class="nc" id="L256">    }</span>
 
     private void performStopOnNewThread ()
     {
-<span class="nc" id="L276">        final String threadName = &quot;Cascade Shutdown Thread (&quot; + uuid() + &quot;)&quot;;</span>
-<span class="nc" id="L277">        final Thread thread = new Thread(() -&gt; performStop(), threadName);</span>
-<span class="nc" id="L278">        thread.setDaemon(false);</span>
-<span class="nc" id="L279">        thread.start();</span>
-<span class="nc" id="L280">    }</span>
+<span class="nc" id="L260">        final String threadName = &quot;Cascade Shutdown Thread (&quot; + uuid() + &quot;)&quot;;</span>
+<span class="nc" id="L261">        final Thread thread = new Thread(() -&gt; performStop(), threadName);</span>
+<span class="nc" id="L262">        thread.setDaemon(false);</span>
+<span class="nc" id="L263">        thread.start();</span>
+<span class="nc" id="L264">    }</span>
 
     private void performStop ()
     {
         /**
          * Per the contract, inform each reactor that shutdown has begun.
          */
-<span class="nc" id="L287">        phaseIdx.incrementAndGet();</span>
-<span class="nc" id="L288">        invokeStopOnEachReactor();</span>
+<span class="nc" id="L271">        phaseIdx.incrementAndGet();</span>
+<span class="nc" id="L272">        invokeStopOnEachReactor();</span>
 
         /**
          * Per the contract, wait, indefinitely, for the reactors to shutdown.
          * If any of the reactors are buggy and fail to shutdown, then this call
          * will never return, which is out of our reasonable control.
          */
-<span class="nc" id="L295">        waitForEachReactorToStop();</span>
+<span class="nc" id="L279">        waitForEachReactorToStop();</span>
 
         /**
          * Since the reactors are now shutdown, reactors (should) not be sending or
          * receiving anymore event-messages; therefore, we can now shutdown the pumps.
          */
-<span class="nc" id="L301">        stopThePumps();</span>
+<span class="nc" id="L285">        stopThePumps();</span>
 
         /**
          * Per the contract, notify each of the reactors that shutdown has occurred,
          * so that they can close/release any leak-able resources.
          */
-<span class="nc" id="L307">        phaseIdx.incrementAndGet();</span>
-<span class="nc" id="L308">        invokeDestroyOnEachReactor();</span>
+<span class="nc" id="L291">        phaseIdx.incrementAndGet();</span>
+<span class="nc" id="L292">        invokeDestroyOnEachReactor();</span>
 
         /**
          * The system is now shutdown.
          */
-<span class="nc" id="L313">        phaseIdx.incrementAndGet();</span>
-<span class="nc" id="L314">        Verify.verify(phase().equals(ExecutionPhase.TERMINATED));</span>
-<span class="nc" id="L315">    }</span>
+<span class="nc" id="L297">        phaseIdx.incrementAndGet();</span>
+<span class="nc" id="L298">        Verify.verify(phase().equals(ExecutionPhase.TERMINATED));</span>
+<span class="nc" id="L299">    }</span>
 
     private void invokeStopOnEachReactor ()
     {
-<span class="nc" id="L319">        Verify.verify(phase().equals(ExecutionPhase.STOP));</span>
+<span class="nc" id="L303">        Verify.verify(phase().equals(ExecutionPhase.STOP));</span>
 
-<span class="nc bnc" id="L321" title="All 2 branches missed.">        for (CascadeReactor reactor : reactors.values())</span>
+<span class="nc bnc" id="L305" title="All 2 branches missed.">        for (CascadeReactor reactor : reactors.values())</span>
         {
-<span class="nc" id="L323">            invokeEventHandler(reactor, ctx -&gt; reactor.core().onStop(ctx));</span>
-<span class="nc" id="L324">        }</span>
-<span class="nc" id="L325">    }</span>
+<span class="nc" id="L307">            invokeEventHandler(reactor, ctx -&gt; reactor.core().onStop(ctx));</span>
+<span class="nc" id="L308">        }</span>
+<span class="nc" id="L309">    }</span>
 
     private void waitForEachReactorToStop ()
     {
-<span class="nc" id="L329">        Verify.verify(phase().equals(ExecutionPhase.STOP));</span>
+<span class="nc" id="L313">        Verify.verify(phase().equals(ExecutionPhase.STOP));</span>
 
-<span class="nc bnc" id="L331" title="All 2 branches missed.">        for (CascadeReactor reactor : reactors.values())</span>
+<span class="nc bnc" id="L315" title="All 2 branches missed.">        for (CascadeReactor reactor : reactors.values())</span>
         {
-<span class="nc" id="L333">            final AtomicBoolean flag = new AtomicBoolean();</span>
+<span class="nc" id="L317">            final AtomicBoolean flag = new AtomicBoolean();</span>
 
-<span class="nc bnc" id="L335" title="All 2 branches missed.">            while (flag.get() == false)</span>
+<span class="nc bnc" id="L319" title="All 2 branches missed.">            while (flag.get() == false)</span>
             {
-<span class="nc" id="L337">                invokeEventHandler(reactor, ctx -&gt; flag.set(reactor.core().isDestroyable()));</span>
+<span class="nc" id="L321">                invokeEventHandler(reactor, ctx -&gt; flag.set(reactor.core().isDestroyable()));</span>
 
                 try
                 {
-<span class="nc" id="L341">                    Thread.sleep(250);</span>
+<span class="nc" id="L325">                    Thread.sleep(250);</span>
                 }
-<span class="nc" id="L343">                catch (InterruptedException ex)</span>
+<span class="nc" id="L327">                catch (InterruptedException ex)</span>
                 {
-<span class="nc" id="L345">                    safelyLog(ex);</span>
-<span class="nc" id="L346">                }</span>
+                    // Pass
+<span class="nc" id="L330">                }</span>
             }
-<span class="nc" id="L348">        }</span>
-<span class="nc" id="L349">    }</span>
+<span class="nc" id="L332">        }</span>
+<span class="nc" id="L333">    }</span>
 
     private void stopThePumps ()
     {
-<span class="nc" id="L353">        Verify.verify(phase().equals(ExecutionPhase.STOP));</span>
+<span class="nc" id="L337">        Verify.verify(phase().equals(ExecutionPhase.STOP));</span>
 
-<span class="nc bnc" id="L355" title="All 2 branches missed.">        for (ConcretePump pump : pumps.values())</span>
+<span class="nc bnc" id="L339" title="All 2 branches missed.">        for (ConcretePump pump : pumps.values())</span>
         {
             try
             {
-<span class="nc" id="L359">                pump.stop();</span>
+<span class="nc" id="L343">                pump.stop();</span>
             }
-<span class="nc" id="L361">            catch (Throwable ex)</span>
+<span class="nc" id="L345">            catch (Throwable ex)</span>
             {
-<span class="nc" id="L363">                safelyLog(ex);</span>
-<span class="nc" id="L364">            }</span>
-<span class="nc" id="L365">        }</span>
-<span class="nc" id="L366">    }</span>
+                // Pass
+<span class="nc" id="L348">            }</span>
+<span class="nc" id="L349">        }</span>
+<span class="nc" id="L350">    }</span>
 
     private void invokeDestroyOnEachReactor ()
     {
-<span class="nc" id="L370">        Verify.verify(phase().equals(ExecutionPhase.DESTROY));</span>
+<span class="nc" id="L354">        Verify.verify(phase().equals(ExecutionPhase.DESTROY));</span>
 
-<span class="nc bnc" id="L372" title="All 2 branches missed.">        for (CascadeReactor reactor : reactors.values())</span>
+<span class="nc bnc" id="L356" title="All 2 branches missed.">        for (CascadeReactor reactor : reactors.values())</span>
         {
-<span class="nc" id="L374">            invokeEventHandler(reactor, ctx -&gt; reactor.core().onDestroy(ctx));</span>
-<span class="nc" id="L375">        }</span>
-<span class="nc" id="L376">    }</span>
+<span class="nc" id="L358">            invokeEventHandler(reactor, ctx -&gt; reactor.core().onDestroy(ctx));</span>
+<span class="nc" id="L359">        }</span>
+<span class="nc" id="L360">    }</span>
 
     private void invokeEventHandler (final CascadeReactor reactor,
                                      final Handler&lt;Context&gt; action)
     {
-<span class="nc" id="L381">        final Thread currentThread = Thread.currentThread();</span>
-<span class="nc" id="L382">        final ConcreteContext context = new ConcreteContext(reactor);</span>
+<span class="nc" id="L365">        final Thread currentThread = Thread.currentThread();</span>
+<span class="nc" id="L366">        final ConcreteContext context = new ConcreteContext(reactor);</span>
 
-<span class="nc" id="L384">        try (OperandStack stack = new CheckedOperandStack(currentThread, allocator.newOperandStack()))</span>
+<span class="nc" id="L368">        try (OperandStack stack = new CheckedOperandStack(currentThread, allocator.newOperandStack()))</span>
         {
             try
 
             {
-<span class="nc" id="L389">                context.set(currentThread, null, stack, null);</span>
-<span class="nc" id="L390">                action.accept(context);</span>
+<span class="nc" id="L373">                context.set(currentThread, null, stack, null);</span>
+<span class="nc" id="L374">                action.accept(context);</span>
             }
-<span class="nc" id="L392">            catch (Throwable ex1)</span>
+<span class="nc" id="L376">            catch (Throwable ex1)</span>
             {
                 try
                 {
-<span class="nc" id="L396">                    context.set(currentThread, null, stack, ex1);</span>
-<span class="nc" id="L397">                    reactor.core().onException(context);</span>
+<span class="nc" id="L380">                    context.set(currentThread, null, stack, ex1);</span>
+<span class="nc" id="L381">                    reactor.core().onException(context);</span>
                 }
-<span class="nc" id="L399">                catch (Throwable ex2)</span>
+<span class="nc" id="L383">                catch (Throwable ex2)</span>
                 {
-<span class="nc" id="L401">                    safelyLog(ex2);</span>
-<span class="nc" id="L402">                }</span>
-<span class="nc" id="L403">            }</span>
-<span class="nc bnc" id="L404" title="All 8 branches missed.">        }</span>
-<span class="nc" id="L405">    }</span>
-
-    private void safelyLog (final Throwable ex1)
-    {
-        try
-        {
-<span class="nc" id="L411">            defaultLogger().warn(ex1);</span>
-        }
-<span class="nc" id="L413">        catch (Throwable ex2)</span>
-        {
-<span class="nc" id="L415">            ex1.printStackTrace(System.err);</span>
-<span class="nc" id="L416">            ex2.printStackTrace(System.err);</span>
-<span class="nc" id="L417">        }</span>
-<span class="nc" id="L418">    }</span>
+                    // Pass
+<span class="nc" id="L386">                }</span>
+<span class="nc" id="L387">            }</span>
+<span class="nc bnc" id="L388" title="All 8 branches missed.">        }</span>
+<span class="nc" id="L389">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>
