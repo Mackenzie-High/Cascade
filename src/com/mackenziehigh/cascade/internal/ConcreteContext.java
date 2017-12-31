@@ -7,10 +7,9 @@ import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadePump;
 import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Context;
-import com.mackenziehigh.cascade.CascadeSubscription;
 import com.mackenziehigh.cascade.CascadeToken;
-import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -133,7 +132,7 @@ public final class ConcreteContext
     }
 
     @Override
-    public Map<CascadeToken, CascadeSubscription> subscriptions ()
+    public Set<CascadeToken> subscriptions ()
     {
         return reactor.subscriptions();
     }

@@ -2,7 +2,6 @@ package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Maps;
@@ -529,7 +528,6 @@ public final class ConcreteSchema
                                              pool,
                                              object.pump,
                                              object.logger,
-                                             ImmutableMap.of(), // TODO
                                              object.queue,
                                              sender);
 

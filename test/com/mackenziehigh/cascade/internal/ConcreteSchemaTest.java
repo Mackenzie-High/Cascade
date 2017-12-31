@@ -750,9 +750,9 @@ public final class ConcreteSchemaTest
         assertEquals(117, queue.capacity());
         assertEquals("planets.Mercury", reactor.pool().name().name());
         assertEquals("planets.Venus", reactor.pump().name().name());
-        assertTrue(reactor.subscriptions().containsKey(CascadeToken.create("Eclipse")));
-        assertTrue(reactor.subscriptions().containsKey(CascadeToken.create("Solstice")));
-        assertTrue(reactor.subscriptions().containsKey(CascadeToken.create("MoonImpact")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.create("Eclipse")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.create("Solstice")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.create("MoonImpact")));
 
         /**
          * Since the name of the logger has an 'X' appended to it,

@@ -1,17 +1,16 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Verify;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
 import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadePump;
 import com.mackenziehigh.cascade.CascadeReactor;
-import com.mackenziehigh.cascade.CascadeSubscription;
 import com.mackenziehigh.cascade.CascadeToken;
-import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -37,7 +36,7 @@ public final class ConcreteReactor
 
     private final EventDispatcher.ConcurrentEventSender sender;
 
-    private final Map<CascadeToken, CascadeSubscription> subscriptions = Maps.newConcurrentMap();
+    private final Set<CascadeToken> subscriptions = Sets.newConcurrentHashSet();
 
     /**
      * This flag is used as a sanity check to ensure that the core()
@@ -51,7 +50,6 @@ public final class ConcreteReactor
                             final AllocationPool pool,
                             final CascadeToken pump,
                             final CascadeLogger logger,
-                            final Map<CascadeToken, CascadeSubscription> subscriptions,
                             final InflowQueue input,
                             final EventDispatcher.ConcurrentEventSender sender)
     {
@@ -63,7 +61,6 @@ public final class ConcreteReactor
         this.pump = Objects.requireNonNull(pump);
         this.logger = Objects.requireNonNull(logger);
         this.input = Objects.requireNonNull(input);
-        this.subscriptions.putAll(subscriptions);
     }
 
     /**
@@ -145,8 +142,9 @@ public final class ConcreteReactor
     }
 
     @Override
-    public Map<CascadeToken, CascadeSubscription> subscriptions ()
+    public Set<CascadeToken> subscriptions ()
     {
+        // TODO: Implement This!!!!
         return subscriptions;
     }
 
@@ -163,6 +161,7 @@ public final class ConcreteReactor
                          final long timeout,
                          final TimeUnit timeoutUnits)
     {
+        // TODO: Implement This!!!!
 //        return sender.sendSync(event, message, timeout, timeoutUnits);
         return false;
     }

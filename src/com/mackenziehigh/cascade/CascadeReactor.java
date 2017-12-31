@@ -600,14 +600,10 @@ public interface CascadeReactor
     /**
      * Getter.
      *
-     * <p>
-     * This method returns an immutable set.
-     * </p>
-     *
-     * @return an immutable map that maps the full-names of event-channels
-     * to objects that describe them and can be used to monitor them.
+     * @return an immutable set containing the full-names of the event-channels
+     * that this reactor is currently interested in receiving event-messages from.
      */
-    public Map<CascadeToken, CascadeSubscription> subscriptions ();
+    public Set<CascadeToken> subscriptions ();
 
     /**
      * Atomically send an event-message without blocking.
