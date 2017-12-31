@@ -175,6 +175,18 @@ public final class ConcreteContext
     }
 
     @Override
+    public void subscribe (final CascadeToken event)
+    {
+        reactor.subscribe(event);
+    }
+
+    @Override
+    public void unsubscribe (final CascadeToken event)
+    {
+        reactor.unsubscribe(event);
+    }
+
+    @Override
     public String toString ()
     {
         return reactor.toString();

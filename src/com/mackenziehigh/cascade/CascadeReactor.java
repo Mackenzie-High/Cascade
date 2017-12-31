@@ -744,4 +744,20 @@ public interface CascadeReactor
      */
     public int broadcast (CascadeToken event,
                           OperandStack message);
+
+    /**
+     * Subscribe this reactor to a named event-channel,
+     * so that this reactor will begin receiving messages therefrom.
+     *
+     * @param event identifies the event-channel.
+     */
+    public void subscribe (CascadeToken event);
+
+    /**
+     * Unsubscribe this reactor to a named event-channel,
+     * so that this reactor will no longer receive messages therefrom.
+     *
+     * @param event identifies the event-channel.
+     */
+    public void unsubscribe (CascadeToken event);
 }

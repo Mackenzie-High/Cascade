@@ -190,6 +190,18 @@ public final class ConcreteReactor
     }
 
     @Override
+    public void subscribe (final CascadeToken event)
+    {
+        dispatcher.register(name(), event);
+    }
+
+    @Override
+    public void unsubscribe (final CascadeToken event)
+    {
+        dispatcher.deregister(name(), event);
+    }
+
+    @Override
     public String toString ()
     {
         return name.name();
