@@ -71,7 +71,17 @@ public final class EventDispatcher
      * that are currently interested in receiving that type of event.
      * </p>
      */
-    private final SetMultimap<CascadeToken, CascadeToken> subscriptions = Multimaps.synchronizedSetMultimap(HashMultimap.create());
+    private final SetMultimap<CascadeToken, CascadeToken> eventsToSubscribers = Multimaps.synchronizedSetMultimap(HashMultimap.create());
+
+    /**
+     * (subscriber) -> [ (event) ].
+     *
+     * <p>
+     * This method maps the name of a subscriber to the names of the events
+     * that the subscriber is currently interested in receiving.
+     * </p>
+     */
+    private final SetMultimap<CascadeToken, CascadeToken> subscribersToEvents = Multimaps.synchronizedSetMultimap(HashMultimap.create());
 
     /**
      * This lock is used to ensure that registrations, de-registrations, and look-ups are synchronous.
@@ -97,7 +107,19 @@ public final class EventDispatcher
      */
     public Set<CascadeToken> subscribersOf (final CascadeToken eventId)
     {
-        return ImmutableSet.copyOf(subscriptions.get(eventId));
+        return ImmutableSet.copyOf(eventsToSubscribers.get(eventId));
+    }
+
+    /**
+     * Use this method to find the names of any events that
+     * a subscriber with a given name is registered to receive.
+     *
+     * @param subscriberId identifies the subscriber.
+     * @return the names of the events, if any.
+     */
+    public Set<CascadeToken> subscriptionsOf (final CascadeToken subscriberId)
+    {
+        return ImmutableSet.copyOf(subscribersToEvents.get(subscriberId));
     }
 
     /**
@@ -140,7 +162,8 @@ public final class EventDispatcher
             final ImmutableList<InflowQueue> original = eventsToSubscriberQueues.getOrDefault(eventId, ImmutableList.of());
             final ImmutableList<InflowQueue> modified = ImmutableList.<InflowQueue>builder().addAll(original).add(handler).build();
             eventsToSubscriberQueues.put(eventId, modified);
-            subscriptions.put(eventId, subscriberId);
+            eventsToSubscribers.put(eventId, subscriberId);
+            subscribersToEvents.put(subscriberId, eventId);
         }
         else
         {
@@ -194,7 +217,8 @@ public final class EventDispatcher
         final int modifiedSize = modified.size();
         Verify.verify(modifiedSize == (originalSize - 1));
         eventsToSubscriberQueues.put(eventId, modified);
-        subscriptions.remove(eventId, subscriberId);
+        eventsToSubscribers.remove(eventId, subscriberId);
+        subscribersToEvents.remove(subscriberId, eventId);
     }
 
     /**

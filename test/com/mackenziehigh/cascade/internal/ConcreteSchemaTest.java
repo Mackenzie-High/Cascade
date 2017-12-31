@@ -1,13 +1,17 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.CascadeReactor;
+import com.mackenziehigh.cascade.CascadeReactor.Core;
+import com.mackenziehigh.cascade.CascadeReactor.CoreBuilder;
 import com.mackenziehigh.cascade.CascadeSchema;
 import com.mackenziehigh.cascade.CascadeToken;
+import java.util.Set;
 import java.util.concurrent.ThreadFactory;
 import static junit.framework.Assert.*;
 import org.junit.Test;
@@ -893,7 +897,38 @@ public final class ConcreteSchemaTest
     public void test20171231030255026121 ()
     {
         System.out.println("Test: 20171231030255026121");
-        fail();
+
+        final CoreBuilder builder = () -> new Core()
+        {
+            @Override
+            public Set<CascadeToken> initialSubscriptions ()
+            {
+                return ImmutableSet.of(CascadeToken.create("AsteroidImpact"));
+            }
+        };
+
+        final CascadeSchema cs = new ConcreteSchema("schema");
+        cs.enter("planets");
+        cs.addDynamicPool("Mercury").makeGlobalDefault();
+        cs.addPump("Venus");
+        cs.addReactor("Earth")
+                .withCore(builder)
+                .usingPool("Mercury")
+                .usingPump("Venus")
+                .subscribeTo("Eclipse")
+                .subscribeTo("Solstice")
+                .subscribeTo("MoonImpact");
+
+        final Cascade cas = cs.build();
+
+        assertEquals(1, cas.reactors().size());
+        final ConcreteReactor reactor = (ConcreteReactor) ImmutableList.copyOf(cas.reactors().values()).get(0);
+        assertEquals("planets.Mercury", reactor.pool().name().name());
+        assertEquals("planets.Venus", reactor.pump().name().name());
+        assertTrue(reactor.subscriptions().contains(CascadeToken.create("AsteroidImpact")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.create("Eclipse")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.create("Solstice")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.create("MoonImpact")));
     }
 
     /**

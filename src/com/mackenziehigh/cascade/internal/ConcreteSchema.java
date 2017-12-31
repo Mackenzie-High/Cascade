@@ -15,7 +15,6 @@ import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Core;
 import com.mackenziehigh.cascade.CascadeSchema;
 import com.mackenziehigh.cascade.CascadeToken;
-import com.mackenziehigh.cascade.internal.EventDispatcher.ConcurrentEventSender;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -518,8 +517,6 @@ public final class ConcreteSchema
         Verify.verify(object.logger != null);
         Verify.verify(object.queue != null);
 
-        final ConcurrentEventSender sender = dispatcher.lookup(object.name);
-
         final AllocationPool pool = allocator.pools().get(object.pool);
 
         object.reactor = new ConcreteReactor(cascade,
@@ -529,7 +526,7 @@ public final class ConcreteSchema
                                              object.pump,
                                              object.logger,
                                              object.queue,
-                                             sender);
+                                             dispatcher);
 
         pumpsToReactors.put(object.pump, object.reactor);
     }

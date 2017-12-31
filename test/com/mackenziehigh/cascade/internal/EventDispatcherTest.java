@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade.internal;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
 import com.mackenziehigh.cascade.CascadeToken;
@@ -32,22 +33,34 @@ public final class EventDispatcherTest
         final EventDispatcher dispatcher = new EventDispatcher(reactors);
 
         /**
+         * Tokens.
+         */
+        final CascadeToken Event1 = CascadeToken.create("Event1");
+        final CascadeToken Event2 = CascadeToken.create("Event2");
+        final CascadeToken Event3 = CascadeToken.create("Event3");
+        final CascadeToken Event4 = CascadeToken.create("Event4");
+        final CascadeToken Event5 = CascadeToken.create("Event5");
+
+        /**
          * Subscribe.
          */
-        dispatcher.register(CascadeToken.create("A"), CascadeToken.create("Event1"));
-        dispatcher.register(CascadeToken.create("A"), CascadeToken.create("Event2"));
-        dispatcher.register(CascadeToken.create("A"), CascadeToken.create("Event2")); // Duplicate
-        dispatcher.register(CascadeToken.create("A"), CascadeToken.create("Event3"));
-        dispatcher.register(CascadeToken.create("B"), CascadeToken.create("Event1"));
-        dispatcher.register(CascadeToken.create("B"), CascadeToken.create("Event3"));
-        dispatcher.register(CascadeToken.create("B"), CascadeToken.create("Event4"));
-        dispatcher.register(CascadeToken.create("C"), CascadeToken.create("Event2"));
-        dispatcher.register(CascadeToken.create("C"), CascadeToken.create("Event4"));
-        dispatcher.register(CascadeToken.create("C"), CascadeToken.create("Event5"));
+        dispatcher.register(CascadeToken.create("A"), Event1);
+        dispatcher.register(CascadeToken.create("A"), Event2);
+        dispatcher.register(CascadeToken.create("A"), Event3); // Duplicate
+        dispatcher.register(CascadeToken.create("A"), Event3);
+        dispatcher.register(CascadeToken.create("B"), Event1);
+        dispatcher.register(CascadeToken.create("B"), Event3);
+        dispatcher.register(CascadeToken.create("B"), Event4);
+        dispatcher.register(CascadeToken.create("C"), Event2);
+        dispatcher.register(CascadeToken.create("C"), Event4);
+        dispatcher.register(CascadeToken.create("C"), Event5);
 
         /**
          * Verify Subscriptions.
          */
+        assertEquals(ImmutableSet.of(Event1, Event2, Event3), dispatcher.subscriptionsOf(CascadeToken.create("A")));
+        assertEquals(ImmutableSet.of(Event1, Event3, Event4), dispatcher.subscriptionsOf(CascadeToken.create("B")));
+        assertEquals(ImmutableSet.of(Event2, Event4, Event5), dispatcher.subscriptionsOf(CascadeToken.create("C")));
         assertEquals(2, dispatcher.subscribersOf(CascadeToken.create("Event1")).size());
         assertEquals(2, dispatcher.subscribersOf(CascadeToken.create("Event2")).size());
         assertEquals(2, dispatcher.subscribersOf(CascadeToken.create("Event3")).size());
@@ -67,6 +80,9 @@ public final class EventDispatcherTest
          * Unsubscribe and Verify.
          */
         dispatcher.deregister(CascadeToken.create("A"), CascadeToken.create("Event1"));
+        assertEquals(ImmutableSet.of(Event2, Event3), dispatcher.subscriptionsOf(CascadeToken.create("A")));
+        assertEquals(ImmutableSet.of(Event1, Event3, Event4), dispatcher.subscriptionsOf(CascadeToken.create("B")));
+        assertEquals(ImmutableSet.of(Event2, Event4, Event5), dispatcher.subscriptionsOf(CascadeToken.create("C")));
         assertFalse(dispatcher.subscribersOf(CascadeToken.create("Event1")).contains(CascadeToken.create("A")));
         assertTrue(dispatcher.subscribersOf(CascadeToken.create("Event1")).contains(CascadeToken.create("B")));
         assertTrue(dispatcher.subscribersOf(CascadeToken.create("Event2")).contains(CascadeToken.create("A")));
@@ -86,6 +102,9 @@ public final class EventDispatcherTest
          * Unsubscribe and Verify.
          */
         dispatcher.deregister(CascadeToken.create("B"), CascadeToken.create("Event1"));
+        assertEquals(ImmutableSet.of(Event2, Event3), dispatcher.subscriptionsOf(CascadeToken.create("A")));
+        assertEquals(ImmutableSet.of(Event3, Event4), dispatcher.subscriptionsOf(CascadeToken.create("B")));
+        assertEquals(ImmutableSet.of(Event2, Event4, Event5), dispatcher.subscriptionsOf(CascadeToken.create("C")));
         assertFalse(dispatcher.subscribersOf(CascadeToken.create("Event1")).contains(CascadeToken.create("A")));
         assertFalse(dispatcher.subscribersOf(CascadeToken.create("Event1")).contains(CascadeToken.create("B")));
         assertEquals(0, dispatcher.subscribersOf(CascadeToken.create("Event1")).size());

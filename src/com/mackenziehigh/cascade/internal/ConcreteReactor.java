@@ -1,7 +1,6 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Verify;
-import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.AllocationPool;
@@ -34,9 +33,9 @@ public final class ConcreteReactor
 
     private final InflowQueue input;
 
-    private final EventDispatcher.ConcurrentEventSender sender;
+    private final EventDispatcher dispatcher;
 
-    private final Set<CascadeToken> subscriptions = Sets.newConcurrentHashSet();
+    private final EventDispatcher.ConcurrentEventSender sender;
 
     /**
      * This flag is used as a sanity check to ensure that the core()
@@ -51,12 +50,13 @@ public final class ConcreteReactor
                             final CascadeToken pump,
                             final CascadeLogger logger,
                             final InflowQueue input,
-                            final EventDispatcher.ConcurrentEventSender sender)
+                            final EventDispatcher dispatcher)
     {
         this.cascade = Objects.requireNonNull(cascade);
         this.name = Objects.requireNonNull(name);
         this.core = Objects.requireNonNull(core);
-        this.sender = Objects.requireNonNull(sender);
+        this.dispatcher = Objects.requireNonNull(dispatcher);
+        this.sender = Objects.requireNonNull(dispatcher.lookup(name));
         this.pool = Objects.requireNonNull(pool);
         this.pump = Objects.requireNonNull(pump);
         this.logger = Objects.requireNonNull(logger);
@@ -144,8 +144,7 @@ public final class ConcreteReactor
     @Override
     public Set<CascadeToken> subscriptions ()
     {
-        // TODO: Implement This!!!!
-        return subscriptions;
+        return dispatcher.subscriptionsOf(name);
     }
 
     @Override
