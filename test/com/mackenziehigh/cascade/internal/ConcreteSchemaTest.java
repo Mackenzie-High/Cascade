@@ -929,6 +929,9 @@ public final class ConcreteSchemaTest
         assertTrue(reactor.subscriptions().contains(CascadeToken.create("Eclipse")));
         assertTrue(reactor.subscriptions().contains(CascadeToken.create("Solstice")));
         assertTrue(reactor.subscriptions().contains(CascadeToken.create("MoonImpact")));
+
+        reactor.subscribe(CascadeToken.create("RocketLaunch"));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.create("RocketLaunch")));
     }
 
     /**
