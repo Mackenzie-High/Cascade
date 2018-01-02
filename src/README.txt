@@ -18,5 +18,5 @@ TODO:
 + Test Cascade Token just for completeness. It should be okay already.
 + Look for TODOs!!!
 + Subscribe and probably initialSubscriptions() should be affected by namespaces.
-
++ Schema needs to detect duplicate entries. In particular, duplicate reactor appears possible now.
 
