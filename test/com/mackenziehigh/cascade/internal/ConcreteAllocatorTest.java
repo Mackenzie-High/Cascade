@@ -7,7 +7,7 @@ import com.mackenziehigh.cascade.CascadeAllocator.AllocatorMismatchException;
 import com.mackenziehigh.cascade.CascadeAllocator.ExhaustedAllocationPoolException;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandArray;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.redo2.CascadeToken;
 import com.mackenziehigh.cascade.internal.ConcreteAllocator.FixedAllocationPool;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;

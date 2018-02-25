@@ -4,7 +4,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeAllocator;
-import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.redo2.CascadeToken;
 import com.mackenziehigh.cascade.internal.PositiveIntRangeMap.RangeEntry;
 import java.util.Collections;
 import java.util.List;

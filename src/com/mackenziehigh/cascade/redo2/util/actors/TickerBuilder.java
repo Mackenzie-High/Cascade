@@ -1,11 +1,10 @@
 package com.mackenziehigh.cascade.redo2.util.actors;
 
-import com.mackenziehigh.cascade.CascadeToken;
 import com.mackenziehigh.cascade.redo2.CascadeActor;
-import com.mackenziehigh.cascade.redo2.CascadeContext;
-import com.mackenziehigh.cascade.redo2.CascadeOperand;
-import com.mackenziehigh.cascade.redo2.CascadeScript;
 import com.mackenziehigh.cascade.redo2.CascadeStage;
+import com.mackenziehigh.cascade.redo2.CascadeToken;
+import com.mackenziehigh.cascade.redo2.scripts.AnnotatedScript;
+import com.mackenziehigh.cascade.redo2.scripts.OnMessage;
 import java.time.Duration;
 
 /**
@@ -73,20 +72,18 @@ public final class TickerBuilder
     @Override
     public CascadeActor build ()
     {
-        final CascadeScript script = new CascadeScript()
+        final AnnotatedScript script = new AnnotatedScript()
         {
-            @Override
-            public void onMessage (CascadeContext ctx,
-                                   CascadeToken event,
-                                   CascadeOperand stack)
-                    throws Throwable
+            @OnMessage
+            public void onTick ()
             {
-                throw new UnsupportedOperationException("Not supported yet.");
+
             }
         };
 
+        script.subscribe("OnTick", "output");
+
         final CascadeActor actor = stage().newActor(script);
-        actor.subscribe("output");
         return actor;
     }
 

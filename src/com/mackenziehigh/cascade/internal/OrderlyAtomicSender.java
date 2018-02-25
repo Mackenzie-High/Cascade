@@ -2,7 +2,7 @@ package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.redo2.CascadeToken;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;

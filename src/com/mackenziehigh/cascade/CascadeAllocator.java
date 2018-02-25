@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade;
 
+import com.mackenziehigh.cascade.redo2.CascadeToken;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Chars;
 import com.google.common.primitives.Ints;

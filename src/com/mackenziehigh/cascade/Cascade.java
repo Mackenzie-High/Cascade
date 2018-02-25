@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade;
 
+import com.mackenziehigh.cascade.redo2.CascadeToken;
 import java.util.SortedMap;
 import java.util.UUID;
 

@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade;
 
+import com.mackenziehigh.cascade.redo2.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeReactor.Core;
 import com.mackenziehigh.cascade.internal.ConcreteSchema;
 import java.util.concurrent.ThreadFactory;

@@ -10,7 +10,7 @@ import com.mackenziehigh.cascade.CascadeReactor;
 import com.mackenziehigh.cascade.CascadeReactor.Core;
 import com.mackenziehigh.cascade.CascadeReactor.CoreBuilder;
 import com.mackenziehigh.cascade.CascadeSchema;
-import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.redo2.CascadeToken;
 import java.util.Set;
 import java.util.concurrent.ThreadFactory;
 import static junit.framework.Assert.*;

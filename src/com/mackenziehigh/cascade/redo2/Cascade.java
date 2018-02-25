@@ -1,9 +1,8 @@
 package com.mackenziehigh.cascade.redo2;
 
-import com.mackenziehigh.cascade.CascadeLogger;
-import com.mackenziehigh.cascade.CascadeToken;
 import com.mackenziehigh.cascade.allocators.Allocator;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  *
@@ -46,6 +45,11 @@ public final class Cascade
     }
 
     public CascadeStage newPooledStage (final int threadPoolSize)
+    {
+        return null;
+    }
+
+    public UUID uniqueId ()
     {
         return null;
     }

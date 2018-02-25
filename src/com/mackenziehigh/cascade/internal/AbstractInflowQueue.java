@@ -3,7 +3,7 @@ package com.mackenziehigh.cascade.internal;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
 import com.mackenziehigh.cascade.CascadeAllocator;
-import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.redo2.CascadeToken;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;

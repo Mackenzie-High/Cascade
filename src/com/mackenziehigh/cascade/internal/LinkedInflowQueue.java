@@ -3,7 +3,7 @@ package com.mackenziehigh.cascade.internal;
 import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.CascadeAllocator;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.redo2.CascadeToken;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 

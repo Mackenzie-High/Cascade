@@ -1,6 +1,7 @@
 package com.mackenziehigh.cascade.redo2;
 
 import com.mackenziehigh.cascade.redo2.util.actors.CommonActors;
+import java.time.Duration;
 
 /**
  * For Testing Only.
@@ -16,14 +17,12 @@ public final class Main
         final CascadeActor ra = r.newActor(CommonActors.TICKER)
                 .setPeriod(1000)
                 .setOutput("ticks")
+                .setDelay(Duration.ofDays(1))
+                .useFixedDelay()
                 .build()
                 .useLogger(null)
                 .useArrayInflowQueue(128);
 
     }
 
-    private static void foo (final CascadeContext ctx)
-    {
-
-    }
 }

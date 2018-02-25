@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade;
+package com.mackenziehigh.cascade.redo2;
 
 /**
  * Use this interface to issue log-messages.

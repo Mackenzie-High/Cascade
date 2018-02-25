@@ -1,7 +1,7 @@
 package com.mackenziehigh.cascade.internal;
 
-import com.mackenziehigh.cascade.CascadeLogger;
-import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.redo2.CascadeLogger;
+import com.mackenziehigh.cascade.redo2.CascadeToken;
 import java.util.Objects;
 
 /**

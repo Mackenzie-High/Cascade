@@ -3,7 +3,7 @@ package com.mackenziehigh.cascade.internal;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.redo2.CascadeToken;
 import java.util.Map;
 import static junit.framework.Assert.*;
 import org.junit.Test;

@@ -1,10 +1,9 @@
 package com.mackenziehigh.cascade.redo2;
 
-import com.mackenziehigh.cascade.CascadeLogger;
-import com.mackenziehigh.cascade.CascadeToken;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  *
@@ -41,6 +40,8 @@ public interface CascadeActor
          */
         public CascadeActor build ();
     }
+
+    public UUID uniqueId ();
 
     /**
      * Getter.

@@ -1,7 +1,7 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
-import com.mackenziehigh.cascade.CascadeLogger;
+import com.mackenziehigh.cascade.redo2.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeReactor.Core;
 
 /**

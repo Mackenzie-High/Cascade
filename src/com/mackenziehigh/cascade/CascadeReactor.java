@@ -1,5 +1,7 @@
 package com.mackenziehigh.cascade;
 
+import com.mackenziehigh.cascade.redo2.CascadeToken;
+import com.mackenziehigh.cascade.redo2.CascadeLogger;
 import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
