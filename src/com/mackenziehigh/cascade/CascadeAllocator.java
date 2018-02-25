@@ -1,6 +1,7 @@
 package com.mackenziehigh.cascade;
 
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Chars;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.Shorts;
@@ -432,6 +433,17 @@ public interface CascadeAllocator
          * @param value is the operand to push.
          * @return this.
          */
+        public default OperandStack push (char value)
+        {
+            return push(Chars.toByteArray(value));
+        }
+
+        /**
+         * Push an operand onto the top of the stack.
+         *
+         * @param value is the operand to push.
+         * @return this.
+         */
         public default OperandStack push (byte value)
         {
             final byte[] array = new byte[1];
@@ -608,6 +620,19 @@ public interface CascadeAllocator
         public default boolean asBoolean ()
         {
             return asByte() != 0;
+        }
+
+        /**
+         * Data Conversion: byte[] to char.
+         *
+         * @return the converted value.
+         * @throws IllegalStateException if operandSize() &ne (1).
+         * @throws IllegalStateException if stackSize() is zero.
+         */
+        public default char asChar ()
+        {
+            Preconditions.checkState(operandSize() == 2, "Wrong Size");
+            return Chars.fromBytes(byteAt(0), byteAt(1));
         }
 
         /**

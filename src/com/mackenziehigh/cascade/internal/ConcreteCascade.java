@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.SortedMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -41,6 +42,17 @@ public final class ConcreteCascade
     private final AtomicBoolean startWasCalled = new AtomicBoolean();
 
     private final AtomicBoolean stopWasCalled = new AtomicBoolean();
+
+    /**
+     * This latch prevents the stop thread from making progress
+     * while the start thread is still in-progress.
+     */
+    private final CountDownLatch stopLatch = new CountDownLatch(1);
+
+    /**
+     * This latch becomes permanently unblocked once this system comes to a complete stop.
+     */
+    private final CountDownLatch awaitLatch = new CountDownLatch(1);
 
     /**
      * Invariant Checking.
@@ -159,15 +171,19 @@ public final class ConcreteCascade
     @Override
     public Cascade stop ()
     {
-        // TODO: This causes problems, if stop is called during startup. Need to postpone.
-
         if (stopWasCalled.compareAndSet(false, true))
         {
-            Verify.verify(phase().equals(ExecutionPhase.RUN));
             performStopOnNewThread();
         }
 
         return this;
+    }
+
+    @Override
+    public void await ()
+            throws InterruptedException
+    {
+        awaitLatch.await();
     }
 
     @Override
@@ -216,6 +232,11 @@ public final class ConcreteCascade
          */
         phaseIdx.incrementAndGet();
         Verify.verify(phase().equals(ExecutionPhase.RUN));
+
+        /**
+         * Stopping is now possible, since we have completely started.
+         */
+        stopLatch.countDown();
     }
 
     private void startThePumps ()
@@ -266,6 +287,24 @@ public final class ConcreteCascade
     private void performStop ()
     {
         /**
+         * If the startup process is still in-progress,
+         * then we cannot stop yet.
+         */
+        boolean allowed = false;
+        while (allowed == false)
+        {
+            try
+            {
+                stopLatch.await();
+                allowed = true;
+            }
+            catch (InterruptedException ex)
+            {
+                Thread.currentThread().interrupt(); // TODO: Correct???
+            }
+        }
+
+        /**
          * Per the contract, inform each reactor that shutdown has begun.
          */
         phaseIdx.incrementAndGet();
@@ -296,6 +335,11 @@ public final class ConcreteCascade
          */
         phaseIdx.incrementAndGet();
         Verify.verify(phase().equals(ExecutionPhase.TERMINATED));
+
+        /**
+         * Stopping is now complete.
+         */
+        awaitLatch.countDown();
     }
 
     private void invokeStopOnEachReactor ()
@@ -365,7 +409,8 @@ public final class ConcreteCascade
         final Thread currentThread = Thread.currentThread();
         final ConcreteContext context = new ConcreteContext(reactor);
 
-        try (OperandStack stack = new CheckedOperandStack(currentThread, allocator.newOperandStack()))
+        //try (OperandStack stack = new CheckedOperandStack(currentThread, allocator.newOperandStack())) // TODO
+        try (OperandStack stack = allocator.newOperandStack())
         {
             try
 

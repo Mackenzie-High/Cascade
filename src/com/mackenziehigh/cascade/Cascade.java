@@ -119,4 +119,16 @@ public interface Cascade
      * @return this.
      */
     public Cascade stop ();
+
+    /**
+     * This method blocks until the system completely stops.
+     *
+     * <p>
+     * This method is useful, for example, in unit-tests.
+     * </p>
+     *
+     * @throws java.lang.InterruptedException
+     */
+    public void await ()
+            throws InterruptedException;
 }

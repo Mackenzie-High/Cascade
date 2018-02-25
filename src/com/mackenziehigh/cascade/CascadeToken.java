@@ -161,6 +161,16 @@ public final class CascadeToken
     /**
      * Getter.
      *
+     * @return the binary representation of the MD5 hash.
+     */
+    public byte[] toHashBytes ()
+    {
+        return Arrays.copyOf(hashBytes, hashBytes.length);
+    }
+
+    /**
+     * Getter.
+     *
      * @return true, if this token denotes a full-name.
      */
     public boolean isFullName ()

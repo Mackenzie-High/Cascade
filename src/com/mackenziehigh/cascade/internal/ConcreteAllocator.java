@@ -289,13 +289,13 @@ public final class ConcreteAllocator
             {
                 throw new IndexOutOfBoundsException("offset < 0");
             }
-            else if (offset >= buffer.length)
+            else if (offset >= buffer.length && offset != 0)
             {
                 throw new IndexOutOfBoundsException("offset >= buffer.length");
             }
             else if (offset + length > buffer.length)
             {
-                throw new IllegalArgumentException("offset + length >= buffer.length");
+                throw new IllegalArgumentException("offset + length > buffer.length");
             }
             else
             {

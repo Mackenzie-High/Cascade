@@ -103,7 +103,9 @@ public abstract class OrderlyAtomicSender
                     ++commitCount;
                 }
             }
-
+        }
+        finally
+        {
             /**
              * Release the locks.
              */
@@ -112,9 +114,7 @@ public abstract class OrderlyAtomicSender
                 outputs.get(i).unlock(keys.get(i));
                 keys.set(i, null);
             }
-        }
-        finally
-        {
+
             transactionLock.unlock();
         }
 

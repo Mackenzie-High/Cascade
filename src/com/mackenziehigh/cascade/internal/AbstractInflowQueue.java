@@ -160,7 +160,6 @@ public abstract class AbstractInflowQueue
         }
         else if (producerPermits.tryAcquire())
         {
-            Verify.verify(transactionInProgress == false);
             Verify.verify(size() < capacity());
             transactionLock.lock();
             transactionInProgress = true;

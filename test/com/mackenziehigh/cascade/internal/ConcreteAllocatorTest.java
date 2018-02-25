@@ -954,6 +954,15 @@ public final class ConcreteAllocatorTest
         assertEquals((byte) 'a', out4[2]);
         assertEquals((byte) 'r', out4[3]);
         assertEquals((byte) 0, out4[4]);
+
+        /**
+         * Special Case: The output buffer is of size zero
+         * and the (offset + length) arguments are zero,
+         * but the stack contains a non-zero size message (Mars).
+         * This should not throw an exception.
+         */
+        final byte[] out5 = new byte[0];
+        stk.copyTo(out5, 0, 0);
     }
 
     /**
