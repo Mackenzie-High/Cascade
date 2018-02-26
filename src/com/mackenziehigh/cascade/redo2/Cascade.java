@@ -5,6 +5,7 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.internal.StandardLogger;
 import com.mackenziehigh.cascade.redo2.internal.Dispatcher;
+import com.mackenziehigh.cascade.redo2.internal.InflowQueue;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
@@ -452,6 +453,8 @@ public final class Cascade
     private final class Actor
             implements CascadeActor
     {
+        private final Actor actor = this;
+
         private final UUID actorUUID = UUID.randomUUID();
 
         private final Stage stage;
@@ -473,6 +476,10 @@ public final class Cascade
         private final Context context = new Context(this);
 
         private final Script script;
+
+        private final InflowQueue inflowQueue = null;
+
+        private final Set<CascadeToken> subscriptions = Sets.newConcurrentHashSet();
 
         public Actor (final Stage stage,
                       final CascadeScript script)
@@ -580,19 +587,29 @@ public final class Cascade
         @Override
         public CascadeActor subscribe (CascadeToken eventId)
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            synchronized (actor)
+            {
+                dispatcher.add(eventId, inflowQueue);
+                subscriptions.add(eventId);
+                return this;
+            }
         }
 
         @Override
         public CascadeActor unsubscribe (CascadeToken eventId)
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            synchronized (actor)
+            {
+                dispatcher.remove(eventId, inflowQueue);
+                subscriptions.remove(eventId);
+                return this;
+            }
         }
 
         @Override
         public Set<CascadeToken> subscriptions ()
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return ImmutableSet.copyOf(subscriptions);
         }
 
         @Override
@@ -640,25 +657,25 @@ public final class Cascade
         @Override
         public int backlogSize ()
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return inflowQueue.size();
         }
 
         @Override
         public int backlogCapacity ()
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return inflowQueue.capacity();
         }
 
         @Override
         public long receivedMessageCount ()
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return inflowQueue.received();
         }
 
         @Override
         public long droppedMessageCount ()
         {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return inflowQueue.dropped();
         }
 
         @Override

@@ -20,6 +20,10 @@ public interface InflowQueue
 
     public int capacity ();
 
+    public long received ();
+
+    public long dropped ();
+
     @Override
     public void close ();
 
