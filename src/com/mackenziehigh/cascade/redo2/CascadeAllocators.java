@@ -2,7 +2,6 @@ package com.mackenziehigh.cascade.redo2;
 
 /**
  *
- * @author mackenzie
  */
 public final class CascadeAllocators
 {

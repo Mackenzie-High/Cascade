@@ -19,9 +19,9 @@ public final class Main
                 .setOutput("ticks")
                 .setDelay(Duration.ofDays(1))
                 .useFixedDelay()
-                .build()
-                .useLogger(null)
-                .useArrayInflowQueue(128);
+                .build();
+
+        System.out.println(r.actors());
 
     }
 

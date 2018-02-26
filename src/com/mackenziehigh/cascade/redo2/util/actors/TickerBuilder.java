@@ -6,6 +6,7 @@ import com.mackenziehigh.cascade.redo2.CascadeToken;
 import com.mackenziehigh.cascade.redo2.scripts.AnnotatedScript;
 import com.mackenziehigh.cascade.redo2.scripts.OnMessage;
 import java.time.Duration;
+import java.util.Objects;
 
 /**
  *
@@ -13,6 +14,13 @@ import java.time.Duration;
 public final class TickerBuilder
         implements CascadeActor.Builder
 {
+    private final CascadeStage stage;
+
+    public TickerBuilder (final CascadeStage stage)
+    {
+        this.stage = Objects.requireNonNull(stage, "stage");
+    }
+
     public TickerBuilder setOutput (final CascadeToken event)
     {
         return this;
@@ -66,7 +74,7 @@ public final class TickerBuilder
     @Override
     public CascadeStage stage ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return stage;
     }
 
     @Override

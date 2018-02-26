@@ -69,7 +69,20 @@ public interface CascadeContext
      * @param stack contains the content of the message.
      * @return this.
      */
-    public CascadeContext send (CascadeToken event,
-                                CascadeOperand stack);
+    public default CascadeContext send (final String event,
+                                        final CascadeOperand stack)
+    {
+        return send(CascadeToken.create(event), stack);
+    }
+
+    /**
+     * This method causes the actor() to broadcast an event-message.
+     *
+     * @param event identifies the event being produced.
+     * @param stack contains the content of the message.
+     * @return this.
+     */
+    public CascadeContext send (final CascadeToken event,
+                                final CascadeOperand stack);
 
 }
