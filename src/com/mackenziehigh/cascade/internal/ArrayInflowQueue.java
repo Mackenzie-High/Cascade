@@ -1,87 +1,113 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
-import com.mackenziehigh.cascade.CascadeAllocator;
-import com.mackenziehigh.cascade.redo2.CascadeToken;
-import java.util.concurrent.ArrayBlockingQueue;
+import com.google.common.base.Verify;
+import com.mackenziehigh.cascade.CascadeStack;
+import com.mackenziehigh.cascade.CascadeToken;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 /**
- * Array-based Inflow Queue.
+ *
  */
 public final class ArrayInflowQueue
-        extends AbstractInflowQueue
+        implements InflowQueue
 {
-    /**
-     * This queue stores the enqueued event-identifiers.
-     */
-    private final ArrayBlockingQueue<CascadeToken> eventQueue;
+    private final Deque<CascadeToken> tokens;
 
-    /**
-     * This queue stores the indices of the enqueued messages
-     * that are stored in the message-storage object below.
-     */
-    private final LongSynchronizedQueue messageQueue;
+    private final Deque<CascadeStack> stacks;
 
-    /**
-     * This object efficiently stores the enqueued messages
-     * and provides (integer) indices that are enqueued in
-     * the message-queue above, so that the actual messages
-     * can later be retrieved using those integers.
-     */
-    private final OperandStackStorage messageStorage;
+    private final int capacity;
 
     /**
      * Sole Constructor.
      *
-     * @param allocator is needed to allocate requisite storage.
-     * @param capacity will be the maximum size of the queue at any time.
+     * @param capacity will be the maximum capacity of the new queue.
      */
-    public ArrayInflowQueue (final CascadeAllocator allocator,
-                             final int capacity)
+    public ArrayInflowQueue (final int capacity)
     {
-        super(capacity);
-        Preconditions.checkNotNull(allocator, "allocator");
-        this.eventQueue = new ArrayBlockingQueue<>(capacity);
-        this.messageQueue = new LongSynchronizedQueue(capacity);
-        this.messageStorage = new OperandStackStorage(allocator, capacity);
+        Preconditions.checkArgument(capacity >= 1, "capacity < 0");
+        this.capacity = capacity;
+        this.tokens = new ArrayDeque<>(capacity);
+        this.stacks = new ArrayDeque<>(capacity);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    protected void doCommit (final CascadeToken event,
-                             final CascadeAllocator.OperandStack message)
+    public boolean push (final CascadeToken event,
+                         final CascadeStack stack)
     {
-        // Enqueue the Event-ID.
-        eventQueue.offer(event);
-
-        // Enqueue the Message.
-        final int pos = messageStorage.set(message);
-        messageQueue.offer(pos);
+        checkState();
+        Preconditions.checkState(size() < capacity, "size >= capacity");
+        Preconditions.checkNotNull(event, "event");
+        Preconditions.checkNotNull(stack, "stack");
+        tokens.addLast(event);
+        stacks.addLast(stack);
+        return true;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    protected CascadeToken doPoll (final CascadeAllocator.OperandStack out)
+    public boolean removeOldest (final AtomicReference<CascadeToken> eventOut,
+                                 final AtomicReference<CascadeStack> stackOut)
     {
-        // Dequeue the Event-ID.
-        final CascadeToken event = eventQueue.poll();
-
-        if (event != null)
+        checkState();
+        Preconditions.checkNotNull(eventOut, "eventOut");
+        Preconditions.checkNotNull(stackOut, "stackOut");
+        if (size() == 0)
         {
-            // Dequeue the Message.
-            final int idx = (int) messageQueue.poll();
-            messageStorage.get(idx, out);
-
-            return event;
+            eventOut.set(null);
+            stackOut.set(null);
+            return false;
         }
         else
         {
-            return null; // No event-message available at this time.
+            eventOut.set(tokens.removeFirst());
+            stackOut.set(stacks.removeFirst());
+            return true;
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean removeNewest (final AtomicReference<CascadeToken> eventOut,
+                                 final AtomicReference<CascadeStack> stackOut)
+    {
+        checkState();
+        Preconditions.checkNotNull(eventOut, "eventOut");
+        Preconditions.checkNotNull(stackOut, "stackOut");
+        if (size() == 0)
+        {
+            eventOut.set(null);
+            stackOut.set(null);
+            return false;
+        }
+        else
+        {
+            eventOut.set(tokens.removeLast());
+            stackOut.set(stacks.removeLast());
+            return true;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void clear ()
+    {
+        checkState();
+        tokens.clear();
+        stacks.clear();
     }
 
     /**
@@ -90,17 +116,41 @@ public final class ArrayInflowQueue
     @Override
     public int size ()
     {
-        return eventQueue.size();
+        checkState();
+        return tokens.size();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void close ()
+    public int capacity ()
     {
-        eventQueue.clear();
-        messageStorage.close();
+        checkState();
+        return capacity;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void apply (final BiConsumer<CascadeToken, CascadeStack> functor)
+    {
+        checkState();
+        Preconditions.checkNotNull(functor, "functor");
+
+        final Iterator<CascadeToken> tokenIter = tokens.iterator();
+        final Iterator<CascadeStack> stackIter = stacks.iterator();
+
+        while (tokenIter.hasNext() && stackIter.hasNext())
+        {
+            functor.accept(tokenIter.next(), stackIter.next());
+        }
+    }
+
+    private void checkState ()
+    {
+        Verify.verify(tokens.size() < capacity);
+        Verify.verify(tokens.size() == stacks.size());
+    }
 }

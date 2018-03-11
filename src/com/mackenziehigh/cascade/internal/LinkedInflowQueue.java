@@ -1,88 +1,113 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
-import com.mackenziehigh.cascade.CascadeAllocator;
-import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.redo2.CascadeToken;
-import java.util.Queue;
-import java.util.concurrent.LinkedBlockingQueue;
+import com.google.common.base.Verify;
+import com.mackenziehigh.cascade.CascadeStack;
+import com.mackenziehigh.cascade.CascadeToken;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 /**
- * Linked-List based Inflow Queue.
+ *
  */
 public final class LinkedInflowQueue
-        extends AbstractInflowQueue
+        implements InflowQueue
 {
-    private static final class Entry
-    {
-        public final CascadeToken event;
+    private final Deque<CascadeToken> tokens;
 
-        public final OperandStack message;
+    private final Deque<CascadeStack> stacks;
 
-        public Entry (final CascadeToken event,
-                      final OperandStack message)
-        {
-            this.event = event;
-            this.message = message;
-        }
-    }
-
-    /**
-     * This queue contains the event-messages.
-     */
-    private final Queue<Entry> queue = new LinkedBlockingQueue<>();
+    private final int capacity;
 
     /**
      * Sole Constructor.
      *
-     * @param allocator is needed to allocate requisite storage.
-     * @param capacity will be the maximum size of the queue at any time.
+     * @param capacity will be the maximum capacity of the new queue.
      */
-    public LinkedInflowQueue (final CascadeAllocator allocator,
-                              final int capacity)
+    public LinkedInflowQueue (final int capacity)
     {
-        super(capacity);
-        Preconditions.checkNotNull(allocator, "allocator");
-        Preconditions.checkArgument(capacity >= 0, "capacity < 0");
+        Preconditions.checkArgument(capacity >= 1, "capacity < 0");
+        this.capacity = capacity;
+        this.tokens = new LinkedList<>();
+        this.stacks = new LinkedList<>();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    protected void doCommit (final CascadeToken event,
-                             final CascadeAllocator.OperandStack message)
+    public boolean push (final CascadeToken event,
+                         final CascadeStack stack)
     {
-        // Enqueue the Event-ID and the Message.
-        final OperandStack stack = message.allocator().newOperandStack();
-        stack.set(message);
-        final Entry entry = new Entry(event, stack);
-        queue.add(entry);
+        checkState();
+        Preconditions.checkState(size() < capacity, "size >= capacity");
+        Preconditions.checkNotNull(event, "event");
+        Preconditions.checkNotNull(stack, "stack");
+        tokens.addLast(event);
+        stacks.addLast(stack);
+        return true;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    protected CascadeToken doPoll (final CascadeAllocator.OperandStack out)
+    public boolean removeOldest (final AtomicReference<CascadeToken> eventOut,
+                                 final AtomicReference<CascadeStack> stackOut)
     {
-        // Dequeue the Event-ID and the Message.
-        final Entry entry = queue.poll();
-
-        if (entry != null)
+        checkState();
+        Preconditions.checkNotNull(eventOut, "eventOut");
+        Preconditions.checkNotNull(stackOut, "stackOut");
+        if (size() == 0)
         {
-            // Output the Message.
-            out.set(entry.message);
-
-            // Deallocate the operand-stack.
-            entry.message.close();
-
-            return entry.event;
+            eventOut.set(null);
+            stackOut.set(null);
+            return false;
         }
         else
         {
-            return null; // No event-message available at this time.
+            eventOut.set(tokens.removeFirst());
+            stackOut.set(stacks.removeFirst());
+            return true;
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean removeNewest (final AtomicReference<CascadeToken> eventOut,
+                                 final AtomicReference<CascadeStack> stackOut)
+    {
+        checkState();
+        Preconditions.checkNotNull(eventOut, "eventOut");
+        Preconditions.checkNotNull(stackOut, "stackOut");
+        if (size() == 0)
+        {
+            eventOut.set(null);
+            stackOut.set(null);
+            return false;
+        }
+        else
+        {
+            eventOut.set(tokens.removeLast());
+            stackOut.set(stacks.removeLast());
+            return true;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void clear ()
+    {
+        checkState();
+        tokens.clear();
+        stacks.clear();
     }
 
     /**
@@ -91,24 +116,41 @@ public final class LinkedInflowQueue
     @Override
     public int size ()
     {
-        return queue.size();
+        checkState();
+        return tokens.size();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void close ()
+    public int capacity ()
     {
-        while (queue.isEmpty() == false)
-        {
-            final Entry entry = queue.poll();
+        checkState();
+        return capacity;
+    }
 
-            if (entry != null)
-            {
-                entry.message.close();
-            }
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void apply (final BiConsumer<CascadeToken, CascadeStack> functor)
+    {
+        checkState();
+        Preconditions.checkNotNull(functor, "functor");
+
+        final Iterator<CascadeToken> tokenIter = tokens.iterator();
+        final Iterator<CascadeStack> stackIter = stacks.iterator();
+
+        while (tokenIter.hasNext() && stackIter.hasNext())
+        {
+            functor.accept(tokenIter.next(), stackIter.next());
         }
     }
 
+    private void checkState ()
+    {
+        Verify.verify(tokens.size() < capacity);
+        Verify.verify(tokens.size() == stacks.size());
+    }
 }

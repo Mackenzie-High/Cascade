@@ -1,128 +1,70 @@
 package com.mackenziehigh.cascade.internal;
 
-import com.mackenziehigh.cascade.CascadeAllocator.OperandStack;
-import com.mackenziehigh.cascade.redo2.CascadeToken;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
+import com.mackenziehigh.cascade.CascadeStack;
+import com.mackenziehigh.cascade.CascadeToken;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 /**
- * Conceptually, this is a queue containing event-messages,
- * which are awaiting processing.
  *
- * <p>
- * The transaction-lock described herein is a conceptual entity.
- * In reality, the transaction-lock may consist of multiple
- * locks that must be obtained in sequence, etc.
- * </p>
- *
- * <p>
- * The transaction methods herein return or use an access-key.
- * The access-key is simply passed around in order to promote
- * proper usage of instances of this class, by requiring
- * that only the thread holding the access-key can manipulate
- * the transaction.
- * </p>
  */
 public interface InflowQueue
 {
 
     /**
-     * Use this method to attempt to obtain the transaction-lock,
-     * blocking if necessary upto the given timeout.
+     * Use this method to add an event-message to the queue.
      *
-     * <p>
-     * At some point after successfully obtaining an access-key
-     * from this method, you must invoke unlock(*).
-     * </p>
-     *
-     * @param timeout is the maximum amount of time to wait.
-     * @param timeoutUnits describes the timeout.
-     * @return an access-key, if the lock was obtained; otherwise, return null.
-     * @throws java.lang.InterruptedException without obtaining the lock.
+     * @param event identifies the event.
+     * @param stack is the content of the message.
+     * @return true, iff the message was inserted without being dropped.
      */
-    public Object lock (long timeout,
-                        TimeUnit timeoutUnits)
-            throws InterruptedException;
+    public boolean push (CascadeToken event,
+                         CascadeStack stack);
 
     /**
-     * Use this method to attempt to obtain the transaction-lock,
-     * without blocking if the lock cannot immediately be obtained.
+     * Use this method to retrieve and remove an element from this queue.
      *
-     * <p>
-     * At some point after successfully obtaining an access-key
-     * from this method, you must invoke unlock(*).
-     * </p>
-     *
-     * @return an access-key, if the lock was obtained; otherwise, return null.
+     * @param eventOut will receive the identity of the event-message.
+     * @param stackOut will receive the content of the event-message.
+     * @return true, iff the an event-message was available and removed.
      */
-    public Object lock ();
+    public boolean removeOldest (AtomicReference<CascadeToken> eventOut,
+                                 AtomicReference<CascadeStack> stackOut);
 
     /**
-     * Use this method to enqueue a message after successfully
-     * obtaining the transaction-lock.
+     * Use this method to retrieve and remove an element from this queue.
      *
-     * @param key is the access-key obtained from lock().
-     * @param event identifies the event-channel that the message will be sent to.
-     * @param message will be enqueued herein.
+     * @param eventOut will receive the identity of the event-message.
+     * @param stackOut will receive the content of the event-message.
+     * @return true, iff the an event-message was available and removed.
      */
-    public void commit (Object key,
-                        CascadeToken event,
-                        OperandStack message);
+    public boolean removeNewest (AtomicReference<CascadeToken> eventOut,
+                                 AtomicReference<CascadeStack> stackOut);
 
     /**
-     * Use this method to release the transaction-lock.
-     *
-     * <p>
-     * If the given key is null, then this method is a no-op.
-     * </p>
-     *
-     * @param key is the access-key obtained from lock(), or null.
+     * Remove all of the elements that are in this queue.
      */
-    public void unlock (Object key);
+    public void clear ();
 
     /**
      * Getter.
      *
-     * <p>
-     * This method *must* be implemented as a constant-time operation,
-     * rather than a linear summation.
-     * </p>
-     *
-     * @return the number of messages that are currently enqueued herein.
+     * @return the total number of elements currently in the queue.
      */
     public int size ();
 
     /**
      * Getter.
      *
-     * <p>
-     * This method *must* be implemented as a constant-time operation,
-     * rather than a linear summation.
-     * </p>
-     *
-     * @return the maximum number of messages that can be enqueued herein.
+     * @return the maximum number of elements that can be stored in the queue.
      */
     public int capacity ();
 
     /**
-     * Release any special resources herein.
-     */
-    public void close ();
-
-    /**
-     * This method sets the functor that will be invoked whenever
-     * an event-message is committed.
+     * Apply the given functor to each message in this queue.
      *
-     * @param functor is the event-handler
+     * @param functor will act on each message.
      */
-    public void setCallback (Consumer<InflowQueue> functor);
+    public void apply (BiConsumer<CascadeToken, CascadeStack> functor);
 
-    /**
-     * Invoke this method in order to dequeue an event-message, if available.
-     *
-     * @param out will receive the event-message, if one is available.
-     * @return the name of the event-channel, if a message is available;
-     * otherwise, return null.
-     */
-    public CascadeToken poll (OperandStack out);
 }

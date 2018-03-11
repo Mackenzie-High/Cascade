@@ -1,74 +1,196 @@
 package com.mackenziehigh.cascade.internal;
 
-import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * An instance of this interface allows threads to individually
- * process tasks from a set of streams of tasks, such that no
- * two threads are processing tasks from the same stream at
- * the same time and tasks are fairly scheduled.
- *
- * @param <T> provides tasks.
+ * Least-Recently-Used based Scheduler.
  */
-public interface Scheduler<T>
+public final class Scheduler<E>
 {
-    /**
-     * An instance of this interface is a lockable source of tasks.
-     *
-     * @param <T>
-     */
-    public interface TaskStream<T>
-    {
-        /**
-         * Getter.
-         *
-         * @return the actual source of tasks.
-         */
-        public T source ();
+    private final AtomicLong counter = new AtomicLong();
 
-        /**
-         * Use this method to release the consumer lock on this stream,
-         * so that other consumer threads can receive tasks therefrom.
-         */
-        public void release ();
+    private final BlockingQueue<Process> scheduled = new PriorityBlockingQueue<>(32, Scheduler::compare);
+
+    private final CriticalSection empty = new CriticalSection(null);
+
+    private final Object lock = new Object();
+
+    public Process<E> newProcess (final int priority,
+                                  final E element)
+    {
+        if (priority < 0)
+        {
+            throw new IllegalArgumentException("priority < 0");
+        }
+        else
+        {
+            return new Process(this, priority, element);
+        }
     }
 
-    /**
-     * Getter.
-     *
-     * @return the task streams managed by this scheduler.
-     */
-    public Map<T, TaskStream<T>> streams ();
+    public void schedule (final Process task)
+    {
+        synchronized (lock)
+        {
+            if (task == null)
+            {
+                throw new NullPointerException("task");
+            }
+            else if (task.owner != this)
+            {
+                throw new IllegalArgumentException("Wrong Scheduler for Process");
+            }
+            else if (task.locked.compareAndSet(false, true))
+            {
+                task.sequenceNumber.set(counter.incrementAndGet());
+                scheduled.add(task);
+            }
+            else
+            {
+                task.count.incrementAndGet();
+            }
+        }
+    }
 
-    /**
-     * Use this method in order to notify the scheduler that a given
-     * stream has enqueued a new task that needs to be scheduled for
-     * consumption by one of the consumer threads.
-     *
-     * @param stream contains the source of the new task.
-     * @throws ClassCastException if stream is not managed by this scheduler.
-     */
-    public void addTask (TaskStream<T> stream);
+    public CriticalSection enter (final long timeout)
+            throws InterruptedException
+    {
+        if (timeout < 1)
+        {
+            throw new IllegalArgumentException("timeout < 1");
+        }
+        else
+        {
+            final Process next = scheduled.poll(timeout, TimeUnit.MILLISECONDS);
+            return next == null ? empty : next.criticalSection;
+        }
+    }
 
-    /**
-     * Use this method in order to wait for a task to become available.
-     *
-     * <p>
-     * The returned task-stream will be conceptually locked,
-     * so that only the caller can use the task-stream,
-     * until the caller explicitly invokes the release()
-     * method thereon.
-     * </p>
-     *
-     * @param timeout is the maximum amount of time to wait.
-     * @param timeoutUnit describes the timeout.
-     * @return a task-stream containing a task for the caller,
-     * or null, if no task is available or awake() was called.
-     * @throws java.lang.InterruptedException
-     */
-    public TaskStream<T> pollTask (long timeout,
-                                   TimeUnit timeoutUnit)
-            throws InterruptedException;
+    private static int compare (final Process left,
+                                final Process right)
+    {
+        if (left.priority != right.priority)
+        {
+            return Integer.compare(left.priority, right.priority);
+        }
+        else if (left.sequenceNumber.get() > right.sequenceNumber.get())
+        {
+            return -1; // Higher Seq Num == Lower Priority
+        }
+        else if (left.sequenceNumber.get() < right.sequenceNumber.get())
+        {
+            return +1; // Lower Seq Num == Higher Priority
+        }
+        else
+        {
+            return 0;
+        }
+    }
 
+    public static final class Process<T>
+    {
+        private final T element;
+
+        private final Scheduler owner;
+
+        private final int priority;
+
+        private final AtomicLong sequenceNumber = new AtomicLong();
+
+        private final AtomicBoolean locked = new AtomicBoolean();
+
+        private final AtomicLong count = new AtomicLong();
+
+        private final CriticalSection<T> criticalSection = new CriticalSection(this);
+
+        private Process (final Scheduler owner,
+                         final int priority,
+                         final T element)
+        {
+            this.owner = Objects.requireNonNull(owner, "owner");
+            this.priority = priority;
+            this.element = Objects.requireNonNull(element, "element");
+        }
+
+        public T element ()
+        {
+            return element;
+        }
+    }
+
+    public static final class CriticalSection<T>
+            implements AutoCloseable
+    {
+        private final Process process;
+
+        private CriticalSection (final Process process)
+        {
+            this.process = process;
+        }
+
+        public boolean isEmpty ()
+        {
+            return process == null;
+        }
+
+        public Process<T> task ()
+        {
+            return process;
+        }
+
+        @Override
+        public void close ()
+        {
+            if (process == null)
+            {
+                return;
+            }
+
+            synchronized (process.owner.lock)
+            {
+                if (process.count.get() > 0)
+                {
+                    process.count.decrementAndGet();
+                    process.locked.set(true);
+                    process.sequenceNumber.set(process.owner.counter.incrementAndGet());
+                    process.owner.scheduled.add(process);
+                }
+                else
+                {
+                    process.count.set(0);
+                    process.locked.set(false);
+                }
+            }
+        }
+
+    }
+
+    public static void main (String[] args)
+            throws InterruptedException
+    {
+        final Scheduler ss = new Scheduler();
+
+        final Process p = ss.newProcess(0, "A");
+
+        ss.schedule(p);
+
+        while (true)
+        {
+            try (Scheduler.CriticalSection cs = ss.enter(1000L))
+            {
+                if (cs.isEmpty())
+                {
+                    continue;
+                }
+
+                System.out.println("X = " + cs.task().element());
+
+            }
+        }
+    }
 }
