@@ -137,7 +137,7 @@ public final class ConcreteSchema
      */
     public ConcreteSchema (final String name)
     {
-        this.name = CascadeToken.create(name);
+        this.name = CascadeToken.token(name);
         resetScope();
     }
 
@@ -148,7 +148,7 @@ public final class ConcreteSchema
     public CascadeSchema enter (final String name)
     {
         Preconditions.checkNotNull(name, "name");
-        final CascadeToken token = CascadeToken.create(name);
+        final CascadeToken token = CascadeToken.token(name);
         resetScope();
         scope.namespace = token;
         return this;
@@ -664,7 +664,7 @@ public final class ConcreteSchema
     {
         Preconditions.checkNotNull(name, "name");
 
-        final CascadeToken token = CascadeToken.create(name);
+        final CascadeToken token = CascadeToken.token(name);
 
         if (token.isSimpleName() && scope.namespace != null)
         {
@@ -909,7 +909,7 @@ public final class ConcreteSchema
         @Override
         public ReactorSchema subscribeTo (final String event)
         {
-            final CascadeToken token = CascadeToken.create(event);
+            final CascadeToken token = CascadeToken.token(event);
             subscriptions.add(token);
             return this;
         }

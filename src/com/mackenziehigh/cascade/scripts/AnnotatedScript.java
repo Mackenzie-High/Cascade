@@ -7,7 +7,7 @@ import com.mackenziehigh.cascade.CascadeContext;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeScript;
 import com.mackenziehigh.cascade.CascadeToken;
-import com.mackenziehigh.cascade.scripts.FunctorScript.SetupFunction;
+import com.mackenziehigh.cascade.scripts.LambdaScript.SetupFunction;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -30,7 +30,7 @@ public abstract class AnnotatedScript
 
     private final ImmutableMap<CascadeToken, Method> closeMethods;
 
-    private final FunctorScript functorScript = new FunctorScript();
+    private final LambdaScript functorScript = new LambdaScript();
 
     public AnnotatedScript ()
     {
@@ -52,7 +52,7 @@ public abstract class AnnotatedScript
                 final String explicitName = extractor.apply(anno);
                 final String implicitName = method.getName();
                 final String name = explicitName.trim().isEmpty() ? implicitName : explicitName.trim();
-                final CascadeToken token = CascadeToken.create(name);
+                final CascadeToken token = CascadeToken.token(name);
                 result.put(token, method);
             }
         }
@@ -140,13 +140,13 @@ public abstract class AnnotatedScript
     public AnnotatedScript subscribe (final String method,
                                       final String event)
     {
-        return subscribe(method, CascadeToken.create(event));
+        return subscribe(method, CascadeToken.token(event));
     }
 
     public AnnotatedScript subscribe (final String method,
                                       final CascadeToken event)
     {
-        final CascadeToken methodId = CascadeToken.create(method);
+        final CascadeToken methodId = CascadeToken.token(method);
 
 //        if (handlers.containsKey(methodId) == false)
 //        {
@@ -162,7 +162,7 @@ public abstract class AnnotatedScript
     public AnnotatedScript unsubscribe (final String method,
                                         final String event)
     {
-        return unsubscribe(method, CascadeToken.create(event));
+        return unsubscribe(method, CascadeToken.token(event));
     }
 
     public AnnotatedScript unsubscribe (final String method,

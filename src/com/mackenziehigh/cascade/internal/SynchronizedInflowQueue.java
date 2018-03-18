@@ -8,8 +8,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 /**
- *
- * @author mackenzie
+ * An inflow-queue that synchronizes all operations performed thereon.
  */
 public final class SynchronizedInflowQueue
         implements InflowQueue
@@ -27,15 +26,27 @@ public final class SynchronizedInflowQueue
     }
 
     /**
+     * Perform the given task synchronously with respect
+     * to other operations performed on this queue.
+     *
+     * @param task will be performed.
+     */
+    public synchronized void sync (final Runnable task)
+    {
+        Preconditions.checkNotNull(task, "task");
+        task.run();
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
-    public synchronized boolean push (final CascadeToken event,
-                                      final CascadeStack stack)
+    public synchronized boolean offer (final CascadeToken event,
+                                       final CascadeStack stack)
     {
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(stack, "stack");
-        return delegate.push(event, stack);
+        return delegate.offer(event, stack);
     }
 
     /**
@@ -45,8 +56,6 @@ public final class SynchronizedInflowQueue
     public synchronized boolean removeOldest (final AtomicReference<CascadeToken> eventOut,
                                               final AtomicReference<CascadeStack> stackOut)
     {
-        Preconditions.checkNotNull(eventOut, "eventOut");
-        Preconditions.checkNotNull(stackOut, "stackOut");
         return delegate.removeOldest(eventOut, stackOut);
     }
 
@@ -57,8 +66,6 @@ public final class SynchronizedInflowQueue
     public synchronized boolean removeNewest (final AtomicReference<CascadeToken> eventOut,
                                               final AtomicReference<CascadeStack> stackOut)
     {
-        Preconditions.checkNotNull(eventOut, "eventOut");
-        Preconditions.checkNotNull(stackOut, "stackOut");
         return delegate.removeNewest(eventOut, stackOut);
     }
 
@@ -93,9 +100,8 @@ public final class SynchronizedInflowQueue
      * {@inheritDoc}
      */
     @Override
-    public synchronized void apply (final BiConsumer<CascadeToken, CascadeStack> functor)
+    public synchronized void forEach (final BiConsumer<CascadeToken, CascadeStack> functor)
     {
-        Preconditions.checkNotNull(functor, "functor");
-        delegate.apply(functor);
+        delegate.forEach(functor);
     }
 }

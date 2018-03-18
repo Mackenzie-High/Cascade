@@ -6,7 +6,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 /**
- *
+ * An inflow-queue contains a series of event-messages
+ * that are flowing into an actor.
  */
 public interface InflowQueue
 {
@@ -18,8 +19,8 @@ public interface InflowQueue
      * @param stack is the content of the message.
      * @return true, iff the message was inserted without being dropped.
      */
-    public boolean push (CascadeToken event,
-                         CascadeStack stack);
+    public boolean offer (CascadeToken event,
+                          CascadeStack stack);
 
     /**
      * Use this method to retrieve and remove an element from this queue.
@@ -56,6 +57,16 @@ public interface InflowQueue
     /**
      * Getter.
      *
+     * @return true, if this queue is empty.
+     */
+    public default boolean isEmpty ()
+    {
+        return size() == 0;
+    }
+
+    /**
+     * Getter.
+     *
      * @return the maximum number of elements that can be stored in the queue.
      */
     public int capacity ();
@@ -65,6 +76,6 @@ public interface InflowQueue
      *
      * @param functor will act on each message.
      */
-    public void apply (BiConsumer<CascadeToken, CascadeStack> functor);
+    public void forEach (BiConsumer<CascadeToken, CascadeStack> functor);
 
 }

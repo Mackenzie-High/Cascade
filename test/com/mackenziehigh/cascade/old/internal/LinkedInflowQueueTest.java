@@ -19,7 +19,7 @@ public final class LinkedInflowQueueTest
 
 
     {
-        allocator.addDynamicPool(CascadeToken.create("default"), 0, Integer.MAX_VALUE);
+        allocator.addDynamicPool(CascadeToken.token("default"), 0, Integer.MAX_VALUE);
     }
 
     /**
@@ -80,7 +80,7 @@ public final class LinkedInflowQueueTest
         assertEquals(0, callbacks.get());
         assertEquals(0, inflow.size());
         assertEquals(3, inflow.capacity());
-        inflow.commit(null, CascadeToken.create("Event1"), message);
+        inflow.commit(null, CascadeToken.token("Event1"), message);
         assertEquals(0, callbacks.get());
         assertEquals(0, inflow.size());
         assertEquals(3, inflow.capacity());
@@ -91,7 +91,7 @@ public final class LinkedInflowQueueTest
         assertEquals(0, callbacks.get());
         assertEquals(0, inflow.size());
         assertEquals(3, inflow.capacity());
-        inflow.commit(accessKey, CascadeToken.create("Event2"), message);
+        inflow.commit(accessKey, CascadeToken.token("Event2"), message);
         assertEquals(1, callbacks.get());
         assertEquals(1, inflow.size());
         assertEquals(3, inflow.capacity());
@@ -134,7 +134,7 @@ public final class LinkedInflowQueueTest
         message.clear().push("Earth").push("Mars");
         accessKey = inflow.lock(1, TimeUnit.MILLISECONDS);
         assertNotNull(accessKey);
-        inflow.commit(accessKey, CascadeToken.create("Event3"), message);
+        inflow.commit(accessKey, CascadeToken.token("Event3"), message);
         inflow.unlock(accessKey);
         assertEquals(2, callbacks.get());
         assertEquals(2, inflow.size());
@@ -147,7 +147,7 @@ public final class LinkedInflowQueueTest
         message.clear().push("Jupiter").push("Saturn");
         accessKey = inflow.lock(1, TimeUnit.MILLISECONDS);
         assertNotNull(accessKey);
-        inflow.commit(accessKey, CascadeToken.create("Event4"), message);
+        inflow.commit(accessKey, CascadeToken.token("Event4"), message);
         inflow.unlock(accessKey);
         assertEquals(3, callbacks.get());
         assertEquals(3, inflow.size());
@@ -168,7 +168,7 @@ public final class LinkedInflowQueueTest
          * Dequeue a message.
          */
         message.clear();
-        assertEquals(CascadeToken.create("Event2"), inflow.poll(message));
+        assertEquals(CascadeToken.token("Event2"), inflow.poll(message));
         assertEquals(3, callbacks.get());
         assertEquals(2, inflow.size());
         assertEquals(3, inflow.capacity());
@@ -184,7 +184,7 @@ public final class LinkedInflowQueueTest
         message.clear().push("Pluto").push("Vulcan");
         accessKey = inflow.lock();
         assertNotNull(accessKey);
-        inflow.commit(accessKey, CascadeToken.create("Event5"), message);
+        inflow.commit(accessKey, CascadeToken.token("Event5"), message);
         inflow.unlock(accessKey);
         assertEquals(4, callbacks.get());
         assertEquals(3, inflow.size());
@@ -205,7 +205,7 @@ public final class LinkedInflowQueueTest
          * Dequeue the next message and verify its contents.
          */
         message.clear();
-        assertEquals(CascadeToken.create("Event3"), inflow.poll(message));
+        assertEquals(CascadeToken.token("Event3"), inflow.poll(message));
         assertEquals(4, callbacks.get());
         assertEquals(2, inflow.size());
         assertEquals(3, inflow.capacity());
@@ -218,7 +218,7 @@ public final class LinkedInflowQueueTest
          * Dequeue the next message and verify its contents.
          */
         message.clear();
-        assertEquals(CascadeToken.create("Event4"), inflow.poll(message));
+        assertEquals(CascadeToken.token("Event4"), inflow.poll(message));
         assertEquals(4, callbacks.get());
         assertEquals(1, inflow.size());
         assertEquals(3, inflow.capacity());
@@ -231,7 +231,7 @@ public final class LinkedInflowQueueTest
          * Dequeue the next message and verify its contents.
          */
         message.clear();
-        assertEquals(CascadeToken.create("Event5"), inflow.poll(message));
+        assertEquals(CascadeToken.token("Event5"), inflow.poll(message));
         assertEquals(4, callbacks.get());
         assertEquals(0, inflow.size());
         assertEquals(3, inflow.capacity());
@@ -273,7 +273,7 @@ public final class LinkedInflowQueueTest
          * Commit the message.
          */
         message.clear().push("Vega");
-        inflow.commit(accessKey, CascadeToken.create("Event6"), message);
+        inflow.commit(accessKey, CascadeToken.token("Event6"), message);
         assertEquals(5, callbacks.get());
         assertEquals(1, inflow.size());
         assertEquals(3, inflow.capacity());
@@ -293,7 +293,7 @@ public final class LinkedInflowQueueTest
          * Dequeue the next message and verify its contents.
          */
         message.clear();
-        assertEquals(CascadeToken.create("Event6"), inflow.poll(message));
+        assertEquals(CascadeToken.token("Event6"), inflow.poll(message));
         assertEquals(5, callbacks.get());
         assertEquals(0, inflow.size());
         assertEquals(3, inflow.capacity());
@@ -318,7 +318,7 @@ public final class LinkedInflowQueueTest
         System.out.println("Test: 20171228102607792217");
 
         final ConcreteAllocator alloc = new ConcreteAllocator();
-        alloc.addFixedPool(CascadeToken.create("default"), 0, 100, 10);
+        alloc.addFixedPool(CascadeToken.token("default"), 0, 100, 10);
 
         final AtomicInteger callbacks = new AtomicInteger();
         final CascadeAllocator.OperandStack message = alloc.newOperandStack();
@@ -334,7 +334,7 @@ public final class LinkedInflowQueueTest
         message.clear().push("Earth").push("Mars");
         accessKey = inflow.lock();
         assertNotNull(accessKey);
-        inflow.commit(accessKey, CascadeToken.create("Event1"), message);
+        inflow.commit(accessKey, CascadeToken.token("Event1"), message);
         inflow.unlock(accessKey);
         assertEquals(2, alloc.defaultPool().size().getAsLong());
 

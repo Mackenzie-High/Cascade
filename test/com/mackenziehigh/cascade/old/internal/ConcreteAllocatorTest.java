@@ -36,7 +36,7 @@ public final class ConcreteAllocatorTest
                             final ConsumerEx<OperandStack> action)
     {
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 8);
+        allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 8);
         final OperandStack stk = allocator.newOperandStack();
 
         try
@@ -112,7 +112,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121040558663391");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         for (byte x : IntStream.range(Byte.MIN_VALUE, Byte.MAX_VALUE).mapToObj(x -> (byte) x).collect(Collectors.toList()))
@@ -146,7 +146,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121040558663473");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         for (byte x : IntStream.range(Byte.MIN_VALUE, Byte.MAX_VALUE).mapToObj(x -> (byte) x).collect(Collectors.toList()))
@@ -180,7 +180,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121040558663502");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         for (short x : IntStream.range(Short.MIN_VALUE, Short.MAX_VALUE).mapToObj(x -> (short) x).collect(Collectors.toList()))
@@ -214,7 +214,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121040558663528");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         for (int x : IntStream.range(Integer.MAX_VALUE - 1000, Integer.MIN_VALUE + 1000).mapToObj(x -> (short) x).collect(Collectors.toList()))
@@ -248,7 +248,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121040558663554");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         for (long x : LongStream.range(Long.MAX_VALUE - 1000, Long.MIN_VALUE + 1000).mapToObj(x -> (short) x).collect(Collectors.toList()))
@@ -282,7 +282,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121040558663575");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         /**
@@ -320,7 +320,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121040558663596");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         /**
@@ -358,7 +358,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121040558663618");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stack1 = allocator.newOperandStack();
         final OperandStack stack2 = allocator.newOperandStack();
         final byte[] data1 = "Emma".getBytes();
@@ -401,7 +401,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121040558663639");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         assertEquals(0, pool.size().getAsLong()); // No operands are currently in the allocation-pool.
@@ -432,7 +432,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121040558663657");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         for (int k = 0; k <= 16; k++)
@@ -479,7 +479,7 @@ public final class ConcreteAllocatorTest
 
         final int capacity = 128;
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        allocator.addFixedPool(CascadeToken.create("default"), 0, capacity, 16);
+        allocator.addFixedPool(CascadeToken.token("default"), 0, capacity, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         stk.push(true);
@@ -545,7 +545,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121041637421363");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stack1 = allocator.newOperandStack();
         final OperandStack stack2 = allocator.newOperandStack();
 
@@ -622,7 +622,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121041637421449");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
 
         final OperandStack empty = allocator.newOperandStack();
         final OperandStack women = allocator.newOperandStack().push("Autumn").push("Emma").push("Erin");
@@ -709,7 +709,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121041637421477");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
 
         final OperandStack emptyStk = allocator.newOperandStack();
         final OperandStack womenStk = allocator.newOperandStack().push("Autumn").push("Emma").push("Erin");
@@ -801,7 +801,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121041637421503");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         stk.push("Vulcan");
@@ -830,7 +830,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121041637421529");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         stk.push("Mars");
@@ -869,7 +869,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121042245269924");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         stk.push("Mars");
@@ -924,7 +924,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121042309255947");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         stk.push("Mars");
@@ -983,7 +983,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121042309256024");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         for (int k = 0; k <= 16; k++)
@@ -1020,7 +1020,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121042309256052");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stack1 = allocator.newOperandStack();
 
         stack1.push("Emma");
@@ -1088,7 +1088,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121042607008412");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final FixedAllocationPool pool = (FixedAllocationPool) allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         for (int k = 0; k <= 16; k++)
@@ -1125,7 +1125,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121042607008488");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         assertSame(allocator, stk.allocator());
@@ -1148,8 +1148,8 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121042607008518");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool1 = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
-        final AllocationPool pool2 = allocator.addFixedPool(CascadeToken.create("OlympicPool"), 0, 128, 16);
+        final AllocationPool pool1 = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
+        final AllocationPool pool2 = allocator.addFixedPool(CascadeToken.token("OlympicPool"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         assertTrue(stk.isStackEmpty());
@@ -1178,7 +1178,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171120000935135207");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        allocator.addFixedPool(CascadeToken.create("anon"), 0, 128, 8);
+        allocator.addFixedPool(CascadeToken.token("anon"), 0, 128, 8);
 
         /**
          * Method: push(OperandStack)
@@ -1240,7 +1240,7 @@ public final class ConcreteAllocatorTest
          * Method: set(OperandStack)
          */
         final ConcreteAllocator otherAllocator = new ConcreteAllocator();
-        otherAllocator.addDynamicPool(CascadeToken.create("default"), 0, 128);
+        otherAllocator.addDynamicPool(CascadeToken.token("default"), 0, 128);
         testThrow(AllocatorMismatchException.class, x -> x.set(otherAllocator.newOperandStack().push("X")));
 
         /**
@@ -1302,21 +1302,21 @@ public final class ConcreteAllocatorTest
         final ConcreteAllocator allocator = new ConcreteAllocator();
 
         // Anonymous
-        final AllocationPool pool1 = allocator.addDynamicPool(CascadeToken.create("anon"), 3, 6);
-        assertEquals(CascadeToken.create("anon"), pool1.name());
+        final AllocationPool pool1 = allocator.addDynamicPool(CascadeToken.token("anon"), 3, 6);
+        assertEquals(CascadeToken.token("anon"), pool1.name());
         assertEquals(3, pool1.minimumAllocationSize());
         assertEquals(6, pool1.maximumAllocationSize());
         assertFalse(pool1.isFixed());
 
         // Must Allow Exact Size
         // Must Allow Unique Name
-        final AllocationPool pool2 = allocator.addDynamicPool(CascadeToken.create("Cities"), 7, 7);
-        assertEquals(CascadeToken.create("Cities"), pool2.name());
+        final AllocationPool pool2 = allocator.addDynamicPool(CascadeToken.token("Cities"), 7, 7);
+        assertEquals(CascadeToken.token("Cities"), pool2.name());
         assertEquals(7, pool2.minimumAllocationSize());
         assertEquals(7, pool2.maximumAllocationSize());
         assertFalse(pool2.isFixed());
 
-        assertEquals(pool2, allocator.pools().get(CascadeToken.create("Cities")));
+        assertEquals(pool2, allocator.pools().get(CascadeToken.token("Cities")));
     }
 
     /**
@@ -1338,21 +1338,21 @@ public final class ConcreteAllocatorTest
         final ConcreteAllocator allocator = new ConcreteAllocator();
 
         // Anonymous
-        final AllocationPool pool1 = allocator.addFixedPool(CascadeToken.create("anon"), 3, 6, 8);
-        assertEquals(CascadeToken.create("anon"), pool1.name());
+        final AllocationPool pool1 = allocator.addFixedPool(CascadeToken.token("anon"), 3, 6, 8);
+        assertEquals(CascadeToken.token("anon"), pool1.name());
         assertEquals(3, pool1.minimumAllocationSize());
         assertEquals(6, pool1.maximumAllocationSize());
         assertTrue(pool1.isFixed());
 
         // Must Allow Exact Size
         // Must Allow Unique Name
-        final AllocationPool pool2 = allocator.addFixedPool(CascadeToken.create("Cities"), 7, 7, 16);
-        assertEquals(CascadeToken.create("Cities"), pool2.name());
+        final AllocationPool pool2 = allocator.addFixedPool(CascadeToken.token("Cities"), 7, 7, 16);
+        assertEquals(CascadeToken.token("Cities"), pool2.name());
         assertEquals(7, pool2.minimumAllocationSize());
         assertEquals(7, pool2.maximumAllocationSize());
         assertTrue(pool2.isFixed());
 
-        assertEquals(pool2, allocator.pools().get(CascadeToken.create("Cities")));
+        assertEquals(pool2, allocator.pools().get(CascadeToken.token("Cities")));
     }
 
     /**
@@ -1372,27 +1372,27 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171120052958992504");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool delegate1 = allocator.addFixedPool(CascadeToken.create("Toronto"), 101, 200, 4);
-        final AllocationPool delegate2 = allocator.addFixedPool(CascadeToken.create("Toronto"), 201, 300, 4);
+        final AllocationPool delegate1 = allocator.addFixedPool(CascadeToken.token("Toronto"), 101, 200, 4);
+        final AllocationPool delegate2 = allocator.addFixedPool(CascadeToken.token("Toronto"), 201, 300, 4);
         final List<AllocationPool> delegates = ImmutableList.of(delegate1, delegate2);
-        final AllocationPool fallback = allocator.addDynamicPool(CascadeToken.create("backup"), 50, 375);
+        final AllocationPool fallback = allocator.addDynamicPool(CascadeToken.token("backup"), 50, 375);
 
         // Anonymous, No Fallback
-        final AllocationPool pool1 = allocator.addCompositePool(CascadeToken.create("anon"), null, delegates);
-        assertEquals(CascadeToken.create("anon"), pool1.name());
+        final AllocationPool pool1 = allocator.addCompositePool(CascadeToken.token("anon"), null, delegates);
+        assertEquals(CascadeToken.token("anon"), pool1.name());
         assertEquals(101, pool1.minimumAllocationSize());
         assertEquals(300, pool1.maximumAllocationSize());
         assertFalse(pool1.isFixed());
 
         // Fallback Present
         // Must Allow Unique Name
-        final AllocationPool pool2 = allocator.addCompositePool(CascadeToken.create("Cities"), fallback, delegates);
-        assertEquals(CascadeToken.create("Cities"), pool2.name());
+        final AllocationPool pool2 = allocator.addCompositePool(CascadeToken.token("Cities"), fallback, delegates);
+        assertEquals(CascadeToken.token("Cities"), pool2.name());
         assertEquals(50, pool2.minimumAllocationSize());
         assertEquals(375, pool2.maximumAllocationSize());
         assertFalse(pool2.isFixed());
 
-        assertEquals(pool2, allocator.pools().get(CascadeToken.create("Cities")));
+        assertEquals(pool2, allocator.pools().get(CascadeToken.token("Cities")));
     }
 
     /**
@@ -1412,14 +1412,14 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171120052958992531");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool0 = allocator.addFixedPool(CascadeToken.create("default"), 2, 4, 2);
-        final AllocationPool pool1 = allocator.addFixedPool(CascadeToken.create("Planets"), 2, 4, 4);
-        final AllocationPool pool2 = allocator.addFixedPool(CascadeToken.create("Cities"), 2, 6, 8);
+        final AllocationPool pool0 = allocator.addFixedPool(CascadeToken.token("default"), 2, 4, 2);
+        final AllocationPool pool1 = allocator.addFixedPool(CascadeToken.token("Planets"), 2, 4, 4);
+        final AllocationPool pool2 = allocator.addFixedPool(CascadeToken.token("Cities"), 2, 6, 8);
 
         assertEquals(3, allocator.pools().size());
         assertTrue(allocator.pools() == allocator.pools()); // Exact Same Object
-        assertEquals(pool1, allocator.pools().get(CascadeToken.create("Planets")));
-        assertEquals(pool2, allocator.pools().get(CascadeToken.create("Cities")));
+        assertEquals(pool1, allocator.pools().get(CascadeToken.token("Planets")));
+        assertEquals(pool2, allocator.pools().get(CascadeToken.token("Cities")));
 
         assertTrue(allocator.pools().containsValue(allocator.defaultPool()));
         assertSame(pool0, allocator.defaultPool());
@@ -1520,7 +1520,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905405");
 
         final ConcreteAllocator allocator1 = new ConcreteAllocator();
-        final AllocationPool pool = allocator1.addDynamicPool(CascadeToken.create("default"), 0, 128);
+        final AllocationPool pool = allocator1.addDynamicPool(CascadeToken.token("default"), 0, 128);
 
         final ConcreteAllocator allocator2 = new ConcreteAllocator();
         final OperandStack stk = allocator2.newOperandStack();
@@ -1549,7 +1549,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905481");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.create("default"), 0, 128);
+        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.token("default"), 0, 128);
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -1579,7 +1579,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905509");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.create("default"), 0, 128);
+        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.token("default"), 0, 128);
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -1609,7 +1609,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905535");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.create("default"), 0, 128);
+        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.token("default"), 0, 128);
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -1638,7 +1638,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121040027311473");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.create("default"), 0, 128);
+        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.token("default"), 0, 128);
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -1667,7 +1667,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121040027311554");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.create("default"), 0, 128);
+        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.token("default"), 0, 128);
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -1696,7 +1696,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905580");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.create("default"), 0, 128);
+        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.token("default"), 0, 128);
         final OperandStack stk = allocator.newOperandStack();
 
         assertTrue(pool.tryAlloc(stk, "X".getBytes(), 0, 1));
@@ -1739,7 +1739,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905602");
 
         final ConcreteAllocator allocator1 = new ConcreteAllocator();
-        final AllocationPool pool = allocator1.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final AllocationPool pool = allocator1.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
 
         final ConcreteAllocator allocator2 = new ConcreteAllocator();
         final OperandStack stk = allocator2.newOperandStack();
@@ -1768,7 +1768,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905624");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -1797,7 +1797,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905646");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -1826,7 +1826,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905666");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -1855,7 +1855,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121035558884129");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -1884,7 +1884,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121035558884212");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 16);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 16);
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -1913,7 +1913,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905685");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 2);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 2);
         final OperandStack stk = allocator.newOperandStack();
 
         assertEquals(2, pool.capacity().getAsLong());
@@ -1950,7 +1950,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905704");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 3);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 3);
         final OperandStack stk = allocator.newOperandStack();
 
         assertEquals(3, pool.capacity().getAsLong());
@@ -2001,9 +2001,9 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905722");
 
         final ConcreteAllocator allocator1 = new ConcreteAllocator();
-        final AllocationPool delegate1 = allocator1.addDynamicPool(CascadeToken.create("delegate1"), 100, 200);
-        final AllocationPool delegate2 = allocator1.addDynamicPool(CascadeToken.create("delegate2"), 300, 400);
-        final AllocationPool pool = allocator1.addCompositePool(CascadeToken.create("default"), null, ImmutableList.of(delegate1, delegate2));
+        final AllocationPool delegate1 = allocator1.addDynamicPool(CascadeToken.token("delegate1"), 100, 200);
+        final AllocationPool delegate2 = allocator1.addDynamicPool(CascadeToken.token("delegate2"), 300, 400);
+        final AllocationPool pool = allocator1.addCompositePool(CascadeToken.token("default"), null, ImmutableList.of(delegate1, delegate2));
 
         final ConcreteAllocator allocator2 = new ConcreteAllocator();
         final OperandStack stk = allocator2.newOperandStack();
@@ -2032,9 +2032,9 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905741");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool delegate1 = allocator.addDynamicPool(CascadeToken.create("delegate1"), 100, 200);
-        final AllocationPool delegate2 = allocator.addDynamicPool(CascadeToken.create("delegate2"), 300, 400);
-        final AllocationPool pool = allocator.addCompositePool(CascadeToken.create("default"), null, ImmutableList.of(delegate1, delegate2));
+        final AllocationPool delegate1 = allocator.addDynamicPool(CascadeToken.token("delegate1"), 100, 200);
+        final AllocationPool delegate2 = allocator.addDynamicPool(CascadeToken.token("delegate2"), 300, 400);
+        final AllocationPool pool = allocator.addCompositePool(CascadeToken.token("default"), null, ImmutableList.of(delegate1, delegate2));
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -2064,9 +2064,9 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905781");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool delegate1 = allocator.addDynamicPool(CascadeToken.create("delegate1"), 100, 200);
-        final AllocationPool delegate2 = allocator.addDynamicPool(CascadeToken.create("delegate2"), 300, 400);
-        final AllocationPool pool = allocator.addCompositePool(CascadeToken.create("default"), null, ImmutableList.of(delegate1, delegate2));
+        final AllocationPool delegate1 = allocator.addDynamicPool(CascadeToken.token("delegate1"), 100, 200);
+        final AllocationPool delegate2 = allocator.addDynamicPool(CascadeToken.token("delegate2"), 300, 400);
+        final AllocationPool pool = allocator.addCompositePool(CascadeToken.token("default"), null, ImmutableList.of(delegate1, delegate2));
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -2096,9 +2096,9 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905817");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool delegate1 = allocator.addDynamicPool(CascadeToken.create("delegate1"), 100, 200);
-        final AllocationPool delegate2 = allocator.addDynamicPool(CascadeToken.create("delegate2"), 300, 400);
-        final AllocationPool pool = allocator.addCompositePool(CascadeToken.create("default"), null, ImmutableList.of(delegate1, delegate2));
+        final AllocationPool delegate1 = allocator.addDynamicPool(CascadeToken.token("delegate1"), 100, 200);
+        final AllocationPool delegate2 = allocator.addDynamicPool(CascadeToken.token("delegate2"), 300, 400);
+        final AllocationPool pool = allocator.addCompositePool(CascadeToken.token("default"), null, ImmutableList.of(delegate1, delegate2));
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -2128,9 +2128,9 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121035200808693");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool delegate1 = allocator.addDynamicPool(CascadeToken.create("delegate1"), 100, 200);
-        final AllocationPool delegate2 = allocator.addDynamicPool(CascadeToken.create("delegate2"), 300, 400);
-        final AllocationPool pool = allocator.addCompositePool(CascadeToken.create("default"), null, ImmutableList.of(delegate1, delegate2));
+        final AllocationPool delegate1 = allocator.addDynamicPool(CascadeToken.token("delegate1"), 100, 200);
+        final AllocationPool delegate2 = allocator.addDynamicPool(CascadeToken.token("delegate2"), 300, 400);
+        final AllocationPool pool = allocator.addCompositePool(CascadeToken.token("default"), null, ImmutableList.of(delegate1, delegate2));
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -2160,9 +2160,9 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121035200808760");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool delegate1 = allocator.addDynamicPool(CascadeToken.create("delegate1"), 100, 200);
-        final AllocationPool delegate2 = allocator.addDynamicPool(CascadeToken.create("delegate2"), 300, 400);
-        final AllocationPool pool = allocator.addCompositePool(CascadeToken.create("default"), null, ImmutableList.of(delegate1, delegate2));
+        final AllocationPool delegate1 = allocator.addDynamicPool(CascadeToken.token("delegate1"), 100, 200);
+        final AllocationPool delegate2 = allocator.addDynamicPool(CascadeToken.token("delegate2"), 300, 400);
+        final AllocationPool pool = allocator.addCompositePool(CascadeToken.token("default"), null, ImmutableList.of(delegate1, delegate2));
         final OperandStack stk = allocator.newOperandStack();
 
         final byte[] data = "Venus".getBytes();
@@ -2192,9 +2192,9 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905836");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool delegate1 = allocator.addFixedPool(CascadeToken.create("delegate1"), 0, 1, 2);
-        final AllocationPool delegate2 = allocator.addFixedPool(CascadeToken.create("delegate2"), 2, 3, 2);
-        final AllocationPool pool = allocator.addCompositePool(CascadeToken.create("default"), null, ImmutableList.of(delegate1, delegate2));
+        final AllocationPool delegate1 = allocator.addFixedPool(CascadeToken.token("delegate1"), 0, 1, 2);
+        final AllocationPool delegate2 = allocator.addFixedPool(CascadeToken.token("delegate2"), 2, 3, 2);
+        final AllocationPool pool = allocator.addCompositePool(CascadeToken.token("default"), null, ImmutableList.of(delegate1, delegate2));
         final OperandStack stk = allocator.newOperandStack();
 
         assertEquals(2, delegate1.capacity().getAsLong());
@@ -2284,10 +2284,10 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121081453580017");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool fallback = allocator.addFixedPool(CascadeToken.create("delegate1"), 0, 8, 2);
-        final AllocationPool delegate1 = allocator.addFixedPool(CascadeToken.create("delegate1"), 0, 1, 2);
-        final AllocationPool delegate2 = allocator.addFixedPool(CascadeToken.create("delegate2"), 2, 3, 2);
-        final AllocationPool pool = allocator.addCompositePool(CascadeToken.create("default"), fallback, ImmutableList.of(delegate1, delegate2));
+        final AllocationPool fallback = allocator.addFixedPool(CascadeToken.token("delegate1"), 0, 8, 2);
+        final AllocationPool delegate1 = allocator.addFixedPool(CascadeToken.token("delegate1"), 0, 1, 2);
+        final AllocationPool delegate2 = allocator.addFixedPool(CascadeToken.token("delegate2"), 2, 3, 2);
+        final AllocationPool pool = allocator.addCompositePool(CascadeToken.token("default"), fallback, ImmutableList.of(delegate1, delegate2));
         final OperandStack stk = allocator.newOperandStack();
 
         assertEquals(2, fallback.capacity().getAsLong());
@@ -2409,10 +2409,10 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121033510905854");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool fallback = allocator.addFixedPool(CascadeToken.create("delegate1"), 0, 8, 2);
-        final AllocationPool delegate1 = allocator.addFixedPool(CascadeToken.create("delegate1"), 4, 4, 2);
-        final AllocationPool delegate2 = allocator.addFixedPool(CascadeToken.create("delegate2"), 6, 6, 2);
-        final AllocationPool pool = allocator.addCompositePool(CascadeToken.create("default"), fallback, ImmutableList.of(delegate1, delegate2));
+        final AllocationPool fallback = allocator.addFixedPool(CascadeToken.token("delegate1"), 0, 8, 2);
+        final AllocationPool delegate1 = allocator.addFixedPool(CascadeToken.token("delegate1"), 4, 4, 2);
+        final AllocationPool delegate2 = allocator.addFixedPool(CascadeToken.token("delegate2"), 6, 6, 2);
+        final AllocationPool pool = allocator.addCompositePool(CascadeToken.token("default"), fallback, ImmutableList.of(delegate1, delegate2));
         final OperandStack stk = allocator.newOperandStack();
 
         assertEquals(2, fallback.capacity().getAsLong());
@@ -2494,7 +2494,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121035358615320");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 2);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 2);
         final OperandStack stk = allocator.newOperandStack();
 
         assertEquals(2, pool.capacity().getAsLong());
@@ -2526,7 +2526,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121035432867337");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 128, 3);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 128, 3);
         final OperandStack stk = allocator.newOperandStack();
 
         assertEquals(3, pool.capacity().getAsLong());
@@ -2573,7 +2573,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121034626049407");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        allocator.addFixedPool(CascadeToken.create("NonDefault"), 0, 128, 3);
+        allocator.addFixedPool(CascadeToken.token("NonDefault"), 0, 128, 3);
 
         allocator.defaultPool();
     }
@@ -2595,10 +2595,10 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121223521973170");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.create("BigBangPool"), 100, 200);
+        final AllocationPool pool = allocator.addDynamicPool(CascadeToken.token("BigBangPool"), 100, 200);
 
         assertSame(allocator, pool.allocator());
-        assertEquals(CascadeToken.create("BigBangPool"), pool.name());
+        assertEquals(CascadeToken.token("BigBangPool"), pool.name());
         assertFalse(pool.isFixed());
         assertEquals(100, pool.minimumAllocationSize());
         assertEquals(200, pool.maximumAllocationSize());
@@ -2623,10 +2623,10 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121223521973256");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("SwimmingPool"), 100, 200, 300);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("SwimmingPool"), 100, 200, 300);
 
         assertSame(allocator, pool.allocator());
-        assertEquals(CascadeToken.create("SwimmingPool"), pool.name());
+        assertEquals(CascadeToken.token("SwimmingPool"), pool.name());
         assertTrue(pool.isFixed());
         assertEquals(100, pool.minimumAllocationSize());
         assertEquals(200, pool.maximumAllocationSize());
@@ -2651,13 +2651,13 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121223521973291");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool fallback = allocator.addFixedPool(CascadeToken.create("delegate1"), 91, 321, 2);
-        final AllocationPool delegate1 = allocator.addFixedPool(CascadeToken.create("delegate1"), 101, 200, 2);
-        final AllocationPool delegate2 = allocator.addFixedPool(CascadeToken.create("delegate2"), 201, 300, 2);
-        final AllocationPool pool = allocator.addCompositePool(CascadeToken.create("RouterPool"), fallback, ImmutableList.of(delegate1, delegate2));
+        final AllocationPool fallback = allocator.addFixedPool(CascadeToken.token("delegate1"), 91, 321, 2);
+        final AllocationPool delegate1 = allocator.addFixedPool(CascadeToken.token("delegate1"), 101, 200, 2);
+        final AllocationPool delegate2 = allocator.addFixedPool(CascadeToken.token("delegate2"), 201, 300, 2);
+        final AllocationPool pool = allocator.addCompositePool(CascadeToken.token("RouterPool"), fallback, ImmutableList.of(delegate1, delegate2));
 
         assertSame(allocator, pool.allocator());
-        assertEquals(CascadeToken.create("RouterPool"), pool.name());
+        assertEquals(CascadeToken.token("RouterPool"), pool.name());
         assertFalse(pool.isFixed());
         assertEquals(91, pool.minimumAllocationSize());
         assertEquals(321, pool.maximumAllocationSize());
@@ -2683,12 +2683,12 @@ public final class ConcreteAllocatorTest
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
         final AllocationPool fallback = null;
-        final AllocationPool delegate1 = allocator.addFixedPool(CascadeToken.create("delegate1"), 101, 200, 2);
-        final AllocationPool delegate2 = allocator.addFixedPool(CascadeToken.create("delegate2"), 201, 300, 2);
-        final AllocationPool pool = allocator.addCompositePool(CascadeToken.create("RouterPool"), fallback, ImmutableList.of(delegate1, delegate2));
+        final AllocationPool delegate1 = allocator.addFixedPool(CascadeToken.token("delegate1"), 101, 200, 2);
+        final AllocationPool delegate2 = allocator.addFixedPool(CascadeToken.token("delegate2"), 201, 300, 2);
+        final AllocationPool pool = allocator.addCompositePool(CascadeToken.token("RouterPool"), fallback, ImmutableList.of(delegate1, delegate2));
 
         assertSame(allocator, pool.allocator());
-        assertEquals(CascadeToken.create("RouterPool"), pool.name());
+        assertEquals(CascadeToken.token("RouterPool"), pool.name());
         assertFalse(pool.isFixed());
         assertEquals(101, pool.minimumAllocationSize());
         assertEquals(300, pool.maximumAllocationSize());
@@ -2713,7 +2713,7 @@ public final class ConcreteAllocatorTest
         System.out.println("Test: 20171121223521973323");
 
         final ConcreteAllocator allocator = new ConcreteAllocator();
-        final AllocationPool pool = allocator.addFixedPool(CascadeToken.create("default"), 0, 200, 300);
+        final AllocationPool pool = allocator.addFixedPool(CascadeToken.token("default"), 0, 200, 300);
         final OperandArray array = allocator.newOperandArray(4);
         final OperandStack stack = allocator.newOperandStack();
 

@@ -678,7 +678,7 @@ public final class ConcreteAllocator
         }
     }
 
-    private final CascadeToken DEFAULT = CascadeToken.create("default");
+    private final CascadeToken DEFAULT = CascadeToken.token("default");
 
     private Cascade cascade;
 

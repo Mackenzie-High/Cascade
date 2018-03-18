@@ -1,8 +1,5 @@
 package com.mackenziehigh.cascade;
 
-import com.mackenziehigh.cascade.CascadeActor;
-import com.mackenziehigh.cascade.Cascade;
-
 /**
  *
  */
@@ -65,7 +62,7 @@ public interface CascadeContext
     public default CascadeContext send (final String event,
                                         final CascadeStack stack)
     {
-        return send(CascadeToken.create(event), stack);
+        return send(CascadeToken.token(event), stack);
     }
 
     /**

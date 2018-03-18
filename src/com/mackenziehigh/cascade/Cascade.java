@@ -1,19 +1,17 @@
 package com.mackenziehigh.cascade;
 
-import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.mackenziehigh.cascade.old.internal.StandardLogger;
 import com.mackenziehigh.cascade.allocators.CascadeAllocator;
-import com.mackenziehigh.cascade.internal.CallbackInflowQueue;
-import com.mackenziehigh.cascade.internal.CallbackInflowQueue.ChangeType;
 import com.mackenziehigh.cascade.internal.Dispatcher;
 import com.mackenziehigh.cascade.internal.InflowQueue;
 import com.mackenziehigh.cascade.internal.LinkedInflowQueue;
+import com.mackenziehigh.cascade.internal.NotificationInflowQueue;
 import com.mackenziehigh.cascade.internal.Scheduler;
 import com.mackenziehigh.cascade.internal.SwappableInflowQueue;
 import com.mackenziehigh.cascade.internal.SynchronizedInflowQueue;
+import com.mackenziehigh.cascade.old.internal.StandardLogger;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
@@ -244,7 +242,7 @@ public final class Cascade
     public Cascade send (final String event,
                          final CascadeStack stack)
     {
-        return send(CascadeToken.create(event), stack);
+        return send(CascadeToken.token(event), stack);
     }
 
     /**
@@ -257,7 +255,7 @@ public final class Cascade
     public Cascade send (final CascadeToken event,
                          final CascadeStack stack)
     {
-        // TODO
+        dispatcher.send(event, stack);
         return this;
     }
 
@@ -302,6 +300,8 @@ public final class Cascade
             {
                 final Thread thread = factory.newThread(() -> run());
                 threadsSet.add(thread);
+
+                thread.start(); // TODO: Move out of ctor!
             }
 
             this.threads = ImmutableSet.copyOf(threadsSet);
@@ -309,32 +309,53 @@ public final class Cascade
 
         private void run ()
         {
-            final AtomicReference<CascadeToken> token = new AtomicReference<>();
+            final AtomicReference<CascadeToken> event = new AtomicReference<>();
             final AtomicReference<CascadeStack> stack = new AtomicReference<>();
 
             while (stageAlive.get())
             {
-                try (Scheduler.CriticalSection<Actor> cs = scheduler.enter(1000))
+                try
                 {
-                    if (cs.isEmpty() == false)
-                    {
-                        final Actor actor = cs.task().element();
-                        final InflowQueue queue = actor.inflowQueue;
-                        Verify.verify(queue.removeOldest(token, stack));
-                        actor.script.onMessage(actor.context, token.get(), stack.get());
-                    }
+                    event.set(null);
+                    stack.set(null);
+                    unsafeRun(event, stack);
                 }
-                catch (Throwable ex1)
+                catch (InterruptedException ex1)
                 {
-                    try
-                    {
-                        // TODO
-                    }
-                    catch (Throwable ex2)
-                    {
+                    Thread.currentThread().interrupt();
+                }
+                catch (Throwable ex2)
+                {
+                    // Pass
+                }
+            }
+        }
 
-                    }
+        private void unsafeRun (final AtomicReference<CascadeToken> event,
+                                final AtomicReference<CascadeStack> stack)
+                throws InterruptedException
+        {
+            final Scheduler.Process<Actor> process = scheduler.poll(1000);
+
+            if (process == null)
+            {
+                return;
+            }
+
+            try (Scheduler.Process<Actor> task = process)
+            {
+                final Actor actor = task.getUserObject();
+                final InflowQueue queue = actor.inflowQueue;
+                queue.removeOldest(event, stack);
+                final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)
+                if (delivered)
+                {
+                    actor.script.onMessage(actor.context, event.get(), stack.get());
                 }
+            }
+            catch (Throwable ex1)
+            {
+                // TODO
             }
         }
 
@@ -495,7 +516,7 @@ public final class Cascade
 
         private final SwappableInflowQueue swappableInflowQueue;
 
-        private final CallbackInflowQueue schedulerInflowQueue;
+        private final NotificationInflowQueue schedulerInflowQueue;
 
         private final InflowQueue inflowQueue;
 
@@ -507,28 +528,19 @@ public final class Cascade
                       final CascadeScript script)
         {
             this.stage = stage;
-            this.logger = stage.loggerFactory().create(CascadeToken.create(actorUUID.toString()));
+            this.logger = stage.loggerFactory().create(CascadeToken.token(actorUUID.toString()));
             this.allocator = stage.allocator();
             this.script = new Script(script);
             final InflowQueue initialInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);
             this.swappableInflowQueue = new SwappableInflowQueue(initialInflowQueue);
-            this.schedulerInflowQueue = new CallbackInflowQueue(swappableInflowQueue,
-                                                                (q, c) -> onQueueAdd(q, c),
-                                                                (q, c) -> onQueueRemove(q, c));
+            this.schedulerInflowQueue = new NotificationInflowQueue(swappableInflowQueue, q -> onQueueAdd(q));
             this.inflowQueue = new SynchronizedInflowQueue(schedulerInflowQueue);
             this.task = stage.scheduler.newProcess(0, actor);
         }
 
-        private void onQueueAdd (final InflowQueue queue,
-                                 final ChangeType changeType)
+        private void onQueueAdd (final InflowQueue queue)
         {
-            stage.scheduler.schedule(task);
-        }
-
-        private void onQueueRemove (final InflowQueue queue,
-                                    final ChangeType changeType)
-        {
-
+            task.schedule();
         }
 
         @Override
@@ -617,7 +629,7 @@ public final class Cascade
         {
             synchronized (actor)
             {
-                dispatcher.add(eventId, inflowQueue);
+                dispatcher.register(eventId, inflowQueue);
                 subscriptions.add(eventId);
                 return this;
             }
@@ -628,7 +640,7 @@ public final class Cascade
         {
             synchronized (actor)
             {
-                dispatcher.remove(eventId, inflowQueue);
+                dispatcher.deregister(eventId, inflowQueue);
                 subscriptions.remove(eventId);
                 return this;
             }

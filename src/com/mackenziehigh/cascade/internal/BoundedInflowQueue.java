@@ -4,15 +4,20 @@ import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeToken;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 /**
- *
+ * An inflow-queue that will automatically remove elements
+ * from therein in order to obey its capacity restrictions.
  */
 public final class BoundedInflowQueue
         implements InflowQueue
 {
+    /**
+     * What to do when overflow occurs.
+     */
     public enum OverflowPolicy
     {
         /**
@@ -45,6 +50,8 @@ public final class BoundedInflowQueue
 
     private final AtomicReference<CascadeStack> operandSink = new AtomicReference<>();
 
+    private final AtomicLong overflowCount = new AtomicLong();
+
     /**
      * Sole Constructor.
      *
@@ -62,13 +69,18 @@ public final class BoundedInflowQueue
      * {@inheritDoc}
      */
     @Override
-    public boolean push (final CascadeToken event,
-                         final CascadeStack stack)
+    public boolean offer (final CascadeToken event,
+                          final CascadeStack stack)
     {
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(stack, "stack");
 
-        final boolean overflow = size() == capacity();
+        final boolean overflow = size() >= capacity();
+
+        if (overflow)
+        {
+            overflowCount.incrementAndGet();
+        }
 
         if (overflow && policy == OverflowPolicy.DROP_OLDEST)
         {
@@ -90,7 +102,7 @@ public final class BoundedInflowQueue
         tokenSink.set(null);
         operandSink.set(null);
 
-        return delegate.push(event, stack);
+        return delegate.offer(event, stack);
     }
 
     /**
@@ -100,8 +112,6 @@ public final class BoundedInflowQueue
     public boolean removeOldest (final AtomicReference<CascadeToken> eventOut,
                                  final AtomicReference<CascadeStack> stackOut)
     {
-        Preconditions.checkNotNull(eventOut, "eventOut");
-        Preconditions.checkNotNull(stackOut, "stackOut");
         return delegate.removeOldest(eventOut, stackOut);
     }
 
@@ -112,8 +122,6 @@ public final class BoundedInflowQueue
     public boolean removeNewest (final AtomicReference<CascadeToken> eventOut,
                                  final AtomicReference<CascadeStack> stackOut)
     {
-        Preconditions.checkNotNull(eventOut, "eventOut");
-        Preconditions.checkNotNull(stackOut, "stackOut");
         return delegate.removeNewest(eventOut, stackOut);
     }
 
@@ -148,8 +156,18 @@ public final class BoundedInflowQueue
      * {@inheritDoc}
      */
     @Override
-    public void apply (final BiConsumer<CascadeToken, CascadeStack> functor)
+    public void forEach (final BiConsumer<CascadeToken, CascadeStack> functor)
     {
-        delegate.apply(functor);
+        delegate.forEach(functor);
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the number of overflows that have occurred.
+     */
+    public long getOverflowCount ()
+    {
+        return overflowCount.get();
     }
 }

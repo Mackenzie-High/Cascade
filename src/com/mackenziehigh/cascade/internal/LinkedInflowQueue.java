@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 /**
- *
+ * An inflow-queue that is based on a linked-list data-structure.
  */
 public final class LinkedInflowQueue
         implements InflowQueue
@@ -39,8 +39,8 @@ public final class LinkedInflowQueue
      * {@inheritDoc}
      */
     @Override
-    public boolean push (final CascadeToken event,
-                         final CascadeStack stack)
+    public boolean offer (final CascadeToken event,
+                          final CascadeStack stack)
     {
         checkState();
         Preconditions.checkState(size() < capacity, "size >= capacity");
@@ -134,7 +134,7 @@ public final class LinkedInflowQueue
      * {@inheritDoc}
      */
     @Override
-    public void apply (final BiConsumer<CascadeToken, CascadeStack> functor)
+    public void forEach (final BiConsumer<CascadeToken, CascadeStack> functor)
     {
         checkState();
         Preconditions.checkNotNull(functor, "functor");

@@ -96,16 +96,16 @@ public final class ConcreteSchemaTest
         final Cascade cas = cs.build();
 
         assertEquals("places.Italy", cas.allocator().defaultPool().name().name());
-        assertTrue(cas.allocator().pools().get(CascadeToken.create("places.Canada")) instanceof ConcreteAllocator.DynamicAllocationPool);
-        assertTrue(cas.allocator().pools().get(CascadeToken.create("planets.Venus")) instanceof ConcreteAllocator.DynamicAllocationPool);
-        assertTrue(cas.allocator().pools().get(CascadeToken.create("places.Australia")) instanceof ConcreteAllocator.FixedAllocationPool);
-        assertTrue(cas.allocator().pools().get(CascadeToken.create("planets.Mars")) instanceof ConcreteAllocator.FixedAllocationPool);
-        assertTrue(cas.allocator().pools().get(CascadeToken.create("places.England")) instanceof ConcreteAllocator.CompositeAllocationPool);
-        assertTrue(cas.allocator().pools().get(CascadeToken.create("places.Scotland")) instanceof ConcreteAllocator.CompositeAllocationPool);
-        assertNotNull(cas.pumps().get(CascadeToken.create("places.America")));
-        assertNotNull(cas.pumps().get(CascadeToken.create("planets.Jupiter")));
-        assertNotNull(cas.reactors().get(CascadeToken.create("places.Russia")));
-        assertNotNull(cas.reactors().get(CascadeToken.create("planets.Neptune")));
+        assertTrue(cas.allocator().pools().get(CascadeToken.token("places.Canada")) instanceof ConcreteAllocator.DynamicAllocationPool);
+        assertTrue(cas.allocator().pools().get(CascadeToken.token("planets.Venus")) instanceof ConcreteAllocator.DynamicAllocationPool);
+        assertTrue(cas.allocator().pools().get(CascadeToken.token("places.Australia")) instanceof ConcreteAllocator.FixedAllocationPool);
+        assertTrue(cas.allocator().pools().get(CascadeToken.token("planets.Mars")) instanceof ConcreteAllocator.FixedAllocationPool);
+        assertTrue(cas.allocator().pools().get(CascadeToken.token("places.England")) instanceof ConcreteAllocator.CompositeAllocationPool);
+        assertTrue(cas.allocator().pools().get(CascadeToken.token("places.Scotland")) instanceof ConcreteAllocator.CompositeAllocationPool);
+        assertNotNull(cas.pumps().get(CascadeToken.token("places.America")));
+        assertNotNull(cas.pumps().get(CascadeToken.token("planets.Jupiter")));
+        assertNotNull(cas.reactors().get(CascadeToken.token("places.Russia")));
+        assertNotNull(cas.reactors().get(CascadeToken.token("planets.Neptune")));
     }
 
     /**
@@ -225,23 +225,23 @@ public final class ConcreteSchemaTest
         /**
          * Use the composite-pool to place an operand into the 'Saturn' pool.
          */
-        assertEquals(0, cas.allocator().pools().get(CascadeToken.create("planets.Saturn")).size().getAsLong());
+        assertEquals(0, cas.allocator().pools().get(CascadeToken.token("planets.Saturn")).size().getAsLong());
         pool.alloc(stack, "Rhea".getBytes(), 0, 4);
-        assertEquals(1, cas.allocator().pools().get(CascadeToken.create("planets.Saturn")).size().getAsLong());
+        assertEquals(1, cas.allocator().pools().get(CascadeToken.token("planets.Saturn")).size().getAsLong());
 
         /**
          * Use the composite-pool to place an operand into the 'Neptune' pool.
          */
-        assertEquals(0, cas.allocator().pools().get(CascadeToken.create("planets.Neptune")).size().getAsLong());
+        assertEquals(0, cas.allocator().pools().get(CascadeToken.token("planets.Neptune")).size().getAsLong());
         pool.alloc(stack, "Triton".getBytes(), 0, 6);
-        assertEquals(1, cas.allocator().pools().get(CascadeToken.create("planets.Neptune")).size().getAsLong());
+        assertEquals(1, cas.allocator().pools().get(CascadeToken.token("planets.Neptune")).size().getAsLong());
 
         /**
          * Use the composite-pool to place an operand into the 'Uranus' pool.
          */
-        assertEquals(0, cas.allocator().pools().get(CascadeToken.create("planets.Uranus")).size().getAsLong());
+        assertEquals(0, cas.allocator().pools().get(CascadeToken.token("planets.Uranus")).size().getAsLong());
         pool.alloc(stack, "Ariel".getBytes(), 0, 5);
-        assertEquals(1, cas.allocator().pools().get(CascadeToken.create("planets.Uranus")).size().getAsLong());
+        assertEquals(1, cas.allocator().pools().get(CascadeToken.token("planets.Uranus")).size().getAsLong());
     }
 
     /**
@@ -390,11 +390,11 @@ public final class ConcreteSchemaTest
         /**
          * Use the composite-pool to fill the 'Uranus' pool.
          */
-        assertEquals(0, cas.allocator().pools().get(CascadeToken.create("planets.Uranus")).size().getAsLong());
+        assertEquals(0, cas.allocator().pools().get(CascadeToken.token("planets.Uranus")).size().getAsLong());
         pool.alloc(stack, "Ariel".getBytes(), 0, 5);
         pool.alloc(stack, "Ariel".getBytes(), 0, 5);
         pool.alloc(stack, "Ariel".getBytes(), 0, 5);
-        assertEquals(3, cas.allocator().pools().get(CascadeToken.create("planets.Uranus")).size().getAsLong());
+        assertEquals(3, cas.allocator().pools().get(CascadeToken.token("planets.Uranus")).size().getAsLong());
 
         /**
          * This allocation request will fail, because the 'Uranus' pool is full and no fallback is present.
@@ -433,11 +433,11 @@ public final class ConcreteSchemaTest
         /**
          * Use the composite-pool to fill the 'Uranus' pool.
          */
-        assertEquals(0, cas.allocator().pools().get(CascadeToken.create("planets.Uranus")).size().getAsLong());
+        assertEquals(0, cas.allocator().pools().get(CascadeToken.token("planets.Uranus")).size().getAsLong());
         pool.alloc(stack, "Ariel".getBytes(), 0, 5);
         pool.alloc(stack, "Ariel".getBytes(), 0, 5);
         pool.alloc(stack, "Ariel".getBytes(), 0, 5);
-        assertEquals(3, cas.allocator().pools().get(CascadeToken.create("planets.Uranus")).size().getAsLong());
+        assertEquals(3, cas.allocator().pools().get(CascadeToken.token("planets.Uranus")).size().getAsLong());
 
         /**
          * This allocation request will fail, because the 'Uranus' pool is full and it is the fallback;
@@ -633,7 +633,7 @@ public final class ConcreteSchemaTest
 
         final Cascade cas = cs.build();
 
-        final ConcretePump pump = (ConcretePump) cas.pumps().get(CascadeToken.create("planets.Venus"));
+        final ConcretePump pump = (ConcretePump) cas.pumps().get(CascadeToken.token("planets.Venus"));
         assertEquals(1, pump.threads().size());
         final Thread thread = ImmutableList.copyOf(pump.threads()).get(0);
         assertFalse(thread.isDaemon());
@@ -662,7 +662,7 @@ public final class ConcreteSchemaTest
 
         final Cascade cas = cs.build();
 
-        final ConcretePump pump = (ConcretePump) cas.pumps().get(CascadeToken.create("planets.Venus"));
+        final ConcretePump pump = (ConcretePump) cas.pumps().get(CascadeToken.token("planets.Venus"));
         assertEquals(3, pump.threads().size());
         final Thread thread = ImmutableList.copyOf(pump.threads()).get(0);
         assertTrue(thread.isDaemon()); // The default would be false, so the thread-factory was used.
@@ -764,9 +764,9 @@ public final class ConcreteSchemaTest
         assertEquals(117, queue.capacity());
         assertEquals("planets.Mercury", reactor.pool().name().name());
         assertEquals("planets.Venus", reactor.pump().name().name());
-        assertTrue(reactor.subscriptions().contains(CascadeToken.create("Eclipse")));
-        assertTrue(reactor.subscriptions().contains(CascadeToken.create("Solstice")));
-        assertTrue(reactor.subscriptions().contains(CascadeToken.create("MoonImpact")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.token("Eclipse")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.token("Solstice")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.token("MoonImpact")));
 
         /**
          * Since the name of the logger has an 'X' appended to it,
@@ -913,7 +913,7 @@ public final class ConcreteSchemaTest
             @Override
             public Set<CascadeToken> initialSubscriptions ()
             {
-                return ImmutableSet.of(CascadeToken.create("AsteroidImpact"));
+                return ImmutableSet.of(CascadeToken.token("AsteroidImpact"));
             }
         };
 
@@ -935,13 +935,13 @@ public final class ConcreteSchemaTest
         final ConcreteReactor reactor = (ConcreteReactor) ImmutableList.copyOf(cas.reactors().values()).get(0);
         assertEquals("planets.Mercury", reactor.pool().name().name());
         assertEquals("planets.Venus", reactor.pump().name().name());
-        assertTrue(reactor.subscriptions().contains(CascadeToken.create("AsteroidImpact")));
-        assertTrue(reactor.subscriptions().contains(CascadeToken.create("Eclipse")));
-        assertTrue(reactor.subscriptions().contains(CascadeToken.create("Solstice")));
-        assertTrue(reactor.subscriptions().contains(CascadeToken.create("MoonImpact")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.token("AsteroidImpact")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.token("Eclipse")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.token("Solstice")));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.token("MoonImpact")));
 
-        reactor.subscribe(CascadeToken.create("RocketLaunch"));
-        assertTrue(reactor.subscriptions().contains(CascadeToken.create("RocketLaunch")));
+        reactor.subscribe(CascadeToken.token("RocketLaunch"));
+        assertTrue(reactor.subscriptions().contains(CascadeToken.token("RocketLaunch")));
     }
 
     /**
@@ -1018,8 +1018,8 @@ public final class ConcreteSchemaTest
         final Cascade cas = cs.build();
 
         assertEquals(2, cas.reactors().size());
-        final ConcreteReactor earth = (ConcreteReactor) cas.reactors().get(CascadeToken.create("planets.Earth"));
-        final ConcreteReactor mars = (ConcreteReactor) cas.reactors().get(CascadeToken.create("planets.Mars"));
+        final ConcreteReactor earth = (ConcreteReactor) cas.reactors().get(CascadeToken.token("planets.Earth"));
+        final ConcreteReactor mars = (ConcreteReactor) cas.reactors().get(CascadeToken.token("planets.Mars"));
 
         assertTrue(earth.input() instanceof ArrayInflowQueue);
         assertTrue(mars.input() instanceof LinkedInflowQueue);
@@ -1066,8 +1066,8 @@ public final class ConcreteSchemaTest
         final Cascade cas = cs.build();
 
         assertEquals(2, cas.reactors().size());
-        final ConcreteReactor earth = (ConcreteReactor) cas.reactors().get(CascadeToken.create("planets.Earth"));
-        final ConcreteReactor mars = (ConcreteReactor) cas.reactors().get(CascadeToken.create("planets.Mars"));
+        final ConcreteReactor earth = (ConcreteReactor) cas.reactors().get(CascadeToken.token("planets.Earth"));
+        final ConcreteReactor mars = (ConcreteReactor) cas.reactors().get(CascadeToken.token("planets.Mars"));
 
         assertTrue(earth.input() instanceof ArrayInflowQueue);
         assertTrue(mars.input() instanceof LinkedInflowQueue);

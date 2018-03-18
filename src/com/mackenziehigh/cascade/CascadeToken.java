@@ -305,7 +305,7 @@ public final class CascadeToken
      * @param name is a dot-delimited list of keys that will be converted to a token.
      * @return the newly created token object based on the given full-name.
      */
-    public static CascadeToken create (final String name)
+    public static CascadeToken token (final String name)
     {
         Preconditions.checkNotNull(name);
         Preconditions.checkArgument(name.matches("([^.]+[.])*[^.]+"), "Invalid Name: " + name);

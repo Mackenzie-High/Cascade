@@ -1,8 +1,5 @@
 package com.mackenziehigh.cascade;
 
-import com.mackenziehigh.cascade.CascadeStage;
-import com.mackenziehigh.cascade.CascadeActor;
-import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.util.actors.CommonActors;
 import java.time.Duration;
 
@@ -24,7 +21,9 @@ public final class Main
                 .useFixedDelay()
                 .build();
 
-        System.out.println(r.actors());
+        final CascadeActor rb = r.newActor(CommonActors.STDOUT)
+                .setInput("ticks")
+                .build();
 
     }
 

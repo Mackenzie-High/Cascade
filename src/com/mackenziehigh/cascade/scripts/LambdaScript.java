@@ -12,7 +12,7 @@ import java.util.Set;
 /**
  *
  */
-public final class FunctorScript
+public final class LambdaScript
         implements CascadeScript
 {
     @FunctionalInterface
@@ -44,27 +44,27 @@ public final class FunctorScript
 
     private final Set<CloseFunction> closeFunctions = Sets.newConcurrentHashSet();
 
-    public FunctorScript bindOnSetup (final SetupFunction functor)
+    public LambdaScript bindOnSetup (final SetupFunction functor)
     {
         Preconditions.checkNotNull(functor, "functor");
         setupFunctions.add(functor);
         return this;
     }
 
-    public FunctorScript bindOnClose (final CloseFunction functor)
+    public LambdaScript bindOnClose (final CloseFunction functor)
     {
         Preconditions.checkNotNull(functor, "functor");
         closeFunctions.add(functor);
         return this;
     }
 
-    public FunctorScript subscribe (final MessageFunction functor,
+    public LambdaScript subscribe (final MessageFunction functor,
                                     final String event)
     {
-        return subscribe(functor, CascadeToken.create(event));
+        return subscribe(functor, CascadeToken.token(event));
     }
 
-    public FunctorScript subscribe (final MessageFunction functor,
+    public LambdaScript subscribe (final MessageFunction functor,
                                     final CascadeToken event)
     {
         Preconditions.checkNotNull(functor, "functor");
@@ -72,13 +72,13 @@ public final class FunctorScript
         return this;
     }
 
-    public FunctorScript unsubscribe (final MessageFunction functor,
+    public LambdaScript unsubscribe (final MessageFunction functor,
                                       final String event)
     {
-        return unsubscribe(functor, CascadeToken.create(event));
+        return unsubscribe(functor, CascadeToken.token(event));
     }
 
-    public FunctorScript unsubscribe (final MessageFunction functor,
+    public LambdaScript unsubscribe (final MessageFunction functor,
                                       final CascadeToken event)
     {
         return this;

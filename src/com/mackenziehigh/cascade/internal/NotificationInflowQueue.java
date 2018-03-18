@@ -1,59 +1,34 @@
 package com.mackenziehigh.cascade.internal;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Verify;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeToken;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
- * An inflow-queue that forwards all method-calls to an
- * underlying delegate queue and also facilitates the
- * replacement of that underlying queue on-demand.
+ * An inflow-queue that will invoke a given function-object
+ * whenever an event-message is added to the queue.
  */
-public final class SwappableInflowQueue
+public final class NotificationInflowQueue
         implements InflowQueue
 {
-    private volatile InflowQueue delegate;
+    private final InflowQueue delegate;
+
+    private final Consumer<InflowQueue> listener;
 
     /**
      * Sole Constructor.
      *
-     * @param initial will be the delegate queue initially.
+     * @param delegate will be the delegate queue.
+     * @param listener will be invoked after any addition of an element to this queue.
      */
-    public SwappableInflowQueue (final InflowQueue initial)
+    public NotificationInflowQueue (final InflowQueue delegate,
+                                  final Consumer<InflowQueue> listener)
     {
-        delegate = Objects.requireNonNull(initial, "initial");
-    }
-
-    /**
-     * Replace the current delegate queue with a different queue.
-     *
-     * <p>
-     * The new delegate will first be cleared.
-     * Then, the contents of the current delegate will be
-     * transferred into the new delegate, which will cause
-     * the current delegate to be cleared in the process.
-     * </p>
-     *
-     * @param queue will be the new delegate.
-     */
-    public void replaceQueue (final InflowQueue queue)
-    {
-        Preconditions.checkNotNull(queue, "queue");
-
-        final AtomicReference<CascadeToken> tokenOut = new AtomicReference<>();
-        final AtomicReference<CascadeStack> stackOut = new AtomicReference<>();
-
-        queue.clear();
-
-        while (delegate.isEmpty() == false)
-        {
-            Verify.verify(removeOldest(tokenOut, stackOut));
-            queue.offer(tokenOut.get(), stackOut.get());
-        }
+        this.delegate = Objects.requireNonNull(delegate, "delegate");
+        this.listener = Objects.requireNonNull(listener, "listener");
     }
 
     /**
@@ -63,7 +38,14 @@ public final class SwappableInflowQueue
     public boolean offer (final CascadeToken event,
                           final CascadeStack stack)
     {
-        return delegate.offer(event, stack);
+        final boolean added = delegate.offer(event, stack);
+
+        if (added)
+        {
+            listener.accept(this);
+        }
+
+        return added;
     }
 
     /**

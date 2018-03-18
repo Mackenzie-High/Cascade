@@ -1,6 +1,5 @@
 package com.mackenziehigh.cascade;
 
-import com.mackenziehigh.cascade.Cascade;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -249,7 +248,7 @@ public interface CascadeActor
      */
     public default CascadeActor subscribe (final String eventId)
     {
-        return subscribe(CascadeToken.create(eventId));
+        return subscribe(CascadeToken.token(eventId));
     }
 
     /**
@@ -278,7 +277,7 @@ public interface CascadeActor
      */
     public default CascadeActor unsubscribe (final String eventId)
     {
-        return unsubscribe(CascadeToken.create(eventId));
+        return unsubscribe(CascadeToken.token(eventId));
     }
 
     /**
@@ -487,7 +486,7 @@ public interface CascadeActor
      */
     public default CascadeActor monitorInput (final String dest)
     {
-        return monitorInput(CascadeToken.create(dest));
+        return monitorInput(CascadeToken.token(dest));
     }
 
     /**
@@ -531,7 +530,7 @@ public interface CascadeActor
      */
     public default CascadeActor monitorOutput (final String dest)
     {
-        return monitorInput(CascadeToken.create(dest));
+        return monitorInput(CascadeToken.token(dest));
     }
 
     /**
