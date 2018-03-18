@@ -1,0 +1,989 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CascadeStack.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade</a> &gt; <span class="el_source">CascadeStack.java</span></div><h1>CascadeStack.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.Objects;
+import java.util.function.Consumer;
+
+/**
+ *
+ */
+public final class CascadeStack
+{
+
+<span class="fc" id="L17">    private static final CascadeStack EMPTY = new CascadeStack();</span>
+
+    private final CascadeStack below;
+
+    private final int size;
+
+    private final Class type;
+
+    private final long valueLong;
+
+    private final Object valueObject;
+
+    private final int hash;
+
+    private final boolean primitive;
+
+    /**
+     * Constructor for Empty Stacks.
+     */
+    private CascadeStack ()
+<span class="fc" id="L37">    {</span>
+<span class="fc" id="L38">        this.below = null;</span>
+<span class="fc" id="L39">        this.size = 0;</span>
+<span class="fc" id="L40">        this.type = Object.class;</span>
+<span class="fc" id="L41">        this.valueLong = 0;</span>
+<span class="fc" id="L42">        this.valueObject = null;</span>
+<span class="fc" id="L43">        this.hash = 0;</span>
+<span class="fc" id="L44">        this.primitive = false;</span>
+<span class="fc" id="L45">    }</span>
+
+    /**
+     * Constructor for Primitive Types.
+     *
+     * @param below is the next node in this pasta-stack.
+     * @param type identifies the Java primitive-type.
+     * @param value is the (possibly encoded) primitive-value that this node will store.
+     */
+    private CascadeStack (final CascadeStack below,
+                          final Class type,
+                          final long value)
+<span class="fc" id="L57">    {</span>
+<span class="fc" id="L58">        this.below = below;</span>
+<span class="fc" id="L59">        this.size = below.size + 1;</span>
+<span class="fc" id="L60">        this.type = type;</span>
+<span class="fc" id="L61">        this.valueLong = value;</span>
+<span class="fc" id="L62">        this.valueObject = null;</span>
+<span class="fc" id="L63">        this.hash = (int) (3079 * value) + (3257 * below.hash);</span>
+<span class="fc" id="L64">        this.primitive = true;</span>
+<span class="fc" id="L65">    }</span>
+
+    /**
+     * Constructor for Reference Types.
+     *
+     * @param below is the next node in this pasta-stack.
+     * @param value is the object that this node will store.
+     */
+    private CascadeStack (final CascadeStack below,
+                          final Object value)
+<span class="nc" id="L75">    {</span>
+<span class="nc" id="L76">        this.below = below;</span>
+<span class="nc" id="L77">        this.size = below.size + 1;</span>
+<span class="nc" id="L78">        this.valueLong = 0;</span>
+<span class="nc" id="L79">        this.valueObject = Objects.requireNonNull(value, &quot;value&quot;);</span>
+<span class="nc" id="L80">        this.type = value.getClass();</span>
+<span class="nc" id="L81">        this.hash = (int) (3181 * value.hashCode()) + (3331 * below.hash);</span>
+<span class="nc" id="L82">        this.primitive = false;</span>
+<span class="nc" id="L83">    }</span>
+
+    /**
+     * Factory Method.
+     *
+     * @return the empty-stack constant.
+     */
+    public static CascadeStack newStack ()
+    {
+<span class="fc" id="L92">        return EMPTY;</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the number of operands that are on this operand-stack.
+     */
+    public int size ()
+    {
+<span class="fc" id="L102">        return size;</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return true, iff the size() is zero.
+     */
+    public boolean isEmpty ()
+    {
+<span class="fc bfc" id="L112" title="All 2 branches covered.">        return size() == 0;</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return the resultant operand-stack.
+     * @throws NullPointerException if the value is null.
+     */
+    public CascadeStack pushObject (final Object value)
+    {
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        if (value == null)</span>
+        {
+<span class="nc" id="L126">            throw new NullPointerException(&quot;Refusing to push null onto the stack!&quot;);</span>
+        }
+        else
+        {
+<span class="nc" id="L130">            return new CascadeStack(this, value);</span>
+        }
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * &lt;p&gt;
+     * If the given value is an empty stack,
+     * then this method is a no-op.
+     * &lt;/p&gt;
+     *
+     * @param value is the operand to push.
+     * @return the resultant operand-stack.
+     */
+    public CascadeStack pushTop (final CascadeStack value)
+    {
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        if (value.isEmpty())</span>
+        {
+<span class="nc" id="L149">            return this;</span>
+        }
+<span class="nc bnc" id="L151" title="All 2 branches missed.">        else if (value.primitive)</span>
+        {
+<span class="nc" id="L153">            return new CascadeStack(this, value.type, value.valueLong);</span>
+        }
+        else
+        {
+<span class="nc" id="L157">            return new CascadeStack(this, value.valueObject);</span>
+        }
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return the resultant operand-stack.
+     */
+    public CascadeStack pushBoolean (final boolean value)
+    {
+<span class="fc bfc" id="L169" title="All 2 branches covered.">        return new CascadeStack(this, boolean.class, !value ? 0 : 1);</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return the resultant operand-stack.
+     */
+    public CascadeStack pushChar (final char value)
+    {
+<span class="nc" id="L180">        return new CascadeStack(this, char.class, value);</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return the resultant operand-stack.
+     */
+    public CascadeStack pushByte (final byte value)
+    {
+<span class="fc" id="L191">        return new CascadeStack(this, byte.class, value);</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return the resultant operand-stack.
+     */
+    public CascadeStack pushShort (final short value)
+    {
+<span class="fc" id="L202">        return new CascadeStack(this, short.class, value);</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return the resultant operand-stack.
+     */
+    public CascadeStack pushInt (final int value)
+    {
+<span class="fc" id="L213">        return new CascadeStack(this, int.class, value);</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return the resultant operand-stack.
+     */
+    public CascadeStack pushLong (final long value)
+    {
+<span class="nc" id="L224">        return new CascadeStack(this, long.class, value);</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return the resultant operand-stack.
+     */
+    public CascadeStack pushFloat (final float value)
+    {
+<span class="nc" id="L235">        final long bytes = Float.floatToRawIntBits(value);</span>
+<span class="nc" id="L236">        final float expected = Float.intBitsToFloat((int) bytes);</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">        Verify.verify(expected == value);</span>
+<span class="nc" id="L238">        return new CascadeStack(this, float.class, bytes);</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return the resultant operand-stack.
+     */
+    public CascadeStack pushDouble (final double value)
+    {
+<span class="nc" id="L249">        final long bytes = Double.doubleToRawLongBits(value);</span>
+<span class="nc" id="L250">        final double expected = Double.longBitsToDouble((long) bytes);</span>
+<span class="nc bnc" id="L251" title="All 2 branches missed.">        Verify.verify(expected == value);</span>
+<span class="nc" id="L252">        return new CascadeStack(this, double.class, bytes);</span>
+    }
+
+    /**
+     * Pop a single operand off the top of the operand-stack.
+     *
+     * @return the resultant operand-stack.
+     * @throws IllegalStateException if size() is zero.
+     */
+    public CascadeStack pop ()
+    {
+<span class="pc bpc" id="L263" title="1 of 2 branches missed.">        Preconditions.checkState(!isEmpty(), &quot;Empty Stack&quot;);</span>
+<span class="fc" id="L264">        return below;</span>
+    }
+
+    /**
+     * Pop zero-or-more operands off the top of the operand-stack.
+     *
+     * @param count is the number of operands to pop.
+     * @return the resultant operand-stack.
+     * @throws IllegalStateException if size() is less than count.
+     */
+    public CascadeStack pop (final int count)
+    {
+<span class="nc bnc" id="L276" title="All 2 branches missed.">        Preconditions.checkState(count &lt; size(), &quot;count &gt;= size()&quot;);</span>
+
+<span class="nc" id="L278">        CascadeStack p = this;</span>
+
+<span class="nc bnc" id="L280" title="All 2 branches missed.">        for (int i = 0; i &lt; count; i++)</span>
+        {
+<span class="nc" id="L282">            p = p.below;</span>
+        }
+
+<span class="nc" id="L285">        return p;</span>
+    }
+
+    /**
+     * Retrieve, but do not remove, the topmost value on the operand-stack,
+     * if the value can be converted to a boolean.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if the operand-stack is empty.
+     * @throws ClassCastException if the value cannot be converted.
+     */
+    public boolean peekAsBoolean ()
+    {
+<span class="fc bfc" id="L298" title="All 2 branches covered.">        if (type == boolean.class)</span>
+        {
+<span class="fc bfc" id="L300" title="All 2 branches covered.">            return valueLong != 0;</span>
+        }
+<span class="pc bpc" id="L302" title="1 of 2 branches missed.">        else if (type == char.class)</span>
+        {
+<span class="nc bnc" id="L304" title="All 2 branches missed.">            return peekAsChar() != 0;</span>
+        }
+<span class="fc bfc" id="L306" title="All 2 branches covered.">        else if (type == byte.class)</span>
+        {
+<span class="fc bfc" id="L308" title="All 2 branches covered.">            return peekAsByte() != 0;</span>
+        }
+<span class="pc bpc" id="L310" title="1 of 2 branches missed.">        else if (type == short.class)</span>
+        {
+<span class="fc bfc" id="L312" title="All 2 branches covered.">            return peekAsShort() != 0;</span>
+        }
+<span class="nc bnc" id="L314" title="All 2 branches missed.">        else if (type == int.class)</span>
+        {
+<span class="nc bnc" id="L316" title="All 2 branches missed.">            return peekAsInt() != 0;</span>
+        }
+<span class="nc bnc" id="L318" title="All 2 branches missed.">        else if (type == long.class)</span>
+        {
+<span class="nc bnc" id="L320" title="All 2 branches missed.">            return peekAsLong() != 0;</span>
+        }
+<span class="nc bnc" id="L322" title="All 2 branches missed.">        else if (type == float.class)</span>
+        {
+<span class="nc bnc" id="L324" title="All 2 branches missed.">            return ((int) peekAsFloat()) != 0;</span>
+        }
+<span class="nc bnc" id="L326" title="All 2 branches missed.">        else if (type == double.class)</span>
+        {
+<span class="nc bnc" id="L328" title="All 2 branches missed.">            return ((int) peekAsDouble()) != 0;</span>
+        }
+<span class="nc bnc" id="L330" title="All 2 branches missed.">        else if (valueObject instanceof Number)</span>
+        {
+<span class="nc bnc" id="L332" title="All 2 branches missed.">            return ((Number) valueObject).byteValue() != 0;</span>
+        }
+        else
+        {
+<span class="nc" id="L336">            throw new IllegalStateException(&quot;Cannot Convert To Boolean&quot;);</span>
+        }
+    }
+
+    /**
+     * Retrieve, but do not remove, the topmost value on the operand-stack,
+     * if the value can be converted to a char.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if the operand-stack is empty.
+     * @throws ClassCastException if the value cannot be converted.
+     */
+    public char peekAsChar ()
+    {
+<span class="fc bfc" id="L350" title="All 2 branches covered.">        if (type == boolean.class)</span>
+        {
+<span class="fc bfc" id="L352" title="All 2 branches covered.">            return peekAsBoolean() ? (char) 1 : (char) 0;</span>
+        }
+<span class="pc bpc" id="L354" title="1 of 2 branches missed.">        else if (type == char.class)</span>
+        {
+<span class="nc" id="L356">            return (char) checkCast(peekAsLong(), Character.MIN_VALUE, Character.MAX_VALUE);</span>
+        }
+<span class="fc bfc" id="L358" title="All 2 branches covered.">        else if (type == byte.class)</span>
+        {
+<span class="fc" id="L360">            return (char) checkCast(peekAsLong(), Character.MIN_VALUE, Character.MAX_VALUE);</span>
+        }
+<span class="pc bpc" id="L362" title="1 of 2 branches missed.">        else if (type == short.class)</span>
+        {
+<span class="fc" id="L364">            return (char) checkCast(peekAsLong(), Character.MIN_VALUE, Character.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L366" title="All 2 branches missed.">        else if (type == int.class)</span>
+        {
+<span class="nc" id="L368">            return (char) checkCast(peekAsLong(), Character.MIN_VALUE, Character.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L370" title="All 2 branches missed.">        else if (type == long.class)</span>
+        {
+<span class="nc" id="L372">            return (char) checkCast(peekAsLong(), Character.MIN_VALUE, Character.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L374" title="All 2 branches missed.">        else if (type == float.class)</span>
+        {
+<span class="nc" id="L376">            return (char) checkCast(peekAsLong(), Character.MIN_VALUE, Character.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L378" title="All 2 branches missed.">        else if (type == double.class)</span>
+        {
+<span class="nc" id="L380">            return (char) checkCast(peekAsLong(), Character.MIN_VALUE, Character.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L382" title="All 2 branches missed.">        else if (valueObject instanceof Number)</span>
+        {
+<span class="nc" id="L384">            return (char) checkCast(peekAsLong(), Character.MIN_VALUE, Character.MAX_VALUE);</span>
+        }
+        else
+        {
+<span class="nc" id="L388">            throw new IllegalStateException(&quot;Cannot Convert To Char&quot;);</span>
+        }
+    }
+
+    /**
+     * Retrieve, but do not remove, the topmost value on the operand-stack,
+     * if the value can be converted to a byte.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if the operand-stack is empty.
+     * @throws ClassCastException if the value cannot be converted.
+     */
+    public byte peekAsByte ()
+    {
+<span class="fc bfc" id="L402" title="All 2 branches covered.">        if (type == boolean.class)</span>
+        {
+<span class="fc bfc" id="L404" title="All 2 branches covered.">            return peekAsBoolean() ? (byte) 1 : (byte) 0;</span>
+        }
+<span class="pc bpc" id="L406" title="1 of 2 branches missed.">        else if (type == char.class)</span>
+        {
+<span class="nc" id="L408">            return (byte) checkCast(peekAsChar(), Byte.MIN_VALUE, Byte.MAX_VALUE);</span>
+        }
+<span class="pc bpc" id="L410" title="1 of 2 branches missed.">        else if (type == byte.class)</span>
+        {
+<span class="fc" id="L412">            return (byte) valueLong;</span>
+        }
+<span class="nc bnc" id="L414" title="All 2 branches missed.">        else if (type == short.class)</span>
+        {
+<span class="nc" id="L416">            return (byte) checkCast(peekAsShort(), Byte.MIN_VALUE, Byte.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L418" title="All 2 branches missed.">        else if (type == int.class)</span>
+        {
+<span class="nc" id="L420">            return (byte) checkCast(peekAsInt(), Byte.MIN_VALUE, Byte.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L422" title="All 2 branches missed.">        else if (type == long.class)</span>
+        {
+<span class="nc" id="L424">            return (byte) checkCast(peekAsLong(), Byte.MIN_VALUE, Byte.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L426" title="All 2 branches missed.">        else if (type == float.class)</span>
+        {
+<span class="nc" id="L428">            return (byte) checkCast(peekAsFloat(), Byte.MIN_VALUE, Byte.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L430" title="All 2 branches missed.">        else if (type == double.class)</span>
+        {
+<span class="nc" id="L432">            return (byte) checkCast(peekAsDouble(), Byte.MIN_VALUE, Byte.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L434" title="All 2 branches missed.">        else if (valueObject instanceof Number)</span>
+        {
+<span class="nc" id="L436">            return ((Number) CascadeStack.this.peekAsObject()).byteValue();</span>
+        }
+        else
+        {
+<span class="nc" id="L440">            throw new IllegalStateException(&quot;Cannot Convert To Byte&quot;);</span>
+        }
+    }
+
+    /**
+     * Retrieve, but do not remove, the topmost value on the operand-stack,
+     * if the value can be converted to a short.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if the operand-stack is empty.
+     * @throws ClassCastException if the value cannot be converted.
+     */
+    public short peekAsShort ()
+    {
+<span class="fc bfc" id="L454" title="All 2 branches covered.">        if (type == boolean.class)</span>
+        {
+<span class="fc bfc" id="L456" title="All 2 branches covered.">            return peekAsBoolean() ? (byte) 1 : (byte) 0;</span>
+        }
+<span class="pc bpc" id="L458" title="1 of 2 branches missed.">        else if (type == char.class)</span>
+        {
+<span class="nc" id="L460">            return (short) checkCast(peekAsChar(), Short.MIN_VALUE, Short.MAX_VALUE);</span>
+        }
+<span class="fc bfc" id="L462" title="All 2 branches covered.">        else if (type == byte.class)</span>
+        {
+<span class="fc" id="L464">            return (short) valueLong;</span>
+        }
+<span class="pc bpc" id="L466" title="1 of 2 branches missed.">        else if (type == short.class)</span>
+        {
+<span class="fc" id="L468">            return (short) valueLong;</span>
+        }
+<span class="nc bnc" id="L470" title="All 2 branches missed.">        else if (type == int.class)</span>
+        {
+<span class="nc" id="L472">            return (short) checkCast(peekAsInt(), Short.MIN_VALUE, Short.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L474" title="All 2 branches missed.">        else if (type == long.class)</span>
+        {
+<span class="nc" id="L476">            return (short) checkCast(peekAsLong(), Short.MIN_VALUE, Short.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L478" title="All 2 branches missed.">        else if (type == float.class)</span>
+        {
+<span class="nc" id="L480">            return (short) checkCast(peekAsFloat(), Short.MIN_VALUE, Short.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L482" title="All 2 branches missed.">        else if (type == double.class)</span>
+        {
+<span class="nc" id="L484">            return (short) checkCast(peekAsDouble(), Short.MIN_VALUE, Short.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L486" title="All 2 branches missed.">        else if (valueObject instanceof Number)</span>
+        {
+<span class="nc" id="L488">            return ((Number) valueObject).shortValue();</span>
+        }
+        else
+        {
+<span class="nc" id="L492">            throw new IllegalStateException(&quot;Cannot Convert To Short&quot;);</span>
+        }
+    }
+
+    /**
+     * Retrieve, but do not remove, the topmost value on the operand-stack,
+     * if the value can be converted to an int.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if the operand-stack is empty.
+     * @throws ClassCastException if the value cannot be converted.
+     */
+    public int peekAsInt ()
+    {
+<span class="fc bfc" id="L506" title="All 2 branches covered.">        if (type == boolean.class)</span>
+        {
+<span class="fc bfc" id="L508" title="All 2 branches covered.">            return peekAsBoolean() ? (byte) 1 : (byte) 0;</span>
+        }
+<span class="pc bpc" id="L510" title="1 of 2 branches missed.">        else if (type == char.class)</span>
+        {
+<span class="nc" id="L512">            return (int) valueLong;</span>
+        }
+<span class="fc bfc" id="L514" title="All 2 branches covered.">        else if (type == byte.class)</span>
+        {
+<span class="fc" id="L516">            return (int) valueLong;</span>
+        }
+<span class="fc bfc" id="L518" title="All 2 branches covered.">        else if (type == short.class)</span>
+        {
+<span class="fc" id="L520">            return (int) valueLong;</span>
+        }
+<span class="pc bpc" id="L522" title="1 of 2 branches missed.">        else if (type == int.class)</span>
+        {
+<span class="fc" id="L524">            return (int) valueLong;</span>
+        }
+<span class="nc bnc" id="L526" title="All 2 branches missed.">        else if (type == long.class)</span>
+        {
+<span class="nc" id="L528">            return (int) checkCast(peekAsLong(), Integer.MIN_VALUE, Integer.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L530" title="All 2 branches missed.">        else if (type == float.class)</span>
+        {
+<span class="nc" id="L532">            return (int) checkCast(peekAsFloat(), Integer.MIN_VALUE, Integer.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L534" title="All 2 branches missed.">        else if (type == double.class)</span>
+        {
+<span class="nc" id="L536">            return (int) checkCast(peekAsDouble(), Integer.MIN_VALUE, Integer.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L538" title="All 2 branches missed.">        else if (valueObject instanceof Number)</span>
+        {
+<span class="nc" id="L540">            return ((Number) valueObject).intValue();</span>
+        }
+        else
+        {
+<span class="nc" id="L544">            throw new IllegalStateException(&quot;Cannot Convert To Integer&quot;);</span>
+        }
+    }
+
+    /**
+     * Retrieve, but do not remove, the topmost value on the operand-stack,
+     * if the value can be converted to a long.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if the operand-stack is empty.
+     * @throws ClassCastException if the value cannot be converted.
+     */
+    public long peekAsLong ()
+    {
+<span class="fc bfc" id="L558" title="All 2 branches covered.">        if (type == boolean.class)</span>
+        {
+<span class="fc bfc" id="L560" title="All 2 branches covered.">            return peekAsBoolean() ? (byte) 1 : (byte) 0;</span>
+        }
+<span class="pc bpc" id="L562" title="1 of 2 branches missed.">        else if (type == char.class)</span>
+        {
+<span class="nc" id="L564">            return valueLong;</span>
+        }
+<span class="fc bfc" id="L566" title="All 2 branches covered.">        else if (type == byte.class)</span>
+        {
+<span class="fc" id="L568">            return valueLong;</span>
+        }
+<span class="pc bpc" id="L570" title="1 of 2 branches missed.">        else if (type == short.class)</span>
+        {
+<span class="fc" id="L572">            return valueLong;</span>
+        }
+<span class="nc bnc" id="L574" title="All 2 branches missed.">        else if (type == int.class)</span>
+        {
+<span class="nc" id="L576">            return valueLong;</span>
+        }
+<span class="nc bnc" id="L578" title="All 2 branches missed.">        else if (type == long.class)</span>
+        {
+<span class="nc" id="L580">            return valueLong;</span>
+        }
+<span class="nc bnc" id="L582" title="All 2 branches missed.">        else if (type == float.class)</span>
+        {
+<span class="nc" id="L584">            return (long) checkCast(peekAsFloat(), Long.MIN_VALUE, Long.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L586" title="All 2 branches missed.">        else if (type == double.class)</span>
+        {
+<span class="nc" id="L588">            return (long) checkCast(peekAsDouble(), Long.MIN_VALUE, Long.MAX_VALUE);</span>
+        }
+<span class="nc bnc" id="L590" title="All 2 branches missed.">        else if (valueObject instanceof Number)</span>
+        {
+<span class="nc" id="L592">            return ((Number) valueObject).longValue();</span>
+        }
+        else
+        {
+<span class="nc" id="L596">            throw new IllegalStateException(&quot;Cannot Convert To Long&quot;);</span>
+        }
+    }
+
+    /**
+     * Retrieve, but do not remove, the topmost value on the operand-stack,
+     * if the value can be converted to a float.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if the operand-stack is empty.
+     * @throws ClassCastException if the value cannot be converted.
+     */
+    public float peekAsFloat ()
+    {
+<span class="fc bfc" id="L610" title="All 2 branches covered.">        if (type == boolean.class)</span>
+        {
+<span class="fc bfc" id="L612" title="All 2 branches covered.">            return peekAsBoolean() ? (byte) 1 : (byte) 0;</span>
+        }
+<span class="pc bpc" id="L614" title="1 of 2 branches missed.">        else if (type == char.class)</span>
+        {
+<span class="nc" id="L616">            return (float) peekAsChar();</span>
+        }
+<span class="fc bfc" id="L618" title="All 2 branches covered.">        else if (type == byte.class)</span>
+        {
+<span class="fc" id="L620">            return (float) peekAsByte();</span>
+        }
+<span class="pc bpc" id="L622" title="1 of 2 branches missed.">        else if (type == short.class)</span>
+        {
+<span class="fc" id="L624">            return (float) peekAsShort();</span>
+        }
+<span class="nc bnc" id="L626" title="All 2 branches missed.">        else if (type == int.class)</span>
+        {
+<span class="nc" id="L628">            return (float) peekAsInt();</span>
+        }
+<span class="nc bnc" id="L630" title="All 2 branches missed.">        else if (type == long.class)</span>
+        {
+<span class="nc" id="L632">            return (float) peekAsLong();</span>
+        }
+<span class="nc bnc" id="L634" title="All 2 branches missed.">        else if (type == float.class)</span>
+        {
+<span class="nc" id="L636">            return (float) peekAsDouble();</span>
+        }
+<span class="nc bnc" id="L638" title="All 2 branches missed.">        else if (type == double.class)</span>
+        {
+<span class="nc" id="L640">            return (float) peekAsDouble();</span>
+        }
+<span class="nc bnc" id="L642" title="All 2 branches missed.">        else if (valueObject instanceof Number)</span>
+        {
+<span class="nc" id="L644">            return ((Number) valueObject).floatValue();</span>
+        }
+        else
+        {
+<span class="nc" id="L648">            throw new IllegalStateException(&quot;Cannot Convert To Float&quot;);</span>
+        }
+    }
+
+    /**
+     * Retrieve, but do not remove, the topmost value on the operand-stack,
+     * if the value can be converted to a double.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if the operand-stack is empty.
+     * @throws ClassCastException if the value cannot be converted.
+     */
+    public double peekAsDouble ()
+    {
+<span class="fc bfc" id="L662" title="All 2 branches covered.">        if (type == boolean.class)</span>
+        {
+<span class="fc bfc" id="L664" title="All 2 branches covered.">            return peekAsBoolean() ? (byte) 1 : (byte) 0;</span>
+        }
+<span class="pc bpc" id="L666" title="1 of 2 branches missed.">        else if (type == char.class)</span>
+        {
+<span class="nc" id="L668">            return (double) peekAsChar();</span>
+        }
+<span class="fc bfc" id="L670" title="All 2 branches covered.">        else if (type == byte.class)</span>
+        {
+<span class="fc" id="L672">            return (double) peekAsByte();</span>
+        }
+<span class="pc bpc" id="L674" title="1 of 2 branches missed.">        else if (type == short.class)</span>
+        {
+<span class="fc" id="L676">            return (double) peekAsShort();</span>
+        }
+<span class="nc bnc" id="L678" title="All 2 branches missed.">        else if (type == int.class)</span>
+        {
+<span class="nc" id="L680">            return (double) peekAsInt();</span>
+        }
+<span class="nc bnc" id="L682" title="All 2 branches missed.">        else if (type == long.class)</span>
+        {
+<span class="nc" id="L684">            return (double) peekAsLong();</span>
+        }
+<span class="nc bnc" id="L686" title="All 2 branches missed.">        else if (type == float.class)</span>
+        {
+<span class="nc" id="L688">            return (double) Double.longBitsToDouble(valueLong);</span>
+        }
+<span class="nc bnc" id="L690" title="All 2 branches missed.">        else if (type == double.class)</span>
+        {
+<span class="nc" id="L692">            return (double) Double.longBitsToDouble(valueLong);</span>
+        }
+<span class="nc bnc" id="L694" title="All 2 branches missed.">        else if (valueObject instanceof Number)</span>
+        {
+<span class="nc" id="L696">            return ((Number) valueObject).doubleValue();</span>
+        }
+        else
+        {
+<span class="nc" id="L700">            throw new IllegalStateException(&quot;Cannot Convert To Double&quot;);</span>
+        }
+    }
+
+    /**
+     * Retrieve, but do not remove, the topmost value on the operand-stack, as a String.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if the operand-stack is empty.
+     */
+    public String peekAsString ()
+    {
+<span class="pc bpc" id="L712" title="1 of 2 branches missed.">        if (isEmpty())</span>
+        {
+<span class="nc" id="L714">            return &quot;&quot;;</span>
+        }
+<span class="pc bpc" id="L716" title="1 of 2 branches missed.">        else if (valueObject != null)</span>
+        {
+<span class="nc" id="L718">            return Objects.toString(valueObject);</span>
+        }
+<span class="fc bfc" id="L720" title="All 2 branches covered.">        else if (type == boolean.class)</span>
+        {
+<span class="fc" id="L722">            return Boolean.toString(peekAsBoolean());</span>
+        }
+<span class="pc bpc" id="L724" title="1 of 2 branches missed.">        else if (type == char.class)</span>
+        {
+<span class="nc" id="L726">            return new StringBuilder().append(peekAsChar()).toString();</span>
+        }
+<span class="fc bfc" id="L728" title="All 2 branches covered.">        else if (type == byte.class)</span>
+        {
+<span class="fc" id="L730">            return Byte.toString(peekAsByte());</span>
+        }
+<span class="pc bpc" id="L732" title="1 of 2 branches missed.">        else if (type == short.class)</span>
+        {
+<span class="fc" id="L734">            return Short.toString(peekAsShort());</span>
+        }
+<span class="nc bnc" id="L736" title="All 2 branches missed.">        else if (type == int.class)</span>
+        {
+<span class="nc" id="L738">            return Integer.toString(peekAsInt());</span>
+        }
+<span class="nc bnc" id="L740" title="All 2 branches missed.">        else if (type == long.class)</span>
+        {
+<span class="nc" id="L742">            return Long.toString(peekAsLong());</span>
+        }
+<span class="nc bnc" id="L744" title="All 2 branches missed.">        else if (type == float.class)</span>
+        {
+<span class="nc" id="L746">            return Float.toString(peekAsFloat());</span>
+        }
+<span class="nc bnc" id="L748" title="All 2 branches missed.">        else if (type == double.class)</span>
+        {
+<span class="nc" id="L750">            return Double.toString(peekAsDouble());</span>
+        }
+        else
+        {
+<span class="nc" id="L754">            throw new UnsupportedOperationException();</span>
+        }
+    }
+
+    /**
+     * Return the topmost value on the operand-stack, as an Object.
+     *
+     * @return the value as an object.
+     * @throws IllegalStateException if the stack is empty.
+     */
+    public Object peekAsObject ()
+    {
+<span class="pc bpc" id="L766" title="1 of 2 branches missed.">        if (valueObject != null)</span>
+        {
+<span class="nc" id="L768">            return valueObject;</span>
+        }
+<span class="fc bfc" id="L770" title="All 2 branches covered.">        else if (type == boolean.class)</span>
+        {
+<span class="fc" id="L772">            return peekAsBoolean();</span>
+        }
+<span class="pc bpc" id="L774" title="1 of 2 branches missed.">        else if (type == char.class)</span>
+        {
+<span class="nc" id="L776">            return peekAsChar();</span>
+        }
+<span class="fc bfc" id="L778" title="All 2 branches covered.">        else if (type == byte.class)</span>
+        {
+<span class="fc" id="L780">            return peekAsByte();</span>
+        }
+<span class="pc bpc" id="L782" title="1 of 2 branches missed.">        else if (type == short.class)</span>
+        {
+<span class="fc" id="L784">            return peekAsShort();</span>
+        }
+<span class="nc bnc" id="L786" title="All 2 branches missed.">        else if (type == int.class)</span>
+        {
+<span class="nc" id="L788">            return peekAsInt();</span>
+        }
+<span class="nc bnc" id="L790" title="All 2 branches missed.">        else if (type == long.class)</span>
+        {
+<span class="nc" id="L792">            return peekAsLong();</span>
+        }
+<span class="nc bnc" id="L794" title="All 2 branches missed.">        else if (type == float.class)</span>
+        {
+<span class="nc" id="L796">            return peekAsFloat();</span>
+        }
+<span class="nc bnc" id="L798" title="All 2 branches missed.">        else if (type == double.class)</span>
+        {
+<span class="nc" id="L800">            return peekAsDouble();</span>
+        }
+        else
+        {
+<span class="nc" id="L804">            Verify.verify(isEmpty());</span>
+<span class="nc" id="L805">            throw new IllegalStateException(&quot;Empty Stack&quot;);</span>
+        }
+    }
+
+    /**
+     * Return the topmost value on the operand-stack, as an Object of the given type.
+     *
+     * @param type is the expected type of the value.
+     * @return the value as an object.
+     * @throws IllegalStateException if the stack is empty.
+     * @throws ClassCastException if the value cannot be cast
+     */
+    public &lt;T&gt; T peekAsObject (final Class&lt;T&gt; type)
+    {
+<span class="fc" id="L819">        Preconditions.checkNotNull(type, &quot;type&quot;);</span>
+<span class="fc" id="L820">        final Object operand = CascadeStack.this.peekAsObject();</span>
+<span class="fc" id="L821">        final T result = type.cast(operand);</span>
+<span class="fc" id="L822">        return result;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode ()
+    {
+<span class="nc" id="L831">        return hash;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean equals (final Object other)
+    {
+<span class="nc bnc" id="L840" title="All 2 branches missed.">        if (other == this)</span>
+        {
+<span class="nc" id="L842">            return true;</span>
+        }
+<span class="nc bnc" id="L844" title="All 2 branches missed.">        else if (other == null)</span>
+        {
+<span class="nc" id="L846">            return false;</span>
+        }
+<span class="nc bnc" id="L848" title="All 2 branches missed.">        else if (other.getClass() != getClass())</span>
+        {
+<span class="nc" id="L850">            return false;</span>
+        }
+
+<span class="nc" id="L853">        final CascadeStack stack = (CascadeStack) other;</span>
+
+<span class="nc bnc" id="L855" title="All 2 branches missed.">        if (stack.size() != size())</span>
+        {
+<span class="nc" id="L857">            return false;</span>
+        }
+<span class="nc bnc" id="L859" title="All 2 branches missed.">        else if (stack.hashCode() != hashCode())</span>
+        {
+<span class="nc" id="L861">            return false;</span>
+        }
+
+<span class="nc" id="L864">        CascadeStack p = this;</span>
+<span class="nc" id="L865">        CascadeStack q = stack;</span>
+
+<span class="nc bnc" id="L867" title="All 6 branches missed.">        while (!p.isEmpty()</span>
+               &amp;&amp; p.hash == q.hash
+               &amp;&amp; p.valueLong == q.valueLong
+<span class="nc bnc" id="L870" title="All 2 branches missed.">               &amp;&amp; p.type.equals(q.type)</span>
+<span class="nc bnc" id="L871" title="All 2 branches missed.">               &amp;&amp; p.valueObject.equals(q.valueObject))</span>
+        {
+<span class="nc" id="L873">            p = p.pop();</span>
+<span class="nc" id="L874">            q = q.pop();</span>
+        }
+
+<span class="nc" id="L877">        return p.isEmpty();</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String toString ()
+    {
+<span class="nc" id="L886">        return toDeque().toString();</span>
+    }
+
+    /**
+     * Create a copy of this operand-stack as a Deque.
+     *
+     * @return the new equivalent Deque object.
+     */
+    public Deque&lt;Object&gt; toDeque ()
+    {
+<span class="nc" id="L896">        final Deque&lt;Object&gt; stack = new ArrayDeque&lt;&gt;(size());</span>
+<span class="nc" id="L897">        forEach(x -&gt; stack.addLast(x));</span>
+<span class="nc" id="L898">        return stack;</span>
+    }
+
+    /**
+     * Apply the given function to each operand on the operand-stack,
+     * while traversing the stack from top-to-bottom.
+     *
+     * @param functor is the function to apply.
+     * @return this.
+     */
+    public CascadeStack forEach (final Consumer&lt;Object&gt; functor)
+    {
+<span class="nc" id="L910">        CascadeStack p = this;</span>
+
+<span class="nc bnc" id="L912" title="All 2 branches missed.">        while (p.isEmpty() == false)</span>
+        {
+<span class="nc" id="L914">            functor.accept(p);</span>
+        }
+
+<span class="nc" id="L917">        return this;</span>
+    }
+
+    /**
+     * Create an iterator that traverses the operand-stack from top-to-bottom.
+     *
+     * &lt;p&gt;
+     * The remove() operation is not supported, since this stack is immutable.
+     * &lt;/p&gt;
+     *
+     * @return the new iterator.
+     */
+    public Iterator&lt;Object&gt; iterator ()
+    {
+<span class="nc" id="L931">        final CascadeStack self = this;</span>
+
+<span class="nc" id="L933">        return new Iterator&lt;Object&gt;()</span>
+<span class="nc" id="L934">        {</span>
+<span class="nc" id="L935">            private volatile CascadeStack ptr = self;</span>
+
+            @Override
+            public boolean hasNext ()
+            {
+<span class="nc bnc" id="L940" title="All 2 branches missed.">                return !ptr.isEmpty();</span>
+            }
+
+            @Override
+            public Object next ()
+            {
+<span class="nc" id="L946">                final Object result = ptr.peekAsObject();</span>
+<span class="nc" id="L947">                ptr = ptr.pop();</span>
+<span class="nc" id="L948">                return result;</span>
+            }
+
+            @Override
+            public void remove ()
+            {
+<span class="nc" id="L954">                throw new UnsupportedOperationException(&quot;remove() is not supported.&quot;);</span>
+            }
+        };
+    }
+
+    private long checkCast (final long value,
+                            final long minimum,
+                            final long maximum)
+    {
+<span class="pc bpc" id="L963" title="2 of 4 branches missed.">        if (value &lt; minimum || value &gt; maximum)</span>
+        {
+<span class="nc" id="L965">            throw new ClassCastException();</span>
+        }
+        else
+        {
+<span class="fc" id="L969">            return value;</span>
+        }
+    }
+
+    private double checkCast (final double value,
+                              final double minimum,
+                              final double maximum)
+    {
+<span class="nc" id="L977">        return value;</span>
+    }
+
+    public static void main (String[] args)
+    {
+<span class="nc" id="L982">        CascadeStack stack = CascadeStack.EMPTY;</span>
+
+<span class="nc" id="L984">        stack = stack.pushInt(100).pushInt(200);</span>
+
+<span class="nc" id="L986">        System.out.println(stack.peekAsDouble());</span>
+<span class="nc" id="L987">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

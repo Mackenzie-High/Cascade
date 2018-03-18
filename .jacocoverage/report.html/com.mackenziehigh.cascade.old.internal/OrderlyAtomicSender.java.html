@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>OrderlyAtomicSender.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.old.internal</a> &gt; <span class="el_source">OrderlyAtomicSender.java</span></div><h1>OrderlyAtomicSender.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.old.internal;
+
+import com.google.common.base.Preconditions;
+import com.mackenziehigh.cascade.old.CascadeAllocator.OperandStack;
+import com.mackenziehigh.cascade.CascadeToken;
+import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ * This class provides the algorithms needed to send
+ * a message atomically to multiple independent queues.
+ *
+ * &lt;p&gt;
+ * In this context, atomicity means that given an
+ * attempt (S) to send a message (M) to a set of
+ * outputs (X1, ..., XN), then either (M) will be
+ * enqueued in all of the outputs (X) or (M)
+ * will not be enqueued in any of the outputs.
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;
+ * In this context, orderliness means that given
+ * two concurrent attempts (S1) and (S2) to send
+ * messages (M1) and (M2) to the exact same
+ * outputs (X1, ..., XN) using the exact same
+ * instance of this object, then the order in
+ * which the messages are enqueued in the outputs
+ * will be the same. For example, this means that,
+ * if (X1) receives (M1) and then (M2), then
+ * (X2) will receive (M1) and then (M2), and
+ * (X3) will receive (M1) and then (M2), etc.
+ * (X3) would not receive (M2) and then (M1),
+ * since (X1) received them in the reverse order.
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;
+ * Orderliness is only guaranteed when the concurrent
+ * send attempts are made through the same instance
+ * of this object!
+ * &lt;/p&gt;
+ */
+<span class="fc" id="L44">public abstract class OrderlyAtomicSender</span>
+{
+    public abstract void resolveConnections (CascadeToken event,
+                                             ArrayList&lt;InflowQueue&gt; out);
+
+    /**
+     * This lock ensures that no two send attempts
+     * are modifying the underlying outputs simultaneously,
+     * which in-turn ensures orderliness as defined above.
+     */
+<span class="fc" id="L54">    private final Lock transactionLock = new ReentrantLock();</span>
+
+<span class="fc" id="L56">    private final ArrayList&lt;InflowQueue&gt; outputs = new ArrayList&lt;&gt;(16);</span>
+
+<span class="fc" id="L58">    private final ArrayList&lt;Object&gt; keys = new ArrayList&lt;&gt;(16);</span>
+
+    /**
+     * Use this method to *non* atomically send a message to all of the outputs,
+     * without blocking if any of the outputs are unable to accept the message.
+     *
+     * @param event identifies the event-channel that the message will be sent to.
+     * @param message is the message to send.
+     * @return the number of outputs that enqueued the message.
+     */
+    public int broadcast (final CascadeToken event,
+                          final OperandStack message)
+    {
+<span class="pc bpc" id="L71" title="1 of 2 branches missed.">        if (transactionLock.tryLock() == false)</span>
+        {
+<span class="nc" id="L73">            return 0;</span>
+        }
+        else
+        {
+<span class="fc" id="L77">            resolveConnections(event);</span>
+        }
+
+<span class="fc" id="L80">        int commitCount = 0;</span>
+
+        try
+        {
+            /**
+             * Acquire the locks.
+             */
+<span class="fc bfc" id="L87" title="All 2 branches covered.">            for (int i = 0; i &lt; outputs.size(); i++)</span>
+            {
+<span class="fc" id="L89">                final Object key = outputs.get(i).lock();</span>
+<span class="fc" id="L90">                keys.add(key);</span>
+            }
+
+            /**
+             * If we successfully obtained the locks,
+             * then commit the message to each output.
+             */
+<span class="fc bfc" id="L97" title="All 2 branches covered.">            for (int i = 0; i &lt; keys.size(); i++)</span>
+            {
+<span class="fc" id="L99">                final Object key = keys.get(i);</span>
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">                if (key != null)</span>
+                {
+<span class="fc" id="L102">                    outputs.get(i).commit(key, event, message);</span>
+<span class="fc" id="L103">                    ++commitCount;</span>
+                }
+            }
+        }
+        finally
+        {
+            /**
+             * Release the locks.
+             */
+<span class="pc bpc" id="L112" title="2 of 4 branches missed.">            for (int i = 0; i &lt; keys.size(); i++)</span>
+            {
+<span class="pc" id="L114">                outputs.get(i).unlock(keys.get(i));</span>
+<span class="pc" id="L115">                keys.set(i, null);</span>
+            }
+
+<span class="pc" id="L118">            transactionLock.unlock();</span>
+<span class="fc" id="L119">        }</span>
+
+<span class="fc" id="L121">        return commitCount;</span>
+    }
+
+    /**
+     * Use this method to atomically send a message to all of the outputs,
+     * without blocking if any of the outputs are unable to accept the message.
+     *
+     * @param event identifies the event-channel that the message will be sent to.
+     * @param message is the message to send.
+     * @return true, if the message was sent.
+     */
+    public boolean sendAsync (final CascadeToken event,
+                              final OperandStack message)
+    {
+<span class="nc bnc" id="L135" title="All 2 branches missed.">        if (transactionLock.tryLock() == false)</span>
+        {
+<span class="nc" id="L137">            return false;</span>
+        }
+        else
+        {
+<span class="nc" id="L141">            resolveConnections(event);</span>
+        }
+
+<span class="nc" id="L144">        int commitCount = 0;</span>
+
+        try
+        {
+<span class="nc" id="L148">            boolean hasAllLocks = true;</span>
+
+            /**
+             * Acquire the locks.
+             */
+<span class="nc bnc" id="L153" title="All 2 branches missed.">            for (int i = 0; i &lt; outputs.size(); i++)</span>
+            {
+<span class="nc" id="L155">                final Object key = outputs.get(i).lock();</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">                hasAllLocks &amp;= key != null;</span>
+<span class="nc" id="L157">                keys.set(i, key);</span>
+            }
+
+            /**
+             * If we successfully obtained the locks,
+             * then commit the message to each output.
+             */
+<span class="nc bnc" id="L164" title="All 4 branches missed.">            for (int i = 0; hasAllLocks &amp;&amp; i &lt; keys.size(); i++)</span>
+            {
+<span class="nc" id="L166">                final Object key = keys.get(i);</span>
+<span class="nc" id="L167">                outputs.get(i).commit(key, event, message);</span>
+<span class="nc" id="L168">                ++commitCount;</span>
+            }
+
+            /**
+             * Release the locks.
+             */
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            for (int i = 0; i &lt; keys.size(); i++)</span>
+            {
+<span class="nc" id="L176">                outputs.get(i).unlock(keys.get(i));</span>
+<span class="nc" id="L177">                keys.set(i, null);</span>
+            }
+        }
+        finally
+        {
+<span class="nc" id="L182">            transactionLock.unlock();</span>
+<span class="nc" id="L183">        }</span>
+
+<span class="nc bnc" id="L185" title="All 2 branches missed.">        final boolean result = commitCount == keys.size();</span>
+<span class="nc" id="L186">        return result;</span>
+    }
+
+    /**
+     * Use this method to atomically send a message to all of the outputs,
+     * blocking upto the given timeout, if any of the outputs are unable
+     * to accept the message immediately.
+     *
+     * &lt;p&gt;
+     * The timeout is a goal, not a real-time guarantee.
+     * &lt;/p&gt;
+     *
+     * @param event identifies the event-channel that the message will be sent to.
+     * @param message is the message to send.
+     * @param timeout is the maximum amount of time to wait.
+     * @param timeoutUnits describes the timeout.
+     * @return true, if the message was sent.
+     * @throws java.lang.InterruptedException
+     */
+    public boolean sendSync (final CascadeToken event,
+                             final OperandStack message,
+                             final long timeout,
+                             final TimeUnit timeoutUnits)
+            throws InterruptedException
+
+    {
+<span class="nc bnc" id="L212" title="All 2 branches missed.">        Preconditions.checkArgument(timeoutUnits.toNanos(timeout) &gt; 0, &quot;Invalid Timeout&quot;);</span>
+
+        /**
+         * The asynchronous version of this method is usually faster,
+         * because fewer system-calls are needed, etc; therefore,
+         * we will try that method first in hopes of getting lucky.
+         */
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        if (sendAsync(event, message))</span>
+        {
+<span class="nc" id="L221">            return true;</span>
+        }
+
+<span class="nc" id="L224">        final long timeoutNanos = timeoutUnits.toNanos(timeout);</span>
+<span class="nc" id="L225">        final long startTime = System.nanoTime();</span>
+<span class="nc" id="L226">        int lockCount = 0;</span>
+
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        if (transactionLock.tryLock(timeoutNanos, TimeUnit.NANOSECONDS) == false)</span>
+        {
+<span class="nc" id="L230">            return false;</span>
+        }
+        else
+        {
+<span class="nc" id="L234">            resolveConnections(event);</span>
+        }
+
+        try
+        {
+            /**
+             * Acquire the locks.
+             */
+<span class="nc bnc" id="L242" title="All 2 branches missed.">            for (int i = 0; i &lt; outputs.size(); i++)</span>
+            {
+<span class="nc" id="L244">                final long elapsedTime = System.nanoTime() - startTime;</span>
+<span class="nc" id="L245">                final long diffTime = timeoutNanos - elapsedTime; // Limit (diffTime) -&gt; 0</span>
+<span class="nc" id="L246">                final long remainingTime = Math.max(Math.min(diffTime, timeoutNanos), 0);</span>
+
+<span class="nc bnc" id="L248" title="All 2 branches missed.">                if (remainingTime == 0)</span>
+                {
+<span class="nc" id="L250">                    break;</span>
+                }
+
+<span class="nc" id="L253">                final Object key = outputs.get(i).lock(remainingTime, TimeUnit.NANOSECONDS);</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">                if (key == null)</span>
+                {
+<span class="nc" id="L256">                    break;</span>
+                }
+                else
+                {
+<span class="nc" id="L260">                    keys.set(i, outputs.get(i).lock());</span>
+<span class="nc" id="L261">                    ++lockCount;</span>
+                }
+            }
+
+<span class="nc bnc" id="L265" title="All 2 branches missed.">            final boolean hasAllLocks = lockCount == keys.size();</span>
+
+            /**
+             * If we successfully obtained the locks,
+             * then commit the message to each output.
+             */
+<span class="nc" id="L271">            int commitCount = 0;</span>
+<span class="nc bnc" id="L272" title="All 4 branches missed.">            for (int i = 0; hasAllLocks &amp;&amp; i &lt; keys.size(); i++)</span>
+            {
+<span class="nc" id="L274">                final Object key = keys.get(i);</span>
+<span class="nc" id="L275">                outputs.get(i).commit(key, event, message);</span>
+<span class="nc" id="L276">                ++commitCount;</span>
+            }
+
+            /**
+             * Release the locks.
+             */
+<span class="nc bnc" id="L282" title="All 2 branches missed.">            for (int i = 0; i &lt; keys.size(); i++)</span>
+            {
+<span class="nc" id="L284">                outputs.get(i).unlock(keys.size());</span>
+<span class="nc" id="L285">                keys.set(i, null);</span>
+            }
+
+<span class="nc bnc" id="L288" title="All 2 branches missed.">            final boolean result = commitCount == keys.size();</span>
+<span class="nc" id="L289">            return result;</span>
+        }
+        finally
+        {
+<span class="nc" id="L293">            transactionLock.lock();</span>
+        }
+    }
+
+    private void resolveConnections (final CascadeToken event)
+    {
+<span class="fc" id="L299">        resolveConnections(event, outputs);</span>
+<span class="fc" id="L300">        keys.ensureCapacity(outputs.size());</span>
+<span class="fc" id="L301">        keys.clear();</span>
+<span class="fc" id="L302">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

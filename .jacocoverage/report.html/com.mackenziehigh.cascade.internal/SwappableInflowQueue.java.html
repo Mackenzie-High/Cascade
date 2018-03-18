@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>SwappableInflowQueue.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.internal</a> &gt; <span class="el_source">SwappableInflowQueue.java</span></div><h1>SwappableInflowQueue.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.internal;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
+import com.mackenziehigh.cascade.CascadeStack;
+import com.mackenziehigh.cascade.CascadeToken;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+
+/**
+ * An inflow-queue that forwards all method-calls to an
+ * underlying delegate queue and also facilitates the
+ * replacement of that underlying queue on-demand.
+ */
+public final class SwappableInflowQueue
+        implements InflowQueue
+{
+    private volatile InflowQueue delegate;
+
+    /**
+     * Sole Constructor.
+     *
+     * @param initial will be the delegate queue initially.
+     */
+    public SwappableInflowQueue (final InflowQueue initial)
+<span class="nc" id="L27">    {</span>
+<span class="nc" id="L28">        delegate = Objects.requireNonNull(initial, &quot;initial&quot;);</span>
+<span class="nc" id="L29">    }</span>
+
+    /**
+     * Replace the current delegate queue with a different queue.
+     *
+     * &lt;p&gt;
+     * The new delegate will first be cleared.
+     * Then, the contents of the current delegate will be
+     * transferred into the new delegate, which will cause
+     * the current delegate to be cleared in the process.
+     * &lt;/p&gt;
+     *
+     * @param queue will be the new delegate.
+     */
+    public void replaceQueue (final InflowQueue queue)
+    {
+<span class="nc" id="L45">        Preconditions.checkNotNull(queue, &quot;queue&quot;);</span>
+
+<span class="nc" id="L47">        final AtomicReference&lt;CascadeToken&gt; tokenOut = new AtomicReference&lt;&gt;();</span>
+<span class="nc" id="L48">        final AtomicReference&lt;CascadeStack&gt; stackOut = new AtomicReference&lt;&gt;();</span>
+
+<span class="nc" id="L50">        queue.clear();</span>
+
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        while (delegate.isEmpty() == false)</span>
+        {
+<span class="nc" id="L54">            Verify.verify(removeOldest(tokenOut, stackOut));</span>
+<span class="nc" id="L55">            queue.offer(tokenOut.get(), stackOut.get());</span>
+        }
+<span class="nc" id="L57">    }</span>
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean offer (final CascadeToken event,
+                          final CascadeStack stack)
+    {
+<span class="nc" id="L66">        return delegate.offer(event, stack);</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean removeOldest (final AtomicReference&lt;CascadeToken&gt; eventOut,
+                                 final AtomicReference&lt;CascadeStack&gt; stackOut)
+    {
+<span class="nc" id="L76">        return delegate.removeOldest(eventOut, stackOut);</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean removeNewest (final AtomicReference&lt;CascadeToken&gt; eventOut,
+                                 final AtomicReference&lt;CascadeStack&gt; stackOut)
+    {
+<span class="nc" id="L86">        return delegate.removeNewest(eventOut, stackOut);</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void clear ()
+    {
+<span class="nc" id="L95">        delegate.clear();</span>
+<span class="nc" id="L96">    }</span>
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int size ()
+    {
+<span class="nc" id="L104">        return delegate.size();</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int capacity ()
+    {
+<span class="nc" id="L113">        return delegate.capacity();</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void forEach (final BiConsumer&lt;CascadeToken, CascadeStack&gt; functor)
+    {
+<span class="nc" id="L122">        delegate.forEach(functor);</span>
+<span class="nc" id="L123">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

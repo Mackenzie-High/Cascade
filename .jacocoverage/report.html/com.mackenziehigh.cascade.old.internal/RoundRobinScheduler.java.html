@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>RoundRobinScheduler.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.old.internal</a> &gt; <span class="el_source">RoundRobinScheduler.java</span></div><h1>RoundRobinScheduler.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.old.internal;
+
+import com.google.common.collect.Maps;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * This is a task-scheduler that uses a simple round-robin algorithm
+ * in order to schedule tasks, such that no two tasks run simultaneously.
+ *
+ * @param &lt;T&gt;
+ */
+public final class RoundRobinScheduler&lt;T&gt;
+        implements Scheduler&lt;T&gt;
+{
+
+<span class="fc" id="L21">    private final Map&lt;T, TaskStream&lt;T&gt;&gt; streams = Maps.newConcurrentMap();</span>
+
+<span class="fc" id="L23">    private final Map&lt;T, TaskStream&lt;T&gt;&gt; unmodStreams = Collections.unmodifiableMap(streams);</span>
+
+    private final BlockingQueue&lt;TaskStreamImp&gt; queue;
+
+    /**
+     * Sole Constructor.
+     *
+     * @param sources are usually queues of awaiting tasks.
+     */
+    public RoundRobinScheduler (final Collection&lt;T&gt; sources)
+<span class="fc" id="L33">    {</span>
+<span class="fc" id="L34">        sources.forEach(x -&gt; streams.put(x, new TaskStreamImp(x)));</span>
+
+        /**
+         * This queue must be big enough to hold all of the task-streams.
+         * If no task-streams are passed-in, then use a size of one;
+         * otherwise, an exception would occur.
+         */
+<span class="fc bfc" id="L41" title="All 2 branches covered.">        queue = new ArrayBlockingQueue&lt;&gt;(sources.isEmpty() ? 1 : sources.size());</span>
+<span class="fc" id="L42">    }</span>
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Map&lt;T, TaskStream&lt;T&gt;&gt; streams ()
+    {
+<span class="fc" id="L50">        return unmodStreams;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void addTask (final TaskStream&lt;T&gt; stream)
+    {
+<span class="fc" id="L59">        final TaskStreamImp tasker = (TaskStreamImp) stream;</span>
+<span class="fc" id="L60">        tasker.addTask();</span>
+<span class="fc" id="L61">    }</span>
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public TaskStream&lt;T&gt; pollTask (final long timeout,
+                                   final TimeUnit timeoutUnit)
+            throws InterruptedException
+    {
+<span class="fc" id="L71">        final TaskStreamImp task = queue.poll(timeout, timeoutUnit);</span>
+<span class="fc" id="L72">        return task;</span>
+    }
+
+    private final class TaskStreamImp
+            implements TaskStream&lt;T&gt;
+    {
+        private final T source;
+
+        /**
+         * This flag is true, when either one of two things is true.
+         * 1. There are pending tasks in this stream, but no consumer
+         * is currently processing a task from this stream.
+         * 2. Exactly one consumer is currently processing a task
+         * from this stream, and thus, that thread holds the conceptual
+         * lock that must be released by calling release() herein.
+         */
+<span class="fc" id="L88">        private volatile boolean scheduled = false;</span>
+
+        /**
+         * This is the number of pending tasks in this stream.
+         */
+<span class="fc" id="L93">        private volatile int count = 0;</span>
+
+        public TaskStreamImp (final T src)
+<span class="fc" id="L96">        {</span>
+<span class="fc" id="L97">            this.source = src;</span>
+<span class="fc" id="L98">        }</span>
+
+        @Override
+        public T source ()
+        {
+<span class="fc" id="L103">            return source;</span>
+        }
+
+        /**
+         * This method is synchronized, which ensures that the addTask() method
+         * cannot be invoked simultaneously on *this* particular task-stream.
+         */
+        @Override
+        public synchronized void release ()
+        {
+<span class="fc" id="L113">            --count;</span>
+
+<span class="fc bfc" id="L115" title="All 2 branches covered.">            if (count &lt; 0)</span>
+            {
+<span class="fc" id="L117">                throw new IllegalStateException(&quot;Too Many release() Calls = Bug!&quot;);</span>
+            }
+<span class="fc bfc" id="L119" title="All 2 branches covered.">            else if (count == 0)</span>
+            {
+                /**
+                 * We do *not* need to add the task to the queue, anymore,
+                 * until the producer thread adds another task to the stream,
+                 * because there are no pending tasks.
+                 */
+<span class="fc" id="L126">                scheduled = false;</span>
+            }
+            else // count &gt; 0
+            {
+                /**
+                 * Although one task has now been completed, more tasks are pending;
+                 * therefore, we need to add this stream to the scheduling queue,
+                 * so that the consumer threads can (eventually) process those tasks.
+                 */
+<span class="fc" id="L135">                queue.add(this);</span>
+            }
+<span class="fc" id="L137">        }</span>
+
+        /**
+         * This method is synchronized, which ensures that the release() method
+         * cannot be invoked simultaneously on *this* particular task-stream.
+         */
+        public synchronized void addTask ()
+        {
+<span class="fc bfc" id="L145" title="All 2 branches covered.">            if (scheduled)</span>
+            {
+                /**
+                 * Since the stream has already been scheduled,
+                 * there are already tasks that are *either*
+                 * enqueued or actively being processed.
+                 * Therefore, we only want to increment the counter,
+                 * because adding the stream to the scheduling queue
+                 * now could result in two consumer threads processing
+                 * messages from the same stream simultaneously,
+                 * which would be contractually inappropriate.
+                 */
+<span class="fc" id="L157">                ++count;</span>
+            }
+            else
+            {
+                /**
+                 * Until this flag is set to false, the release()
+                 * and pollTask() methods will be responsible for
+                 * adding and removing this task-stream to/from
+                 * the scheduling queue.
+                 */
+<span class="fc" id="L167">                scheduled = true;</span>
+<span class="fc" id="L168">                ++count;</span>
+<span class="fc" id="L169">                queue.add(this);</span>
+            }
+<span class="fc" id="L171">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

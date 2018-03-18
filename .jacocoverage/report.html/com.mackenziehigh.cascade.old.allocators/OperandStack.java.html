@@ -1,0 +1,560 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>OperandStack.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.old.allocators</a> &gt; <span class="el_source">OperandStack.java</span></div><h1>OperandStack.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.old.allocators;
+
+import com.google.common.base.Preconditions;
+import com.google.common.primitives.Chars;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
+import com.google.common.primitives.Shorts;
+import java.nio.charset.Charset;
+
+/**
+ *
+ */
+public final class OperandStack
+{
+    private final int height;
+
+    private final int operandSize;
+
+    private final OperandStack below;
+
+    private final Object object;
+
+    private final long bytes0;
+
+    private final long bytes1;
+
+    private final long bytes2;
+
+    private final long bytes3;
+
+    private final long bytes4;
+
+    private final long bytes5;
+
+    private final long bytes6;
+
+    private final long bytes7;
+
+    private OperandStack ()
+<span class="nc" id="L40">    {</span>
+<span class="nc" id="L41">        height = 0;</span>
+<span class="nc" id="L42">        operandSize = 0;</span>
+<span class="nc" id="L43">        below = this;</span>
+<span class="nc" id="L44">        object = null;</span>
+<span class="nc" id="L45">        bytes0 = 0;</span>
+<span class="nc" id="L46">        bytes1 = 0;</span>
+<span class="nc" id="L47">        bytes2 = 0;</span>
+<span class="nc" id="L48">        bytes3 = 0;</span>
+<span class="nc" id="L49">        bytes4 = 0;</span>
+<span class="nc" id="L50">        bytes5 = 0;</span>
+<span class="nc" id="L51">        bytes6 = 0;</span>
+<span class="nc" id="L52">        bytes7 = 0;</span>
+<span class="nc" id="L53">    }</span>
+
+    private OperandStack (final OperandStack under,
+                          final int size,
+                          final long long0,
+                          final long long1,
+                          final long long2,
+                          final long long3,
+                          final long long4,
+                          final long long5,
+                          final long long6,
+                          final long long7)
+<span class="nc" id="L65">    {</span>
+<span class="nc" id="L66">        height = under.height + 1;</span>
+<span class="nc" id="L67">        operandSize = size;</span>
+<span class="nc" id="L68">        below = under;</span>
+<span class="nc" id="L69">        object = null;</span>
+<span class="nc" id="L70">        bytes0 = long0;</span>
+<span class="nc" id="L71">        bytes1 = long1;</span>
+<span class="nc" id="L72">        bytes2 = long2;</span>
+<span class="nc" id="L73">        bytes3 = long3;</span>
+<span class="nc" id="L74">        bytes4 = long4;</span>
+<span class="nc" id="L75">        bytes5 = long5;</span>
+<span class="nc" id="L76">        bytes6 = long6;</span>
+<span class="nc" id="L77">        bytes7 = long7;</span>
+<span class="nc" id="L78">    }</span>
+
+    public OperandStack push (Object value)
+    {
+<span class="nc" id="L82">        return null;</span>
+    }
+
+    public Object asObject ()
+    {
+<span class="nc" id="L87">        return object;</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the size of the top operand on the operand-stack in bytes.
+     */
+    public int operandSize ()
+    {
+<span class="nc" id="L97">        return operandSize;</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the number of operands that are on this operand-stack.
+     */
+    public int stackSize ()
+    {
+<span class="nc" id="L107">        return height;</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return true, iff the operandSize() is zero.
+     */
+    public boolean isOperandEmpty ()
+    {
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        return operandSize() == 0;</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return true, iff the stackSize() is zero.
+     */
+    public boolean isStackEmpty ()
+    {
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        return stackSize() == 0;</span>
+    }
+
+    /**
+     * Copy an operand from the top of one operand-stack
+     * onto the top of this operand-stack.
+     *
+     * @param value contains the operand to push.
+     * @return this.
+     * @throws NullPointerException if value is null.
+     * @throws AllocatorMismatchException if value was not created by this allocator.
+     * @throws IllegalArgumentException if value is empty.
+     */
+    public OperandStack push (OperandStack value)
+    {
+<span class="nc" id="L142">        return this; // TODO</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * &lt;p&gt;
+     * True, becomes a single byte equal to one.
+     * False, becomes a single byte equal to zero.
+     * &lt;/p&gt;
+     *
+     * @param value is the operand to push.
+     * @return this.
+     */
+    public OperandStack push (final boolean value)
+    {
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        return push((byte) (value ? 1 : 0));</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return this.
+     */
+    public OperandStack push (final char value)
+    {
+<span class="nc" id="L169">        return push(Chars.toByteArray(value));</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return this.
+     */
+    public OperandStack push (final byte value)
+    {
+<span class="nc" id="L180">        final byte[] array = new byte[1];</span>
+<span class="nc" id="L181">        array[0] = value;</span>
+<span class="nc" id="L182">        return push(array);</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return this.
+     */
+    public OperandStack push (final short value)
+    {
+<span class="nc" id="L193">        return push(Shorts.toByteArray(value));</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return this.
+     */
+    public OperandStack push (final int value)
+    {
+<span class="nc" id="L204">        return push(Ints.toByteArray(value));</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return this.
+     */
+    public OperandStack push (final long value)
+    {
+<span class="nc" id="L215">        return push(Longs.toByteArray(value));</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return this.
+     */
+    public OperandStack push (final float value)
+    {
+<span class="nc" id="L226">        return push(Float.floatToIntBits(value));</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return this.
+     */
+    public OperandStack push (final double value)
+    {
+<span class="nc" id="L237">        return push(Double.doubleToLongBits(value));</span>
+    }
+
+    /**
+     * Push an operand onto the top of the stack.
+     *
+     * &lt;p&gt;
+     * This method converts the string to a UTF-8
+     * encoded byte-array and then pushes the array.
+     * &lt;/p&gt;
+     *
+     * @param value is the operand to push.
+     * @return this.
+     */
+    public OperandStack push (final String value)
+    {
+<span class="nc" id="L253">        Preconditions.checkNotNull(value, &quot;value&quot;);</span>
+<span class="nc" id="L254">        return push(value.getBytes(Charset.forName(&quot;UTF-8&quot;)));</span>
+    }
+
+    /**
+     * Push a operand onto the top of the stack.
+     *
+     * @param value is the operand to push.
+     * @return this.
+     */
+    public OperandStack push (final byte[] value)
+    {
+<span class="nc" id="L265">        return push(value, 0, value.length);</span>
+    }
+
+    /**
+     * Push a operand onto the top of the stack.
+     *
+     * @param buffer is the operand to push.
+     * @param offset is the start location of the data in the buffer.
+     * @param length is the length of the data.
+     * @return this.
+     * @throws IndexOutOfBoundsException if offset is less-than zero.
+     * @throws IllegalArgumentException if length is less-than zero.
+     */
+    public OperandStack push (final byte[] buffer,
+                              final int offset,
+                              final int length)
+    {
+        long long0;
+        long long1;
+        long long2;
+        long long3;
+        long long4;
+        long long5;
+        long long6;
+        long long7;
+<span class="nc" id="L290">        final int size = length;</span>
+<span class="nc" id="L291">        OperandStack result = null;</span>
+
+<span class="nc bnc" id="L293" title="All 2 branches missed.">        switch (length)</span>
+        {
+            case 64:
+<span class="nc" id="L296">                long0 = Longs.fromBytes(buffer[offset + 0], buffer[offset + 1], buffer[offset + 2], buffer[offset + 3], buffer[offset + 4], buffer[offset + 5], buffer[offset + 6], buffer[offset + 7]);</span>
+<span class="nc" id="L297">                long1 = Longs.fromBytes(buffer[offset + 8], buffer[offset + 9], buffer[offset + 10], buffer[offset + 11], buffer[offset + 12], buffer[offset + 13], buffer[offset + 14], buffer[offset + 15]);</span>
+<span class="nc" id="L298">                long2 = Longs.fromBytes(buffer[offset + 16], buffer[offset + 17], buffer[offset + 18], buffer[offset + 19], buffer[offset + 20], buffer[offset + 21], buffer[offset + 22], buffer[offset + 23]);</span>
+<span class="nc" id="L299">                long3 = Longs.fromBytes(buffer[offset + 24], buffer[offset + 25], buffer[offset + 26], buffer[offset + 27], buffer[offset + 28], buffer[offset + 29], buffer[offset + 30], buffer[offset + 31]);</span>
+<span class="nc" id="L300">                long4 = Longs.fromBytes(buffer[offset + 32], buffer[offset + 33], buffer[offset + 34], buffer[offset + 35], buffer[offset + 36], buffer[offset + 37], buffer[offset + 38], buffer[offset + 39]);</span>
+<span class="nc" id="L301">                long5 = Longs.fromBytes(buffer[offset + 40], buffer[offset + 41], buffer[offset + 42], buffer[offset + 43], buffer[offset + 44], buffer[offset + 45], buffer[offset + 46], buffer[offset + 47]);</span>
+<span class="nc" id="L302">                long6 = Longs.fromBytes(buffer[offset + 48], buffer[offset + 49], buffer[offset + 50], buffer[offset + 51], buffer[offset + 52], buffer[offset + 53], buffer[offset + 54], buffer[offset + 55]);</span>
+<span class="nc" id="L303">                long7 = Longs.fromBytes(buffer[offset + 56], buffer[offset + 57], buffer[offset + 58], buffer[offset + 59], buffer[offset + 60], buffer[offset + 61], buffer[offset + 62], buffer[offset + 63]);</span>
+<span class="nc" id="L304">                result = new OperandStack(this, size, long0, long1, long2, long3, long4, long5, long6, long7);</span>
+<span class="nc" id="L305">                break;</span>
+            default:
+            // TODO: Use Allocator
+        }
+
+<span class="nc" id="L310">        return result;</span>
+    }
+
+    /**
+     * Use this method to efficiently retrieve a
+     * byte at a given index within this operand.
+     *
+     * @param index identifies the byte in this operand.
+     * @return the byte at the given index.
+     * @throws IndexOutOfBoundsException if index is invalid.
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public byte byteAt (final int index)
+    {
+<span class="nc bnc" id="L324" title="All 2 branches missed.">        if (isStackEmpty())</span>
+        {
+<span class="nc" id="L326">            throw new IllegalStateException(&quot;Empty Stack&quot;);</span>
+        }
+        else
+        {
+<span class="nc" id="L330">            return 0; // TODO</span>
+        }
+    }
+
+    /**
+     * Use this method to copy the content of this operand into a given buffer.
+     *
+     * @param buffer is the buffer that will receive the content.
+     * @return the number of bytes copied into the buffer,
+     * which may be less than operandSize(), if the buffer is too small.
+     * @throws IndexOutOfBoundsException if index is invalid.
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public int copyTo (final byte[] buffer)
+    {
+<span class="nc" id="L345">        return copyTo(buffer, 0);</span>
+    }
+
+    /**
+     * Use this method to copy the content of this operand into a given buffer,
+     * starting at a given offset in the buffer.
+     *
+     * @param buffer is the buffer that will receive the content.
+     * @param offset is an index into the buffer.
+     * @return the number of bytes copied into the buffer,
+     * which may be less than operandSize(), if the buffer is too small.
+     * @throws IndexOutOfBoundsException if index is invalid.
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public int copyTo (final byte[] buffer,
+                       final int offset)
+    {
+<span class="nc" id="L362">        return copyTo(buffer, offset, operandSize());</span>
+    }
+
+    /**
+     * Use this method to copy the content of this operand into a given buffer,
+     * starting at a given offset in the buffer.
+     *
+     * @param buffer is the buffer that will receive the content.
+     * @param offset is an index into the buffer.
+     * @param length is the maximum number of bytes to copy.
+     * @return the number of bytes copied into the buffer,
+     * which may be less than operandSize(), if the buffer is too small.
+     * @throws IndexOutOfBoundsException if index is invalid.
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public int copyTo (final byte[] buffer,
+                       final int offset,
+                       final int length)
+    {
+<span class="nc" id="L381">        return 0; // TODO</span>
+    }
+
+    /**
+     * Data Conversion: byte[] to boolean.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if operandSize() &amp;ne (1).
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public boolean asBoolean ()
+    {
+<span class="nc bnc" id="L393" title="All 2 branches missed.">        return asByte() != 0;</span>
+    }
+
+    /**
+     * Data Conversion: byte[] to char.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if operandSize() &amp;ne (1).
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public char asChar ()
+    {
+<span class="nc bnc" id="L405" title="All 2 branches missed.">        Preconditions.checkState(operandSize() == 2, &quot;Wrong Size&quot;);</span>
+<span class="nc" id="L406">        return Chars.fromBytes(byteAt(0), byteAt(1));</span>
+    }
+
+    /**
+     * Data Conversion: byte[] to byte.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if operandSize() &amp;ne (1).
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public byte asByte ()
+    {
+<span class="nc bnc" id="L418" title="All 2 branches missed.">        Preconditions.checkState(operandSize() == 1, &quot;Wrong Size&quot;);</span>
+<span class="nc" id="L419">        return byteAt(0);</span>
+    }
+
+    /**
+     * Data Conversion: byte[] to short.
+     *
+     * &lt;p&gt;
+     * The bytes must be in big-endian byte-order.
+     * &lt;/p&gt;
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if operandSize() &amp;ne (2).
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public short asShort ()
+    {
+<span class="nc bnc" id="L435" title="All 2 branches missed.">        Preconditions.checkState(operandSize() == 2, &quot;Wrong Size&quot;);</span>
+<span class="nc" id="L436">        return Shorts.fromBytes(byteAt(0), byteAt(1));</span>
+    }
+
+    /**
+     * Data Conversion: byte[] to int.
+     *
+     * &lt;p&gt;
+     * The bytes must be in big-endian byte-order.
+     * &lt;/p&gt;
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if operandSize() &amp;ne (4).
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public int asInt ()
+    {
+<span class="nc bnc" id="L452" title="All 2 branches missed.">        Preconditions.checkState(operandSize() == 4, &quot;Wrong Size&quot;);</span>
+<span class="nc" id="L453">        return Ints.fromBytes(byteAt(0),</span>
+<span class="nc" id="L454">                              byteAt(1),</span>
+<span class="nc" id="L455">                              byteAt(2),</span>
+<span class="nc" id="L456">                              byteAt(3));</span>
+    }
+
+    /**
+     * Data Conversion: byte[] to long.
+     *
+     * &lt;p&gt;
+     * The bytes must be in big-endian byte-order.
+     * &lt;/p&gt;
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if operandSize() &amp;ne (8).
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public long asLong ()
+    {
+<span class="nc bnc" id="L472" title="All 2 branches missed.">        Preconditions.checkState(operandSize() == 8, &quot;Wrong Size&quot;);</span>
+<span class="nc" id="L473">        return Longs.fromBytes(byteAt(0),</span>
+<span class="nc" id="L474">                               byteAt(1),</span>
+<span class="nc" id="L475">                               byteAt(2),</span>
+<span class="nc" id="L476">                               byteAt(3),</span>
+<span class="nc" id="L477">                               byteAt(4),</span>
+<span class="nc" id="L478">                               byteAt(5),</span>
+<span class="nc" id="L479">                               byteAt(6),</span>
+<span class="nc" id="L480">                               byteAt(7));</span>
+    }
+
+    /**
+     * Data Conversion: byte[] to float.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if operandSize() &amp;ne (4).
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public float asFloat ()
+    {
+<span class="nc bnc" id="L492" title="All 2 branches missed.">        Preconditions.checkState(operandSize() == 4, &quot;Wrong Size&quot;);</span>
+<span class="nc" id="L493">        return Float.intBitsToFloat(asInt());</span>
+    }
+
+    /**
+     * Data Conversion: byte[] to double.
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if operandSize() &amp;ne (8).
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public double asDouble ()
+    {
+<span class="nc bnc" id="L505" title="All 2 branches missed.">        Preconditions.checkState(operandSize() == 8, &quot;Wrong Size&quot;);</span>
+<span class="nc" id="L506">        return Double.longBitsToDouble(asLong());</span>
+    }
+
+    /**
+     * Data Conversion: Encoded byte[] to String.
+     *
+     * &lt;p&gt;
+     * The bytes must be UTF-8 encoded.
+     * &lt;/p&gt;
+     *
+     * &lt;p&gt;
+     * All of the bytes are considered to be part of the string.
+     * No size header, etc, is present in the byte[].
+     * &lt;/p&gt;
+     *
+     * @return the converted value.
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public String asString ()
+    {
+<span class="nc" id="L526">        return new String(asByteArray(), Charset.forName(&quot;UTF-8&quot;));</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the content of the top operand on the operand-stack.
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public byte[] asByteArray ()
+    {
+<span class="nc" id="L537">        final byte[] array = new byte[operandSize()];</span>
+<span class="nc" id="L538">        copyTo(array);</span>
+<span class="nc" id="L539">        return array;</span>
+    }
+
+    /**
+     * Pop a single operand off the top of the operand-stack.
+     *
+     * @return this.
+     * @throws IllegalStateException if stackSize() is zero.
+     */
+    public OperandStack pop ()
+    {
+<span class="nc bnc" id="L550" title="All 2 branches missed.">        if (isStackEmpty())</span>
+        {
+<span class="nc" id="L552">            throw new IllegalStateException(&quot;Empty Stack&quot;);</span>
+        }
+        else
+        {
+<span class="nc" id="L556">            return below;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

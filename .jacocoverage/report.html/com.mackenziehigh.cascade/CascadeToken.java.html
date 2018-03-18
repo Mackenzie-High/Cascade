@@ -161,11 +161,21 @@ public final class CascadeToken
     /**
      * Getter.
      *
+     * @return the binary representation of the MD5 hash.
+     */
+    public byte[] toHashBytes ()
+    {
+<span class="nc" id="L168">        return Arrays.copyOf(hashBytes, hashBytes.length);</span>
+    }
+
+    /**
+     * Getter.
+     *
      * @return true, if this token denotes a full-name.
      */
     public boolean isFullName ()
     {
-<span class="nc bnc" id="L168" title="All 2 branches missed.">        return !isSimpleName();</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">        return !isSimpleName();</span>
     }
 
     /**
@@ -175,7 +185,7 @@ public final class CascadeToken
      */
     public boolean isSimpleName ()
     {
-<span class="fc" id="L178">        return prefix.isEmpty();</span>
+<span class="fc" id="L188">        return prefix.isEmpty();</span>
     }
 
     /**
@@ -186,25 +196,25 @@ public final class CascadeToken
      */
     public boolean isPrefixOf (final CascadeToken other)
     {
-<span class="nc bnc" id="L189" title="All 2 branches missed.">        if (other == null)</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">        if (other == null)</span>
         {
-<span class="nc" id="L191">            return false;</span>
+<span class="nc" id="L201">            return false;</span>
         }
-<span class="nc bnc" id="L193" title="All 2 branches missed.">        else if (keys.size() &gt; other.keys.size())</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">        else if (keys.size() &gt; other.keys.size())</span>
         {
-<span class="nc" id="L195">            return false;</span>
+<span class="nc" id="L205">            return false;</span>
         }
         else
         {
-<span class="nc bnc" id="L199" title="All 2 branches missed.">            for (int i = 0; i &lt; keys.size(); i++)</span>
+<span class="nc bnc" id="L209" title="All 2 branches missed.">            for (int i = 0; i &lt; keys.size(); i++)</span>
             {
-<span class="nc bnc" id="L201" title="All 2 branches missed.">                if (keys.get(i).equals(other.keys.get(i)) == false)</span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">                if (keys.get(i).equals(other.keys.get(i)) == false)</span>
                 {
-<span class="nc" id="L203">                    return false;</span>
+<span class="nc" id="L213">                    return false;</span>
                 }
             }
 
-<span class="nc" id="L207">            return true;</span>
+<span class="nc" id="L217">            return true;</span>
         }
     }
 
@@ -216,7 +226,7 @@ public final class CascadeToken
      */
     public boolean isStrictlyEqualTo (final CascadeToken other)
     {
-<span class="nc bnc" id="L219" title="All 4 branches missed.">        return isWeaklyEqualTo(other) &amp;&amp; name.equals(other.name);</span>
+<span class="nc bnc" id="L229" title="All 4 branches missed.">        return isWeaklyEqualTo(other) &amp;&amp; name.equals(other.name);</span>
     }
 
     /**
@@ -228,7 +238,7 @@ public final class CascadeToken
      */
     public boolean isWeaklyEqualTo (final CascadeToken other)
     {
-<span class="pc bpc" id="L231" title="3 of 6 branches missed.">        return (other != null) &amp;&amp; (lowMD5 == other.lowMD5) &amp;&amp; (highMD5 == other.highMD5);</span>
+<span class="pc bpc" id="L241" title="3 of 6 branches missed.">        return (other != null) &amp;&amp; (lowMD5 == other.lowMD5) &amp;&amp; (highMD5 == other.highMD5);</span>
     }
 
     /**
@@ -237,7 +247,7 @@ public final class CascadeToken
     @Override
     public int hashCode ()
     {
-<span class="fc" id="L240">        return hashCode;</span>
+<span class="fc" id="L250">        return hashCode;</span>
     }
 
     /**
@@ -246,21 +256,21 @@ public final class CascadeToken
     @Override
     public boolean equals (final Object other)
     {
-<span class="pc bpc" id="L249" title="1 of 2 branches missed.">        if (other == null)</span>
+<span class="pc bpc" id="L259" title="1 of 2 branches missed.">        if (other == null)</span>
         {
-<span class="nc" id="L251">            return false;</span>
+<span class="nc" id="L261">            return false;</span>
         }
-<span class="fc bfc" id="L253" title="All 2 branches covered.">        else if (hashCode != other.hashCode())</span>
+<span class="fc bfc" id="L263" title="All 2 branches covered.">        else if (hashCode != other.hashCode())</span>
         {
-<span class="fc" id="L255">            return false;</span>
+<span class="fc" id="L265">            return false;</span>
         }
-<span class="pc bpc" id="L257" title="1 of 2 branches missed.">        else if (other instanceof CascadeToken == false)</span>
+<span class="pc bpc" id="L267" title="1 of 2 branches missed.">        else if (other instanceof CascadeToken == false)</span>
         {
-<span class="nc" id="L259">            return false;</span>
+<span class="nc" id="L269">            return false;</span>
         }
         else
         {
-<span class="fc" id="L263">            return isWeaklyEqualTo((CascadeToken) other); // Very Fast and *Good Enough*!</span>
+<span class="fc" id="L273">            return isWeaklyEqualTo((CascadeToken) other); // Very Fast and *Good Enough*!</span>
         }
     }
 
@@ -270,8 +280,8 @@ public final class CascadeToken
     @Override
     public int compareTo (final CascadeToken other)
     {
-<span class="fc" id="L273">        Preconditions.checkNotNull(other, &quot;other&quot;);</span>
-<span class="fc" id="L274">        return name.compareTo(other.name);</span>
+<span class="fc" id="L283">        Preconditions.checkNotNull(other, &quot;other&quot;);</span>
+<span class="fc" id="L284">        return name.compareTo(other.name);</span>
     }
 
     /**
@@ -282,7 +292,7 @@ public final class CascadeToken
     @Override
     public String toString ()
     {
-<span class="fc" id="L285">        return name;</span>
+<span class="fc" id="L295">        return name;</span>
     }
 
     /**
@@ -295,20 +305,20 @@ public final class CascadeToken
      * @param name is a dot-delimited list of keys that will be converted to a token.
      * @return the newly created token object based on the given full-name.
      */
-    public static CascadeToken create (final String name)
+    public static CascadeToken token (final String name)
     {
-<span class="fc" id="L300">        Preconditions.checkNotNull(name);</span>
-<span class="fc" id="L301">        Preconditions.checkArgument(name.matches(&quot;([^.]+[.])*[^.]+&quot;), &quot;Invalid Name: &quot; + name);</span>
+<span class="fc" id="L310">        Preconditions.checkNotNull(name);</span>
+<span class="fc" id="L311">        Preconditions.checkArgument(name.matches(&quot;([^.]+[.])*[^.]+&quot;), &quot;Invalid Name: &quot; + name);</span>
 
-<span class="fc" id="L303">        final String[] parts = name.split(&quot;\\.&quot;);</span>
-<span class="fc" id="L304">        CascadeToken token = null;</span>
+<span class="fc" id="L313">        final String[] parts = name.split(&quot;\\.&quot;);</span>
+<span class="fc" id="L314">        CascadeToken token = null;</span>
 
-<span class="fc bfc" id="L306" title="All 2 branches covered.">        for (String part : parts)</span>
+<span class="fc bfc" id="L316" title="All 2 branches covered.">        for (String part : parts)</span>
         {
-<span class="fc" id="L308">            token = new CascadeToken(token, part);</span>
+<span class="fc" id="L318">            token = new CascadeToken(token, part);</span>
         }
 
-<span class="fc" id="L311">        return token;</span>
+<span class="fc" id="L321">        return token;</span>
     }
 
 }

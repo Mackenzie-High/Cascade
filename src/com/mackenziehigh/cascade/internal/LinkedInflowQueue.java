@@ -43,12 +43,18 @@ public final class LinkedInflowQueue
                           final CascadeStack stack)
     {
         checkState();
-        Preconditions.checkState(size() < capacity, "size >= capacity");
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(stack, "stack");
-        tokens.addLast(event);
-        stacks.addLast(stack);
-        return true;
+        if (size() < capacity())
+        {
+            tokens.addLast(event);
+            stacks.addLast(stack);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     /**
@@ -150,7 +156,7 @@ public final class LinkedInflowQueue
 
     private void checkState ()
     {
-        Verify.verify(tokens.size() < capacity);
+        Verify.verify(tokens.size() <= capacity);
         Verify.verify(tokens.size() == stacks.size());
     }
 }

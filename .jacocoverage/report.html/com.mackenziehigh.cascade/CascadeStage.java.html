@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CascadeStage.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade</a> &gt; <span class="el_source">CascadeStage.java</span></div><h1>CascadeStage.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade;
+
+import com.google.common.base.Preconditions;
+import com.mackenziehigh.cascade.allocators.CascadeAllocator;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * A stage contains actor(s) that are powered by a shared pool of threads.
+ */
+public interface CascadeStage
+{
+    /**
+     * Getter.
+     *
+     * @return a universally-unique-identifier of this object.
+     */
+    public UUID uuid ();
+
+    /**
+     * Getter.
+     *
+     * @return the cascade that contains this stage.
+     */
+    public Cascade cascade ();
+
+    /**
+     * Getter.
+     *
+     * @return the threads that are currently powering this stage.
+     */
+    public Set&lt;Thread&gt; threads ();
+
+    /**
+     * Setter.
+     *
+     * &lt;p&gt;
+     * In effect, this method overrides the default loggerFactory() that was
+     * specified by the enclosing cascade() when this stage was created.
+     * &lt;/p&gt;
+     *
+     * @param logger will be used to create default loggers,
+     * for any actors created after this method returns.
+     * @return this.
+     */
+    public CascadeStage useLoggerFactory (final CascadeLogger.Factory logger);
+
+    /**
+     * Getter.
+     *
+     * @return the logger-factory that is currently in use herein.
+     */
+    public CascadeLogger.Factory loggerFactory ();
+
+    /**
+     * Setter.
+     *
+     * &lt;p&gt;
+     * In effect, this method overrides the default allocator() that was
+     * specified by the enclosing cascade() when this stage was created.
+     * &lt;/p&gt;
+     *
+     * @param allocator will be the default allocator,
+     * for any actors created after this method returns.
+     * @return this.
+     */
+    public CascadeStage useAllocator (final CascadeAllocator allocator);
+
+    /**
+     * Getter.
+     *
+     * @return the current default allocator for newly created actors.
+     */
+    public CascadeAllocator allocator ();
+
+    /**
+     * Getter.
+     *
+     * @return the actors that are currently alive on this stage.
+     */
+    public Set&lt;CascadeActor&gt; actors ();
+
+    /**
+     * This method creates a new actor that will execute the given
+     * script and adds the actor to this stage.
+     *
+     * @param script describes what the actor will do.
+     * @return the new actor.
+     */
+    public CascadeActor newActor (CascadeScript script);
+
+    /**
+     * This method creates a new actor using the given builder.
+     *
+     * &lt;p&gt;
+     * The builder must create an actor that is on this stage.
+     * Thus, directly or indirectly, the builder actually calls
+     * the &lt;code&gt;newActor(CascadeScript)&lt;/code&gt; overload
+     * of this method and returns the resultant actor.
+     * In short, the builder just provides a nice way
+     * of being able to configure the new actor,
+     * usually via the use of a fluent API.
+     * &lt;/p&gt;
+     *
+     * @param builder will create the new actor.
+     * @return the new actor.
+     */
+    public default CascadeActor newActor (CascadeActor.Builder builder)
+    {
+<span class="nc" id="L113">        final CascadeActor actor = builder.build();</span>
+<span class="nc" id="L114">        Preconditions.checkState(this.equals(actor.stage()), &quot;Wrong Stage&quot;);</span>
+<span class="nc" id="L115">        return actor;</span>
+    }
+
+    /**
+     * This method creates a new builder that will later
+     * create a new actor on this stage.
+     *
+     * &lt;p&gt;
+     * This method is just syntactic sugar to aid fluent APIs.
+     * &lt;/p&gt;
+     *
+     * @param &lt;T&gt; is the type of builder that will be returned.
+     * @param factory will produce the new builder.
+     * @return the new builder.
+     */
+    public default &lt;T extends CascadeActor.Builder&gt; T newActor (CascadeActor.Builder.Factory&lt;T&gt; factory)
+    {
+<span class="nc" id="L132">        return factory.newBuilder(this);</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return true, if and only if, this stage has not yet closed.
+     */
+    public boolean isActive ();
+
+    /**
+     * Getter.
+     *
+     * @return true, if and only if, this stage is closing.
+     */
+    public boolean isClosing ();
+
+    /**
+     * This method kills all the actors on the stage and removes
+     * this stage from the enclosing cascade().
+     */
+    public void close ();
+
+    /**
+     * This method blocks, until this stage closes.
+     *
+     * @param timeout is the maximum amount of time to wait.
+     * @param timeoutUnit describes the timeout.
+     * @throws java.lang.InterruptedException
+     */
+    public void awaitClose (final long timeout,
+                            final TimeUnit timeoutUnit)
+            throws InterruptedException;
+
+    /**
+     * Getter.
+     *
+     * @return the time that this stage was created.
+     */
+    public Instant creationTime ();
+
+    /**
+     * Getter.
+     *
+     * @return how long this stage has been active.
+     */
+    public default Duration age ()
+    {
+<span class="nc" id="L180">        return Duration.between(creationTime(), Instant.now());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

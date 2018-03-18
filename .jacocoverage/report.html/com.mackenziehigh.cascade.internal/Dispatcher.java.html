@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>Dispatcher.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.internal</a> &gt; <span class="el_source">Dispatcher.java</span></div><h1>Dispatcher.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.internal;
+
+import com.google.common.base.Preconditions;
+import com.mackenziehigh.cascade.CascadeStack;
+import com.mackenziehigh.cascade.CascadeToken;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
+
+/**
+ * Routes event-messages to interested inflow-queues.
+ */
+<span class="nc" id="L15">public final class Dispatcher</span>
+{
+    /**
+     * This map maps the name of an event-stream to the inflow-queues
+     * that are interested in that particular event-stream.
+     *
+     * &lt;p&gt;
+     * This map is optimized for performance.
+     * The ConcurrentHashMap uses stripped locking, so that insertions/removals
+     * will have less impact on lookups that are occurring concurrently.
+     * The AtomicReference enables us to atomically swap-in a replacement
+     * list whenever an insertion or removal is performed, which ensures
+     * that no blocking of senders must be performed to add additional
+     * subscriptions to a given event-stream. Otherwise, unrelated listeners
+     * that are interested in the same event-stream could cause random
+     * performance problems for each other by momentarily blocking lookups
+     * due to subscriptions and/or unsubscriptions being synchronized.
+     * Notice that the List is never modified while in the map.
+     * When the List needs modified, a copy is created, modified,
+     * and then swapped-in as the replacement for the existing list.
+     * &lt;/p&gt;
+     */
+<span class="nc" id="L37">    private final Map&lt;CascadeToken, AtomicReference&lt;List&lt;InflowQueue&gt;&gt;&gt; subscriptions = new ConcurrentHashMap&lt;&gt;();</span>
+
+    /**
+     * After this method returns, the given inflow-queue will
+     * receive any event-messages from the given event-stream.
+     *
+     * &lt;p&gt;
+     * This method is synchronized in order to prevent concurrent
+     * registrations or deregistrations for the same event
+     * &lt;/p&gt;
+     *
+     * @param event identifies the event-stream to subscribe to.
+     * @param subscriber will be subscribed to the event-stream.
+     */
+    public synchronized void register (final CascadeToken event,
+                                       final InflowQueue subscriber)
+    {
+<span class="nc" id="L54">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
+<span class="nc" id="L55">        Preconditions.checkNotNull(subscriber, &quot;subscriber&quot;);</span>
+
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        if (subscriptions.containsKey(event))</span>
+        {
+<span class="nc" id="L59">            final AtomicReference&lt;List&lt;InflowQueue&gt;&gt; ref = subscriptions.get(this);</span>
+<span class="nc" id="L60">            final CopyOnWriteArrayList modified = new CopyOnWriteArrayList(ref.get());</span>
+<span class="nc" id="L61">            modified.add(subscriber);</span>
+<span class="nc" id="L62">            ref.set(modified);</span>
+<span class="nc" id="L63">        }</span>
+        else
+        {
+<span class="nc" id="L66">            final List&lt;InflowQueue&gt; list = new CopyOnWriteArrayList&lt;&gt;();</span>
+<span class="nc" id="L67">            list.add(subscriber);</span>
+<span class="nc" id="L68">            subscriptions.put(event, new AtomicReference&lt;&gt;(list));</span>
+        }
+<span class="nc" id="L70">    }</span>
+
+    /**
+     * After this method returns, the given inflow-queue will no longer
+     * receive any event-messages from the given event-stream.
+     *
+     * &lt;p&gt;
+     * This method is a no-op, if the subscriber is not
+     * actually subscribed to the given event-stream.
+     * &lt;/p&gt;
+     *
+     * &lt;p&gt;
+     * This method is synchronized in order to prevent concurrent
+     * registrations or deregistrations for the same event
+     * &lt;/p&gt;
+     *
+     * @param event identifies the event-stream to unsubscribe from.
+     * @param subscriber will be unsubscribed to the event-stream.
+     */
+    public synchronized void deregister (final CascadeToken event,
+                                         final InflowQueue subscriber)
+    {
+<span class="nc" id="L92">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
+<span class="nc" id="L93">        Preconditions.checkNotNull(subscriber, &quot;subscriber&quot;);</span>
+
+<span class="nc bnc" id="L95" title="All 2 branches missed.">        if (subscriptions.containsKey(event) == false)</span>
+        {
+<span class="nc" id="L97">            return;</span>
+        }
+
+<span class="nc" id="L100">        final AtomicReference&lt;List&lt;InflowQueue&gt;&gt; ref = subscriptions.get(this);</span>
+
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (ref.get().size() == 1)</span>
+        {
+<span class="nc" id="L104">            subscriptions.remove(event);</span>
+        }
+        else
+        {
+<span class="nc" id="L108">            final CopyOnWriteArrayList modified = new CopyOnWriteArrayList(ref.get());</span>
+<span class="nc" id="L109">            modified.remove(subscriber);</span>
+<span class="nc" id="L110">            ref.set(modified);</span>
+        }
+<span class="nc" id="L112">    }</span>
+
+    /**
+     * Use this method to enqueue an event-message in all interested inflow-queues.
+     *
+     * &lt;p&gt;
+     * This method is deliberately *not* synchronized.
+     * The manipulated internal data-structures are themselves thread-safe.
+     * &lt;/p&gt;
+     *
+     * @param event identifies the event-message.
+     * @param stack is the content of the event-message.
+     */
+    public void send (final CascadeToken event,
+                      final CascadeStack stack)
+    {
+<span class="nc" id="L128">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
+<span class="nc" id="L129">        Preconditions.checkNotNull(stack, &quot;stack&quot;);</span>
+
+        /**
+         * These are all of the inflow-queues that are interested
+         * in receiving messages from the given event, if any.
+         */
+<span class="nc" id="L135">        final AtomicReference&lt;List&lt;InflowQueue&gt;&gt; ref = subscriptions.get(event);</span>
+
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        if (ref == null)</span>
+        {
+<span class="nc" id="L139">            return;</span>
+        }
+
+<span class="nc" id="L142">        final List&lt;InflowQueue&gt; list = ref.get();</span>
+
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        if (list == null)</span>
+        {
+<span class="nc" id="L146">            return;</span>
+        }
+
+        /**
+         * Enqueue the event-message in each of the inflow-queues.
+         * Iterate using a for-loop, rather than a foreach-loop,
+         * because a foreach-loop would cause an Iterator to
+         * be allocated, which is an unnecessary waste here
+         * given that this method requires extremely high performance.
+         */
+<span class="nc" id="L156">        final int length = list.size();</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">        for (int i = 0; i &lt; length; i++)</span>
+        {
+<span class="nc" id="L159">            final InflowQueue queue = list.get(i);</span>
+<span class="nc" id="L160">            queue.offer(event, stack);</span>
+        }
+<span class="nc" id="L162">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

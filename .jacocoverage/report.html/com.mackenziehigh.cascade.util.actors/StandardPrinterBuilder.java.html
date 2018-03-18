@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>StandardPrinterBuilder.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.util.actors</a> &gt; <span class="el_source">StandardPrinterBuilder.java</span></div><h1>StandardPrinterBuilder.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.util.actors;
+
+import com.mackenziehigh.cascade.CascadeActor;
+import com.mackenziehigh.cascade.CascadeContext;
+import com.mackenziehigh.cascade.CascadeScript;
+import com.mackenziehigh.cascade.CascadeStack;
+import com.mackenziehigh.cascade.CascadeStage;
+import com.mackenziehigh.cascade.CascadeToken;
+import java.util.Objects;
+
+/**
+ *
+ */
+public final class StandardPrinterBuilder
+        implements CascadeActor.Builder
+{
+    private final CascadeStage stage;
+
+    private volatile CascadeToken input;
+
+    public StandardPrinterBuilder (final CascadeStage stage)
+<span class="nc" id="L22">    {</span>
+<span class="nc" id="L23">        this.stage = Objects.requireNonNull(stage, &quot;stage&quot;);</span>
+<span class="nc" id="L24">    }</span>
+
+    @Override
+    public CascadeStage stage ()
+    {
+<span class="nc" id="L29">        return stage;</span>
+    }
+
+    public StandardPrinterBuilder setInput (final CascadeToken event)
+    {
+<span class="nc" id="L34">        this.input = event;</span>
+<span class="nc" id="L35">        return this;</span>
+    }
+
+    public StandardPrinterBuilder setInput (final String event)
+    {
+<span class="nc" id="L40">        return setInput(CascadeToken.token(event));</span>
+    }
+
+    @Override
+    public CascadeActor build ()
+    {
+<span class="nc" id="L46">        final CascadeScript script = new CascadeScript()</span>
+<span class="nc" id="L47">        {</span>
+            @Override
+            public void onMessage (final CascadeContext ctx,
+                                   final CascadeToken event,
+                                   final CascadeStack stack)
+                    throws Throwable
+            {
+<span class="nc" id="L54">                System.out.println(stack.peekAsObject());</span>
+<span class="nc" id="L55">            }</span>
+        };
+
+<span class="nc" id="L58">        final CascadeActor actor = stage().newActor(script);</span>
+<span class="nc" id="L59">        actor.subscribe(input);</span>
+<span class="nc" id="L60">        return actor;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>
