@@ -28,6 +28,11 @@ public final class SwappableInflowQueue
         delegate = Objects.requireNonNull(initial, "initial");
     }
 
+    public InflowQueue getDelegate ()
+    {
+        return delegate;
+    }
+
     /**
      * Replace the current delegate queue with a different queue.
      *
@@ -40,7 +45,7 @@ public final class SwappableInflowQueue
      *
      * @param queue will be the new delegate.
      */
-    public void replaceQueue (final InflowQueue queue)
+    public void replaceDelegate (final InflowQueue queue)
     {
         Preconditions.checkNotNull(queue, "queue");
 
@@ -54,6 +59,8 @@ public final class SwappableInflowQueue
             Verify.verify(removeOldest(tokenOut, stackOut));
             queue.offer(tokenOut.get(), stackOut.get());
         }
+
+        delegate = queue;
     }
 
     /**

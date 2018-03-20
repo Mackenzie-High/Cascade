@@ -148,7 +148,7 @@ public final class LinkedInflowQueue
         final Iterator<CascadeToken> tokenIter = tokens.iterator();
         final Iterator<CascadeStack> stackIter = stacks.iterator();
 
-        while (tokenIter.hasNext() && stackIter.hasNext())
+        while (tokenIter.hasNext())
         {
             functor.accept(tokenIter.next(), stackIter.next());
         }

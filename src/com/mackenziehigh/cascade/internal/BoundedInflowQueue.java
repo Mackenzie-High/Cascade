@@ -75,6 +75,9 @@ public final class BoundedInflowQueue
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(stack, "stack");
 
+        tokenSink.set(null);
+        operandSink.set(null);
+
         final boolean overflow = size() >= capacity();
 
         if (overflow)
@@ -98,9 +101,6 @@ public final class BoundedInflowQueue
         {
             delegate.clear();
         }
-
-        tokenSink.set(null);
-        operandSink.set(null);
 
         return delegate.offer(event, stack);
     }

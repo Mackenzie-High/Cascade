@@ -25,7 +25,7 @@ public final class NotificationInflowQueue
      * @param listener will be invoked after any addition of an element to this queue.
      */
     public NotificationInflowQueue (final InflowQueue delegate,
-                                  final Consumer<InflowQueue> listener)
+                                    final Consumer<InflowQueue> listener)
     {
         this.delegate = Objects.requireNonNull(delegate, "delegate");
         this.listener = Objects.requireNonNull(listener, "listener");
