@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.old.internal;
+package com.mackenziehigh.cascade.loggers;
 
 import com.mackenziehigh.cascade.CascadeLogger;
 import java.util.logging.Logger;

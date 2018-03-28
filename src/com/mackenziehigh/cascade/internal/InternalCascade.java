@@ -8,7 +8,7 @@ import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeStage;
 import com.mackenziehigh.cascade.CascadeToken;
-import com.mackenziehigh.cascade.old.internal.StandardLogger;
+import com.mackenziehigh.cascade.loggers.StandardLogger;
 import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;

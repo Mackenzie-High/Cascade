@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.old.internal;
+package com.mackenziehigh.cascade.internal;
 
 /**
  * A Consumer-like functional-interface that can throw all types of exceptions.
