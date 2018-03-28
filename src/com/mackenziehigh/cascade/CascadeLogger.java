@@ -11,21 +11,6 @@ package com.mackenziehigh.cascade;
 public interface CascadeLogger
 {
     /**
-     * An instance of this interface creates a new
-     * logger for an entity with a given name.
-     */
-    public interface Factory
-    {
-        /**
-         * Getter.
-         *
-         * @param name is the name of the usage site().
-         * @return a newly created logger.
-         */
-        public CascadeLogger create (CascadeToken name);
-    }
-
-    /**
      * Log Levels.
      *
      * <p>
@@ -47,9 +32,9 @@ public interface CascadeLogger
     /**
      * Getter.
      *
-     * @return the name of the entity that this logger applies to.
+     * @return where this logger is being used.
      */
-    public CascadeToken site ();
+    public Object site ();
 
     /**
      * Use this method to issue a log-message.

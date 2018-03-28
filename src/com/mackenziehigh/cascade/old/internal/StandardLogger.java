@@ -1,7 +1,6 @@
 package com.mackenziehigh.cascade.old.internal;
 
 import com.mackenziehigh.cascade.CascadeLogger;
-import com.mackenziehigh.cascade.CascadeToken;
 import java.util.logging.Logger;
 
 /**
@@ -12,16 +11,16 @@ public final class StandardLogger
 {
     private final Logger logger;
 
-    private final CascadeToken site;
+    private final Object site;
 
-    public StandardLogger (final CascadeToken site)
+    public StandardLogger (final Object site)
     {
-        this.logger = Logger.getLogger(site.name());
         this.site = site;
+        this.logger = Logger.getLogger(site.getClass().getName());
     }
 
     @Override
-    public CascadeToken site ()
+    public Object site ()
     {
         return site;
     }

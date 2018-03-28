@@ -16,11 +16,253 @@ public final class BoundedInflowQueueTest
 {
     private final LinkedInflowQueue delegate = new LinkedInflowQueue(5);
 
-    private final BoundedInflowQueue queue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_ALL, delegate);
+    private BoundedInflowQueue queue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_ALL, delegate);
 
     private final AtomicReference<CascadeToken> event = new AtomicReference<>();
 
     private final AtomicReference<CascadeStack> stack = new AtomicReference<>();
+
+    /**
+     * Test: 20180320001644031969
+     *
+     * <p>
+     * Method: <code>offer</code>
+     * </p>
+     *
+     * <p>
+     * Case: Overflow, Drop All
+     * </p>
+     */
+    @Test
+    public void test20180320001644031969 ()
+    {
+        System.out.println("Test: 20180320001644031969");
+
+        queue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_ALL, delegate);
+
+        assertEquals(0, queue.getOverflowCount());
+        assertEquals(0, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("A"), CascadeStack.newStack().pushInt(100)));
+        assertEquals(1, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("B"), CascadeStack.newStack().pushInt(200)));
+        assertEquals(2, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("C"), CascadeStack.newStack().pushInt(300)));
+        assertEquals(3, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("D"), CascadeStack.newStack().pushInt(400)));
+        assertEquals(4, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("E"), CascadeStack.newStack().pushInt(500)));
+        assertEquals(5, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("F"), CascadeStack.newStack().pushInt(600)));
+        assertEquals(1, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("G"), CascadeStack.newStack().pushInt(700)));
+        assertEquals(2, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("H"), CascadeStack.newStack().pushInt(800)));
+        assertEquals(3, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("I"), CascadeStack.newStack().pushInt(900)));
+        assertEquals(4, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("J"), CascadeStack.newStack().pushInt(1000)));
+        assertEquals(5, queue.size());
+        assertEquals(1, queue.getOverflowCount());
+
+        assertEquals(5, queue.size());
+        queue.removeOldest(event, stack);
+        assertEquals("F", event.get().name());
+        assertEquals(600, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("G", event.get().name());
+        assertEquals(700, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("H", event.get().name());
+        assertEquals(800, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("I", event.get().name());
+        assertEquals(900, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("J", event.get().name());
+        assertEquals(1000, stack.get().peekAsInt());
+    }
+
+    /**
+     * Test: 20180320002436263850
+     *
+     * <p>
+     * Method: <code>offer</code>
+     * </p>
+     *
+     * <p>
+     * Case: Overflow, Drop Newest
+     * </p>
+     */
+    @Test
+    public void test20180320002436263850 ()
+    {
+        System.out.println("Test: 20180320002436263850");
+
+        fail(); // This is broke I think
+
+        queue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_NEWEST, delegate);
+
+        assertEquals(0, queue.getOverflowCount());
+        assertEquals(0, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("A"), CascadeStack.newStack().pushInt(100)));
+        assertEquals(1, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("B"), CascadeStack.newStack().pushInt(200)));
+        assertEquals(2, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("C"), CascadeStack.newStack().pushInt(300)));
+        assertEquals(3, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("D"), CascadeStack.newStack().pushInt(400)));
+        assertEquals(4, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("E"), CascadeStack.newStack().pushInt(500)));
+        assertEquals(5, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("F"), CascadeStack.newStack().pushInt(600)));
+        assertEquals(5, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("G"), CascadeStack.newStack().pushInt(700)));
+        assertEquals(5, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("H"), CascadeStack.newStack().pushInt(800)));
+        assertEquals(5, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("I"), CascadeStack.newStack().pushInt(900)));
+        assertEquals(5, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("J"), CascadeStack.newStack().pushInt(1000)));
+        assertEquals(5, queue.size());
+        assertEquals(5, queue.getOverflowCount());
+
+        assertEquals(5, queue.size());
+        queue.removeOldest(event, stack);
+        assertEquals("A", event.get().name());
+        assertEquals(100, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("B", event.get().name());
+        assertEquals(200, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("C", event.get().name());
+        assertEquals(300, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("D", event.get().name());
+        assertEquals(400, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("J", event.get().name());
+        assertEquals(1000, stack.get().peekAsInt());
+    }
+
+    /**
+     * Test: 20180320002726081311
+     *
+     * <p>
+     * Method: <code>offer</code>
+     * </p>
+     *
+     * <p>
+     * Case: Overflow, Drop Oldest
+     * </p>
+     */
+    @Test
+    public void test20180320002726081311 ()
+    {
+        System.out.println("Test: 20180320002726081311");
+
+        queue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_OLDEST, delegate);
+
+        assertEquals(0, queue.getOverflowCount());
+        assertEquals(0, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("A"), CascadeStack.newStack().pushInt(100)));
+        assertEquals(1, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("B"), CascadeStack.newStack().pushInt(200)));
+        assertEquals(2, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("C"), CascadeStack.newStack().pushInt(300)));
+        assertEquals(3, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("D"), CascadeStack.newStack().pushInt(400)));
+        assertEquals(4, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("E"), CascadeStack.newStack().pushInt(500)));
+        assertEquals(5, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("F"), CascadeStack.newStack().pushInt(600)));
+        assertEquals(5, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("G"), CascadeStack.newStack().pushInt(700)));
+        assertEquals(5, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("H"), CascadeStack.newStack().pushInt(800)));
+        assertEquals(5, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("I"), CascadeStack.newStack().pushInt(900)));
+        assertEquals(5, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("J"), CascadeStack.newStack().pushInt(1000)));
+        assertEquals(5, queue.size());
+        assertEquals(5, queue.getOverflowCount());
+
+        assertEquals(5, queue.size());
+        queue.removeOldest(event, stack);
+        assertEquals("F", event.get().name());
+        assertEquals(600, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("G", event.get().name());
+        assertEquals(700, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("H", event.get().name());
+        assertEquals(800, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("I", event.get().name());
+        assertEquals(900, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("J", event.get().name());
+        assertEquals(1000, stack.get().peekAsInt());
+    }
+
+    /**
+     * Test: 20180320003347425449
+     *
+     * <p>
+     * Method: <code>offer</code>
+     * </p>
+     *
+     * <p>
+     * Case: Overflow, Drop Incoming
+     * </p>
+     */
+    @Test
+    public void test20180320003347425449 ()
+    {
+        System.out.println("Test: 20180320003347425449");
+
+        queue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, delegate);
+
+        assertEquals(0, queue.getOverflowCount());
+        assertEquals(0, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("A"), CascadeStack.newStack().pushInt(100)));
+        assertEquals(1, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("B"), CascadeStack.newStack().pushInt(200)));
+        assertEquals(2, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("C"), CascadeStack.newStack().pushInt(300)));
+        assertEquals(3, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("D"), CascadeStack.newStack().pushInt(400)));
+        assertEquals(4, queue.size());
+        assertTrue(queue.offer(CascadeToken.token("E"), CascadeStack.newStack().pushInt(500)));
+        assertEquals(5, queue.size());
+        assertFalse(queue.offer(CascadeToken.token("F"), CascadeStack.newStack().pushInt(600)));
+        assertEquals(5, queue.size());
+        assertFalse(queue.offer(CascadeToken.token("G"), CascadeStack.newStack().pushInt(700)));
+        assertEquals(5, queue.size());
+        assertFalse(queue.offer(CascadeToken.token("H"), CascadeStack.newStack().pushInt(800)));
+        assertEquals(5, queue.size());
+        assertFalse(queue.offer(CascadeToken.token("I"), CascadeStack.newStack().pushInt(900)));
+        assertEquals(5, queue.size());
+        assertFalse(queue.offer(CascadeToken.token("J"), CascadeStack.newStack().pushInt(1000)));
+        assertEquals(5, queue.size());
+        assertEquals(5, queue.getOverflowCount());
+
+        assertEquals(5, queue.size());
+        queue.removeOldest(event, stack);
+        assertEquals("A", event.get().name());
+        assertEquals(100, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("B", event.get().name());
+        assertEquals(200, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("C", event.get().name());
+        assertEquals(300, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("D", event.get().name());
+        assertEquals(400, stack.get().peekAsInt());
+        queue.removeOldest(event, stack);
+        assertEquals("E", event.get().name());
+        assertEquals(500, stack.get().peekAsInt());
+    }
 
     /**
      * Test: 20180318171426295782

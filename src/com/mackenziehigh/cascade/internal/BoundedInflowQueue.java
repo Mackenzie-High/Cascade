@@ -1,6 +1,7 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeToken;
 import java.util.Objects;
@@ -37,6 +38,11 @@ public final class BoundedInflowQueue
         DROP_INCOMING,
 
         /**
+         * Drop everything already in the queue, but accept the incoming message.
+         */
+        DROP_PENDING,
+
+        /**
          * Drop everything already in the queue and the incoming message.
          */
         DROP_ALL
@@ -52,6 +58,12 @@ public final class BoundedInflowQueue
 
     private final AtomicLong overflowCount = new AtomicLong();
 
+    private final AtomicLong offeredCount = new AtomicLong();
+
+    private final AtomicLong droppedCount = new AtomicLong();
+
+    private final AtomicLong removedCount = new AtomicLong();
+
     /**
      * Sole Constructor.
      *
@@ -66,6 +78,46 @@ public final class BoundedInflowQueue
     }
 
     /**
+     * Getter (Thread Safe).
+     *
+     * @return the current overflow-policy.
+     */
+    public OverflowPolicy policy ()
+    {
+        return policy;
+    }
+
+    /**
+     * Getter (Thread Safe).
+     *
+     * @return the number of times someone tried to insert a message.
+     */
+    public long offered ()
+    {
+        return offeredCount.get();
+    }
+
+    /**
+     * Getter (Thread Safe).
+     *
+     * @return the number of messages that were dropped immediately upon insertion.
+     */
+    public long dropped ()
+    {
+        return droppedCount.get();
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the number of messages that have been inserted and then removed (not dropped).
+     */
+    public long removed ()
+    {
+        return removedCount.get();
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -74,6 +126,8 @@ public final class BoundedInflowQueue
     {
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(stack, "stack");
+
+        offeredCount.incrementAndGet();
 
         tokenSink.set(null);
         operandSink.set(null);
@@ -95,14 +149,29 @@ public final class BoundedInflowQueue
         }
         else if (overflow && policy == OverflowPolicy.DROP_INCOMING)
         {
-            return false;
+            return false; // TODO: Should this really be returned here???
+        }
+        else if (overflow && policy == OverflowPolicy.DROP_PENDING)
+        {
+            delegate.clear();
         }
         else if (overflow && policy == OverflowPolicy.DROP_ALL)
         {
             delegate.clear();
+            return false;
         }
 
-        return delegate.offer(event, stack);
+        final boolean delivered = delegate.offer(event, stack);
+
+        if (delivered == false)
+        {
+            droppedCount.incrementAndGet();
+        }
+
+        final long size = (offeredCount.get() - droppedCount.get()) - removedCount.get();
+        Verify.verify(size() == size);
+
+        return delivered;
     }
 
     /**
@@ -112,6 +181,7 @@ public final class BoundedInflowQueue
     public boolean removeOldest (final AtomicReference<CascadeToken> eventOut,
                                  final AtomicReference<CascadeStack> stackOut)
     {
+        removedCount.incrementAndGet();
         return delegate.removeOldest(eventOut, stackOut);
     }
 
@@ -122,6 +192,7 @@ public final class BoundedInflowQueue
     public boolean removeNewest (final AtomicReference<CascadeToken> eventOut,
                                  final AtomicReference<CascadeStack> stackOut)
     {
+        removedCount.incrementAndGet();
         return delegate.removeNewest(eventOut, stackOut);
     }
 

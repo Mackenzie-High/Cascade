@@ -121,9 +121,11 @@ public final class Dispatcher
      *
      * @param event identifies the event-message.
      * @param stack is the content of the event-message.
+     * @return true, if any recipients are interested in the message,
+     * even if the recipients drop the message upon receiving it.
      */
-    public void send (final CascadeToken event,
-                      final CascadeStack stack)
+    public boolean send (final CascadeToken event,
+                         final CascadeStack stack)
     {
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(stack, "stack");
@@ -136,14 +138,14 @@ public final class Dispatcher
 
         if (ref == null)
         {
-            return;
+            return false;
         }
 
         final List<InflowQueue> list = ref.get();
 
         if (list == null)
         {
-            return;
+            return false;
         }
 
         /**
@@ -159,6 +161,8 @@ public final class Dispatcher
             final InflowQueue queue = list.get(i);
             queue.offer(event, stack);
         }
+
+        return length > 0;
     }
 
 }

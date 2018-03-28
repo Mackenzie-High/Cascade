@@ -1,7 +1,8 @@
 package com.mackenziehigh.cascade;
 
 /**
- *
+ * Contexts provide scripts with access to the enclosing actor
+ * and with convenient helper methods for sending event-messages.
  */
 public interface CascadeContext
 {
@@ -28,7 +29,7 @@ public interface CascadeContext
     /**
      * Getter.
      *
-     * @return the actor that contains the script(), logger(), allocator(), etc.
+     * @return the actor that contains the script(), logger(), etc.
      */
     public CascadeActor actor ();
 
@@ -55,6 +56,11 @@ public interface CascadeContext
     /**
      * This method causes the actor() to broadcast an event-message.
      *
+     * <p>
+     * This method is a no-op, if no actors are subscribed
+     * to receive event-messages from the given event-stream.
+     * </p>
+     *
      * @param event identifies the event being produced.
      * @param stack contains the content of the message.
      * @return this.
@@ -68,11 +74,16 @@ public interface CascadeContext
     /**
      * This method causes the actor() to broadcast an event-message.
      *
+     * <p>
+     * This method is a no-op, if no actors are subscribed
+     * to receive event-messages from the given event-stream.
+     * </p>
+     *
      * @param event identifies the event being produced.
      * @param stack contains the content of the message.
      * @return this.
      */
-    public CascadeContext send (final CascadeToken event,
-                                final CascadeStack stack);
+    public CascadeContext send (CascadeToken event,
+                                CascadeStack stack);
 
 }

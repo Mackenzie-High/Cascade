@@ -11,9 +11,11 @@ public final class Main
 
     public static void main (String[] args)
     {
-        final Cascade cas = Cascade.create();
+        final Cascade cas = Cascades.newCascade();
 
         final CascadeStage r = cas.newStage();
+        r.incrementThreadCount();
+
         final CascadeActor ra = r.newActor(CommonActors.TICKER)
                 .setPeriod(1000)
                 .setOutput("ticks")

@@ -2,11 +2,8 @@ package com.mackenziehigh.cascade;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Actors receive, process, and send event-messages.
@@ -18,6 +15,8 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>
  * An actor will never execute the same script() concurrently.
+ * Moreover, an actor will synchronize execution of the script()
+ * in order to ensure memory-consistency.
  * </p>
  *
  * <p>
@@ -67,6 +66,11 @@ public interface CascadeActor
         public CascadeActor build ();
     }
 
+    /**
+     * Getter.
+     *
+     * @return a UUID that uniquely identifies this actor in time and space.
+     */
     public UUID uuid ();
 
     /**
@@ -74,7 +78,10 @@ public interface CascadeActor
      *
      * @return the enclosing cascade.
      */
-    public Cascade cascade ();
+    public default Cascade cascade ()
+    {
+        return stage().cascade();
+    }
 
     /**
      * Getter.
@@ -87,9 +94,8 @@ public interface CascadeActor
      * Setter.
      *
      * <p>
-     * In effect, this method overrides the default logger provided by
-     * the default loggerFactory() that was specified by the enclosing
-     * stage() when this actor was created.
+     * In effect, this method overrides the default that was provided
+     * by the enclosing stage() when this actor was created.
      * </p>
      *
      * @param logger will be used as the logger() henceforth.
@@ -112,7 +118,7 @@ public interface CascadeActor
     public CascadeScript script ();
 
     /**
-     * Causes this actor to switch to an fixed-size array-based
+     * Causes this actor to switch to a fixed-size array-based
      * inflow-queue, which will be used to store the messages
      * that are pending processing by this actor.
      *
@@ -134,7 +140,7 @@ public interface CascadeActor
      *
      * <p>
      * Whenever the queue becomes full, it will automatically
-     * expand resize in order to facilitate storing more
+     * increase its capacity in order to facilitate storing more
      * messages, until the maximum capacity is reached.
      * At that point, the overflow-policy will dictate
      * how incoming messages affect the queue,
@@ -179,13 +185,27 @@ public interface CascadeActor
      * <p>
      * After this method returns, whenever backlogSize() reaches
      * backlogCapacity() and a new message arrives for processing
+     * by this actor, the inflow-queue will be cleared
+     * and the new message will also be dropped.
+     * </p>
+     *
+     * @return this.
+     */
+    public CascadeActor useOverflowPolicyDropAll ();
+
+    /**
+     * Causes the overflow-policy to be changed to Drop Pending.
+     *
+     * <p>
+     * After this method returns, whenever backlogSize() reaches
+     * backlogCapacity() and a new message arrives for processing
      * by this actor, the inflow-queue will be cleared and then
      * the new message will be enqueued.
      * </p>
      *
      * @return this.
      */
-    public CascadeActor useOverflowPolicyDropAll ();
+    public CascadeActor useOverflowPolicyDropPending ();
 
     /**
      * Causes the overflow-policy to be changed to Drop Oldest.
@@ -235,20 +255,20 @@ public interface CascadeActor
     /**
      * This method causes this actor to begin receiving messages for the given event.
      *
-     * @param eventId identifies the event to listen for.
+     * @param event identifies the event to listen for.
      * @return this.
      */
-    public CascadeActor subscribe (CascadeToken eventId);
+    public CascadeActor subscribe (CascadeToken event);
 
     /**
      * This method causes this actor to begin receiving messages for the given event.
      *
-     * @param eventId identifies the event to listen for.
+     * @param event identifies the event to listen for.
      * @return this.
      */
-    public default CascadeActor subscribe (final String eventId)
+    public default CascadeActor subscribe (final String event)
     {
-        return subscribe(CascadeToken.token(eventId));
+        return subscribe(CascadeToken.token(event));
     }
 
     /**
@@ -259,10 +279,10 @@ public interface CascadeActor
      * then this method is simply a no-op.
      * </p>
      *
-     * @param eventId identifies the event to no longer listen for.
+     * @param event identifies the event to no longer listen for.
      * @return this.
      */
-    public CascadeActor unsubscribe (CascadeToken eventId);
+    public CascadeActor unsubscribe (CascadeToken event);
 
     /**
      * This method causes this actor to stop receiving messages for the given event.
@@ -272,12 +292,12 @@ public interface CascadeActor
      * then this method is simply a no-op.
      * </p>
      *
-     * @param eventId identifies the event to no longer listen for.
+     * @param event identifies the event to no longer listen for.
      * @return this.
      */
-    public default CascadeActor unsubscribe (final String eventId)
+    public default CascadeActor unsubscribe (final String event)
     {
-        return unsubscribe(CascadeToken.token(eventId));
+        return unsubscribe(CascadeToken.token(event));
     }
 
     /**
@@ -297,9 +317,9 @@ public interface CascadeActor
     /**
      * Getter.
      *
-     * @return true, if and only if, this actor is still on the stage.
+     * @return true, if and only if, this actor is not closed or closing.
      */
-    public boolean isAlive ();
+    public boolean isActive ();
 
     /**
      * Getter.
@@ -309,21 +329,11 @@ public interface CascadeActor
     public boolean isClosing ();
 
     /**
-     * This method kills this actor, which causes it to stop listening
-     * for incoming messages, remove itself from the stage, etc.
-     */
-    public void close ();
-
-    /**
-     * This method blocks, until this actor dies.
+     * Getter.
      *
-     * @param timeout is the maximum amount of time to wait.
-     * @param timeoutUnit describes the timeout.
-     * @throws java.lang.InterruptedException
+     * @return true, if and only if, this actor has left the stage.
      */
-    public void awaitClose (final long timeout,
-                            final TimeUnit timeoutUnit)
-            throws InterruptedException;
+    public boolean isClosed ();
 
     /**
      * Getter.
@@ -362,31 +372,32 @@ public interface CascadeActor
      * @return the total number of messages sent to this actor,
      * thus far, including messages that had to be dropped.
      */
-    public long receivedMessageCount ();
+    public long receivedMessages ();
 
     /**
      * Getter.
      *
      * @return the total number of messages that this actor
-     * has dropped upon receiving, thus far.
+     * has dropped upon receiving them, thus far.
      */
-    public long droppedMessageCount ();
+    public long droppedMessages ();
 
     /**
-     * Getter,
+     * Getter.
      *
      * @return the total number of messages that this actor
      * has actually processed using the script(), thus far.
      */
-    public long consumedMessageCount ();
+    public long consumedMessages ();
 
     /**
      * Getter.
      *
      * @return the total number of messages that this actor
-     * has sent to other actors and/or itself, thus far.
+     * has sent to other actors and/or itself,
+     * including undelivered messages, thus far.
      */
-    public long producedMessageCount ();
+    public long producedMessages ();
 
     /**
      * Getter.
@@ -394,7 +405,7 @@ public interface CascadeActor
      * @return the total number of messages that this actor has sent,
      * but no actors were listening for.
      */
-    public long undeliveredMessageCount ();
+    public long undeliveredMessages ();
 
     /**
      * Getter.
@@ -402,159 +413,45 @@ public interface CascadeActor
      * @return the number of unhandled exceptions that
      * have been thrown by the script(), thus far.
      */
-    public long unhandledExceptionCount ();
+    public long unhandledExceptions ();
 
     /**
-     * Causes the timing of script execution to be turned on or off.
+     * Causes this actor to be monitored by the given supervisor.
      *
-     * <p>
-     * Timing only measures how long is spent processing messages.
-     * The setup and close operations are now timed.
-     * </p>
-     *
-     * @param state is true, if the timing should be turned on.
+     * @param supervisor will monitor this actor.
      * @return this.
      */
-    public CascadeActor toggleStopwatch (boolean state);
+    public CascadeActor registerSupervisor (CascadeSupervisor supervisor);
 
     /**
-     * Causes the stopwatch to be reset.
+     * Causes this actor will no-longer be monitored by the given supervisor.
      *
-     * @return a counter counting how many times this method has been called.
-     */
-    public long resetStopwatch ();
-
-    /**
-     * Getter.
+     * <p>
+     * This method is a no-op, if the given supervisor does not monitor this actor.
+     * </p>
      *
-     * @return how long since the last call to resetStopwatch(),
-     * or empty, if the stopwatch is currently turned off.
-     */
-    public Optional<Duration> elapsedTime ();
-
-    /**
-     * Getter,
-     *
-     * @return the total number of messages that this actor
-     * has actually processed using the script(),
-     * since the last call to resetStopwatch, or empty,
-     * if the stopwatch is currently turned off.
-     */
-    public OptionalLong timedMessageCount ();
-
-    /**
-     * Getter.
-     *
-     * @return the maximum time spent processing a single message,
-     * since the last call to resetStopwatch(), or empty,
-     * if the stopwatch is currently turned off.
-     */
-    public Optional<Duration> maximumTime ();
-
-    /**
-     * Getter.
-     *
-     * @return the minimum time spent processing a single message,
-     * since the last call to resetStopwatch(), or empty,
-     * if the stopwatch is currently turned off.
-     */
-    public Optional<Duration> minimumTime ();
-
-    /**
-     * Getter.
-     *
-     * @return the total time spent processing messages,
-     * since the last call to resetStopwatch(), or empty,
-     * if the stopwatch is currently turned off.
-     */
-    public Optional<Duration> totalTime ();
-
-    /**
-     * Getter.
-     *
-     * @return the average time spent processing a single message,
-     * since the last call to resetStopwatch(), or empty,
-     * if the stopwatch is currently turned off.
-     */
-    public Optional<Duration> averageTime ();
-
-    /**
-     * Convenience method overload.
-     *
-     * @param dest is the given destination to forward the message to.
+     * @param supervisor will no-longer monitor this actor.
      * @return this.
      */
-    public default CascadeActor monitorInput (final String dest)
-    {
-        return monitorInput(CascadeToken.token(dest));
-    }
+    public CascadeActor deregisterSupervisor (CascadeSupervisor supervisor);
 
     /**
-     * Causes all messages processed by this actor to be forwarded
-     * to another event-stream as well, which is useful for
-     * debugging purposes.
+     * This method kills this actor, which causes it to stop listening
+     * for incoming messages, remove itself from the stage, etc.
      *
      * <p>
-     * This method facilitates the monitoring of inputs to this actor,
-     * by other actors that are interested in listening.
+     * This method returns immediately; however, the actor will not close
+     * until it has finished any work that it is currently performing.
      * </p>
-     *
-     * <p>
-     * First, the event-identifier will be pushed on the operand-stack.
-     * Second, the sequence-number of the message relative to this
-     * actor will be pushed onto the operand-stack. This is the index
-     * of the message in the history of messages received by this actor.
-     * Third, the current Instant will be pushed onto the operand-stack.
-     * Fourth, this actor will be pushed onto the operand-stack.
-     * Finally, the operand-stack will be sent to the given destination.
-     * </p>
-     *
-     * <p>
-     * This method causes a message to be forwarded when it is removed
-     * from the inflow-queue and begins being processed by the actor.
-     * Thus, messages will not be forwarded while still in the inflow-queue.
-     * Likewise, messages that are dropped due to the overflow-policy
-     * will not be forwarded at all.
-     * </p>
-     *
-     * @param dest is the given destination to forward the message to.
-     * @return this.
      */
-    public CascadeActor monitorInput (CascadeToken dest);
+    public void close ();
 
     /**
-     * Convenience method overload.
+     * This method blocks, until this actor dies.
      *
-     * @param dest is the given destination to forward the message to.
-     * @return this.
+     * @param timeout is the maximum amount of time to wait.
+     * @throws java.lang.InterruptedException
      */
-    public default CascadeActor monitorOutput (final String dest)
-    {
-        return monitorInput(CascadeToken.token(dest));
-    }
-
-    /**
-     * Causes all messages sent-from this actor to be forwarded
-     * to another event-stream as well, which is useful for
-     * debugging purposes.
-     *
-     * <p>
-     * This method facilitates the monitoring of outputs from this actor,
-     * by other actors that are interested in listening.
-     * </p>
-     *
-     * <p>
-     * First, the event-identifier will be pushed on the operand-stack.
-     * Second, the sequence-number of the message relative to this
-     * actor will be pushed onto the operand-stack. This is the index
-     * of the message in the history of messages published by this actor.
-     * Third, the current Instant will be pushed onto the operand-stack.
-     * Fourth, this actor will be pushed onto the operand-stack.
-     * Finally, the operand-stack will be sent to the given destination.
-     * </p>
-     *
-     * @param dest is the given destination to forward the message to.
-     * @return this.
-     */
-    public CascadeActor monitorOutput (CascadeToken dest);
+    public void awaitClose (Duration timeout)
+            throws InterruptedException;
 }

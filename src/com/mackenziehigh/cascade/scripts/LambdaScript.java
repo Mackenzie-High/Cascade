@@ -4,8 +4,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.CascadeContext;
-import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeScript;
+import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeToken;
 import java.util.Set;
 
@@ -24,6 +24,24 @@ public final class LambdaScript
 
     @FunctionalInterface
     public interface MessageFunction
+    {
+        public void accept (CascadeContext ctx,
+                            CascadeToken event,
+                            CascadeStack stack)
+                throws Throwable;
+    }
+
+    @FunctionalInterface
+    public interface UnhandledExceptionFunction
+    {
+        public void accept (CascadeContext ctx,
+                            CascadeToken event,
+                            CascadeStack stack)
+                throws Throwable;
+    }
+
+    @FunctionalInterface
+    public interface UndeliveredMessageFunction
     {
         public void accept (CascadeContext ctx,
                             CascadeToken event,
@@ -59,13 +77,13 @@ public final class LambdaScript
     }
 
     public LambdaScript subscribe (final MessageFunction functor,
-                                    final String event)
+                                   final String event)
     {
         return subscribe(functor, CascadeToken.token(event));
     }
 
     public LambdaScript subscribe (final MessageFunction functor,
-                                    final CascadeToken event)
+                                   final CascadeToken event)
     {
         Preconditions.checkNotNull(functor, "functor");
         messageFunctions.add(functor);
@@ -73,13 +91,13 @@ public final class LambdaScript
     }
 
     public LambdaScript unsubscribe (final MessageFunction functor,
-                                      final String event)
+                                     final String event)
     {
         return unsubscribe(functor, CascadeToken.token(event));
     }
 
     public LambdaScript unsubscribe (final MessageFunction functor,
-                                      final CascadeToken event)
+                                     final CascadeToken event)
     {
         return this;
     }

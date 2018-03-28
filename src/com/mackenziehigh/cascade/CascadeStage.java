@@ -1,12 +1,10 @@
 package com.mackenziehigh.cascade;
 
 import com.google.common.base.Preconditions;
-import com.mackenziehigh.cascade.allocators.CascadeAllocator;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A stage contains actor(s) that are powered by a shared pool of threads.
@@ -28,6 +26,27 @@ public interface CascadeStage
     public Cascade cascade ();
 
     /**
+     * Setter.
+     *
+     * <p>
+     * In effect, this method overrides the default logger provided by
+     * the default logger() that was specified by the enclosing cascade()
+     * when this actor was created.
+     * </p>
+     *
+     * @param logger will be used as the logger() henceforth.
+     * @return this.
+     */
+    public CascadeStage useLogger (CascadeLogger logger);
+
+    /**
+     * Getter.
+     *
+     * @return the current logger.
+     */
+    public CascadeLogger logger ();
+
+    /**
      * Getter.
      *
      * @return the threads that are currently powering this stage.
@@ -35,46 +54,26 @@ public interface CascadeStage
     public Set<Thread> threads ();
 
     /**
-     * Setter.
+     * Causes a new thread to be added to the thread-pool.
      *
-     * <p>
-     * In effect, this method overrides the default loggerFactory() that was
-     * specified by the enclosing cascade() when this stage was created.
-     * </p>
-     *
-     * @param logger will be used to create default loggers,
-     * for any actors created after this method returns.
      * @return this.
      */
-    public CascadeStage useLoggerFactory (final CascadeLogger.Factory logger);
+    public CascadeStage incrementThreadCount ();
 
     /**
-     * Getter.
-     *
-     * @return the logger-factory that is currently in use herein.
-     */
-    public CascadeLogger.Factory loggerFactory ();
-
-    /**
-     * Setter.
+     * Causes an existing thread to be removed from the thread-pool.
      *
      * <p>
-     * In effect, this method overrides the default allocator() that was
-     * specified by the enclosing cascade() when this stage was created.
+     * This method will return immediately.
+     * This method merely informs a running thread that it needs to stop.
+     * The thread itself will not stop, until it is done performing
+     * any work that it is currently engaged in.
      * </p>
      *
-     * @param allocator will be the default allocator,
-     * for any actors created after this method returns.
      * @return this.
+     * @throws IllegalStateException if threads() is already empty.
      */
-    public CascadeStage useAllocator (final CascadeAllocator allocator);
-
-    /**
-     * Getter.
-     *
-     * @return the current default allocator for newly created actors.
-     */
-    public CascadeAllocator allocator ();
+    public CascadeStage decrementThreadCount ();
 
     /**
      * Getter.
@@ -147,6 +146,13 @@ public interface CascadeStage
     public boolean isClosing ();
 
     /**
+     * Getter.
+     *
+     * @return true, if and only if, this stage is closed.
+     */
+    public boolean isClosed ();
+
+    /**
      * This method kills all the actors on the stage and removes
      * this stage from the enclosing cascade().
      */
@@ -156,11 +162,9 @@ public interface CascadeStage
      * This method blocks, until this stage closes.
      *
      * @param timeout is the maximum amount of time to wait.
-     * @param timeoutUnit describes the timeout.
      * @throws java.lang.InterruptedException
      */
-    public void awaitClose (final long timeout,
-                            final TimeUnit timeoutUnit)
+    public void awaitClose (final Duration timeout)
             throws InterruptedException;
 
     /**
