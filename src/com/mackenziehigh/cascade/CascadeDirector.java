@@ -1,21 +1,21 @@
 package com.mackenziehigh.cascade;
 
 /**
- * A supervisor monitors an actor.
+ * A director monitors an actor.
  *
  * <p>
  * Unlike an actor itself, the methods herein may be executed concurrently.
  * </p>
  */
-public interface CascadeSupervisor
+public interface CascadeDirector
 {
     /**
      * This method will be invoked whenever this object
-     * becomes a supervisor of the given actor.
+     * becomes a director of the given actor.
      *
      * <p>
      * This method will be executed on the thread
-     * that performs the registration of the supervisor.
+     * that performs the registration of the director.
      * </p>
      *
      * @param actor will be monitored going forward.
@@ -27,7 +27,7 @@ public interface CascadeSupervisor
 
     /**
      * This method will be invoked whenever this object
-     * stops being a supervisor of the given actor.
+     * stops being a director of the given actor.
      *
      * @param actor will not be monitored going forward.
      */
@@ -124,8 +124,8 @@ public interface CascadeSupervisor
      * @param actor threw the exception.
      * @param cause was thrown.
      */
-    public default void onException (CascadeActor actor,
-                                     Throwable cause)
+    public default void onUnhandledException (CascadeActor actor,
+                                              Throwable cause)
     {
         // Pass
     }

@@ -5,11 +5,11 @@ import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeActor;
 import com.mackenziehigh.cascade.CascadeContext;
+import com.mackenziehigh.cascade.CascadeDirector;
 import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeScript;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeStage;
-import com.mackenziehigh.cascade.CascadeSupervisor;
 import com.mackenziehigh.cascade.CascadeToken;
 import com.mackenziehigh.cascade.internal.BoundedInflowQueue.OverflowPolicy;
 import java.time.Duration;
@@ -137,6 +137,11 @@ public final class InternalActor
     private final Scheduler.Process<InternalActor> task;
 
     /**
+     * These are the supervisors that monitor this actor.
+     */
+    private final InternalSupervisors directors = new InternalSupervisors();
+
+    /**
      * Sole Constructor.
      *
      * @param stage contains this actor.
@@ -148,8 +153,8 @@ public final class InternalActor
         this.stage = stage;
         this.logger = null;
         this.script = new InternalScript(script);
-        final InflowQueue initialInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);
-        this.boundedInflowQueue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, initialInflowQueue);
+        this.storageInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);
+        this.boundedInflowQueue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);
         this.swappableInflowQueue = new SwappableInflowQueue(boundedInflowQueue);
         this.schedulerInflowQueue = new NotificationInflowQueue(swappableInflowQueue, q -> onQueueAdd(q));
         this.syncInflowQueue = new SynchronizedInflowQueue(schedulerInflowQueue);
@@ -242,7 +247,7 @@ public final class InternalActor
     @Override
     public CascadeLogger logger ()
     {
-        return logger;
+        return logger == null ? stage.logger() : logger;
     }
 
     /**
@@ -543,18 +548,22 @@ public final class InternalActor
      * {@inheritDoc}
      */
     @Override
-    public CascadeActor registerSupervisor (final CascadeSupervisor supervisor)
+    public CascadeActor registerDirector (final CascadeDirector director)
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        Objects.requireNonNull(director, "director");
+        directors.register(director);
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public CascadeActor deregisterSupervisor (final CascadeSupervisor supervisor)
+    public CascadeActor deregisterDirector (final CascadeDirector director)
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        Objects.requireNonNull(director, "director");
+        directors.deregister(director);
+        return this;
     }
 
 }

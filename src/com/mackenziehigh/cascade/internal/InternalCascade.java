@@ -8,7 +8,7 @@ import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeStage;
 import com.mackenziehigh.cascade.CascadeToken;
-import com.mackenziehigh.cascade.loggers.StandardLogger;
+import com.mackenziehigh.cascade.loggers.StandardIoLogger;
 import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
@@ -31,7 +31,7 @@ public final class InternalCascade
 
     private final Set<InternalStage> stages = Sets.newConcurrentHashSet();
 
-    private volatile CascadeLogger cascadeLogger = new StandardLogger(this);
+    private volatile CascadeLogger cascadeLogger = new StandardIoLogger(this);
 
     private final AtomicBoolean cascadeActive = new AtomicBoolean(true);
 

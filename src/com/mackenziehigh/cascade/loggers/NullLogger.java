@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.internal;
+package com.mackenziehigh.cascade.loggers;
 
 import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeToken;
@@ -7,12 +7,12 @@ import java.util.Objects;
 /**
  * This is a logger that simply discards all log-messages.
  */
-public final class DevNullLogger
+public final class NullLogger
         implements CascadeLogger
 {
     private final CascadeToken site;
 
-    public DevNullLogger (final CascadeToken site)
+    public NullLogger (final CascadeToken site)
     {
         this.site = Objects.requireNonNull(site, "site");
     }

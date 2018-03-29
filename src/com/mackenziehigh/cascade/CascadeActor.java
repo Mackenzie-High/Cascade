@@ -416,24 +416,24 @@ public interface CascadeActor
     public long unhandledExceptions ();
 
     /**
-     * Causes this actor to be monitored by the given supervisor.
+     * Causes this actor to be monitored by the given director.
      *
-     * @param supervisor will monitor this actor.
+     * @param director will monitor this actor.
      * @return this.
      */
-    public CascadeActor registerSupervisor (CascadeSupervisor supervisor);
+    public CascadeActor registerDirector (CascadeDirector director);
 
     /**
-     * Causes this actor will no-longer be monitored by the given supervisor.
+     * Causes this actor will no-longer be monitored by the given director.
      *
      * <p>
-     * This method is a no-op, if the given supervisor does not monitor this actor.
+     * This method is a no-op, if the given director does not monitor this actor.
      * </p>
      *
-     * @param supervisor will no-longer monitor this actor.
+     * @param director will no-longer monitor this actor.
      * @return this.
      */
-    public CascadeActor deregisterSupervisor (CascadeSupervisor supervisor);
+    public CascadeActor deregisterDirector (CascadeDirector director);
 
     /**
      * This method kills this actor, which causes it to stop listening

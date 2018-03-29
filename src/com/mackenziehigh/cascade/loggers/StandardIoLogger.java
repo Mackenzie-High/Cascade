@@ -6,14 +6,14 @@ import java.util.logging.Logger;
 /**
  *
  */
-public final class StandardLogger
+public final class StandardIoLogger
         implements CascadeLogger
 {
     private final Logger logger;
 
     private final Object site;
 
-    public StandardLogger (final Object site)
+    public StandardIoLogger (final Object site)
     {
         this.site = site;
         this.logger = Logger.getLogger(site.getClass().getName());

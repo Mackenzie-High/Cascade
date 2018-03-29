@@ -1,11 +1,13 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeToken;
+import java.math.BigInteger;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -34,7 +36,7 @@ public final class Dispatcher
      * and then swapped-in as the replacement for the existing list.
      * </p>
      */
-    private final Map<CascadeToken, AtomicReference<List<InflowQueue>>> subscriptions = new ConcurrentHashMap<>();
+    private final Map<BigInteger, AtomicReference<List<InflowQueue>>> subscriptions = Collections.synchronizedMap(Maps.newTreeMap());
 
     /**
      * After this method returns, the given inflow-queue will
@@ -54,9 +56,11 @@ public final class Dispatcher
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(subscriber, "subscriber");
 
-        if (subscriptions.containsKey(event))
+        final BigInteger key = event.toHashInt();
+
+        if (subscriptions.containsKey(key))
         {
-            final AtomicReference<List<InflowQueue>> ref = subscriptions.get(this);
+            final AtomicReference<List<InflowQueue>> ref = subscriptions.get(key);
             final CopyOnWriteArrayList modified = new CopyOnWriteArrayList(ref.get());
             modified.add(subscriber);
             ref.set(modified);
@@ -65,7 +69,7 @@ public final class Dispatcher
         {
             final List<InflowQueue> list = new CopyOnWriteArrayList<>();
             list.add(subscriber);
-            subscriptions.put(event, new AtomicReference<>(list));
+            subscriptions.put(key, new AtomicReference<>(list));
         }
     }
 
@@ -92,16 +96,18 @@ public final class Dispatcher
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(subscriber, "subscriber");
 
-        if (subscriptions.containsKey(event) == false)
+        final BigInteger key = event.toHashInt();
+
+        if (subscriptions.containsKey(key) == false)
         {
             return;
         }
 
-        final AtomicReference<List<InflowQueue>> ref = subscriptions.get(this);
+        final AtomicReference<List<InflowQueue>> ref = subscriptions.get(key);
 
         if (ref.get().size() == 1)
         {
-            subscriptions.remove(event);
+            subscriptions.remove(key);
         }
         else
         {
@@ -130,11 +136,13 @@ public final class Dispatcher
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(stack, "stack");
 
+        final BigInteger key = event.toHashInt();
+
         /**
          * These are all of the inflow-queues that are interested
          * in receiving messages from the given event, if any.
          */
-        final AtomicReference<List<InflowQueue>> ref = subscriptions.get(event);
+        final AtomicReference<List<InflowQueue>> ref = subscriptions.get(key);
 
         if (ref == null)
         {

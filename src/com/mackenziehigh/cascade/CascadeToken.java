@@ -7,10 +7,12 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Longs;
+import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * A token is a series of one or more textual keys, which form a name.
@@ -47,6 +49,8 @@ public final class CascadeToken
 
     private final String hashString;
 
+    private final BigInteger hashInt;
+
     private final int hashCode;
 
     private CascadeToken (final CascadeToken parent,
@@ -58,6 +62,7 @@ public final class CascadeToken
         this.name = prefix.isEmpty() ? suffix : prefix + '.' + suffix;
         this.hashString = Hashing.md5().hashString(name, Charset.forName("ASCII")).toString();
         this.hashBytes = Hashing.md5().hashString(name, Charset.forName("ASCII")).asBytes();
+        this.hashInt = new BigInteger(hashBytes);
         Verify.verify(hashBytes.length == 128 / 8); // 128 bits to bytes
         this.highMD5 = Longs.fromByteArray(Arrays.copyOfRange(hashBytes, 8, 16));
         this.lowMD5 = Longs.fromByteArray(Arrays.copyOfRange(hashBytes, 0, 8));
@@ -66,6 +71,16 @@ public final class CascadeToken
         this.keys = parent == null
                 ? ImmutableList.of(name)
                 : ImmutableList.<String>builder().addAll(parent.keys()).add(suffix).build();
+    }
+
+    /**
+     * Create a new token with a random name based on a UUID.
+     *
+     * @return the new token.
+     */
+    public static CascadeToken random ()
+    {
+        return token(UUID.randomUUID().toString());
     }
 
     /**
@@ -152,7 +167,7 @@ public final class CascadeToken
      * @param out will receive the binary representation of the MD5 hash.
      * @return this.
      */
-    public CascadeToken hashBytes (final byte[] out)
+    public CascadeToken toHashBytes (final byte[] out)
     {
         System.arraycopy(hashBytes, 0, out, 0, hashBytes.length);
         return this;
@@ -166,6 +181,16 @@ public final class CascadeToken
     public byte[] toHashBytes ()
     {
         return Arrays.copyOf(hashBytes, hashBytes.length);
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the cached integer representation of the MD5 hash.
+     */
+    public BigInteger toHashInt ()
+    {
+        return hashInt;
     }
 
     /**
