@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade.internal;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Cascade;
@@ -194,14 +195,18 @@ public final class InternalActor
         task.schedule();
     }
 
-    public CascadeContext context ()
-    {
-        return context;
-    }
-
     public InflowQueue inflowQueue ()
     {
         return syncInflowQueue;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CascadeContext context ()
+    {
+        return context;
     }
 
     /**
@@ -563,6 +568,19 @@ public final class InternalActor
     {
         Objects.requireNonNull(director, "director");
         directors.deregister(director);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CascadeActor tell (final CascadeToken event,
+                              final CascadeStack stack)
+    {
+        Preconditions.checkNotNull(event, "event");
+        Preconditions.checkNotNull(stack, "stack");
+        inflowQueue().offer(event, stack);
         return this;
     }
 

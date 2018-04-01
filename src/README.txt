@@ -1,8 +1,26 @@
 
 
-
-
 TODO:
++ debugInfo() on actors?
++ User-defined attribute set/has/get methods on actors?
++ Better access to the settings used to create scripts somehow?
++ More well-defined mechanism for stack serialization.
++ Add blocking consumers that receive values from actor. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+OLD TODO:
 + No messages should be processed before onSetup() is invoked on every reactor.
 + What happens, if you try to send a message in onSetup() or onDestroy()???
 + Test Orderly Atomic Sender (Atomicity, Ordering, Exception Handling).

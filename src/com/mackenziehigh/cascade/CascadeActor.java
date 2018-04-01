@@ -416,6 +416,30 @@ public interface CascadeActor
     public long unhandledExceptions ();
 
     /**
+     * Getter.
+     *
+     * @return the context that is passed to the script()
+     * whenever messages are processed by this actor.
+     */
+    public CascadeContext context ();
+
+    /**
+     * Sends an event-message directly to this actor.
+     *
+     * <p>
+     * The event-message will *not* be routed through the global dispatcher;
+     * therefore, no other actors will receive the event-message,
+     * even if they are subscribed to the same event.
+     * </p>
+     *
+     * @param event identifies the event that produced the event-message.
+     * @param stack is the content of the event-message.
+     * @return this.
+     */
+    public CascadeActor tell (CascadeToken event,
+                              CascadeStack stack);
+
+    /**
      * Causes this actor to be monitored by the given director.
      *
      * @param director will monitor this actor.
