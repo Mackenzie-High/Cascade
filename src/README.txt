@@ -7,7 +7,7 @@ TODO:
 + More well-defined mechanism for stack serialization.
 + Add blocking consumers that receive values from actor.
 + Rename CommandChain, since it could conflict conceptually with Commandable.
-
++ onSetup() / Scheduler is broken. 
 
 
 

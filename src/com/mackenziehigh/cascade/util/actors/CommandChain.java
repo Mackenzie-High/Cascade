@@ -126,6 +126,13 @@ public interface CommandChain<T extends CommandChain<T>>
 
     public T forEach (Consumer<CascadeStack> action);
 
+    public T stash (String key,
+                    int n);
+
+    public T unstash (String key);
+
+    public T demux ();
+
     public T send (CascadeToken event);
 
     public T sendIf (CascadeToken event,
