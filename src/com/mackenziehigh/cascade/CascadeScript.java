@@ -1,10 +1,31 @@
 package com.mackenziehigh.cascade;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Map;
+
 /**
  * Scripts define how actors behave in-response to events.
  */
 public interface CascadeScript
 {
+
+    /**
+     * This method will be invoked in order to retrieve implementation-specific
+     * human-readable key-value pairs of debug information.
+     *
+     * <p>
+     * Unlike the other methods in this interface, this method
+     * may be invoked by any thread as necessary; therefore,
+     * implementors must ensure appropriate thread-safety.
+     * </p>
+     *
+     * @return an immutable map.
+     */
+    public default Map<String, String> debug ()
+    {
+        return ImmutableMap.of();
+    }
+
     /**
      * This event-handler will be executed when the enclosing actor is created.
      *

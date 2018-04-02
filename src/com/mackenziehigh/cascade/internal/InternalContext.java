@@ -2,8 +2,6 @@ package com.mackenziehigh.cascade.internal;
 
 import com.mackenziehigh.cascade.CascadeActor;
 import com.mackenziehigh.cascade.CascadeContext;
-import com.mackenziehigh.cascade.CascadeStack;
-import com.mackenziehigh.cascade.CascadeToken;
 import java.util.Objects;
 
 /**
@@ -26,16 +24,5 @@ public final class InternalContext
     public CascadeActor actor ()
     {
         return actor;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public CascadeContext send (final CascadeToken event,
-                                final CascadeStack stack)
-    {
-        actor.send(event, stack);
-        return this;
     }
 }

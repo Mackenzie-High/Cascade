@@ -1,9 +1,9 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.mackenziehigh.cascade.CascadeActor;
+import com.mackenziehigh.cascade.CascadeDirector;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeToken;
-import com.mackenziehigh.cascade.CascadeDirector;
 
 /**
  * This is the actual implementation of the CascadeSupervisor interface.
@@ -29,26 +29,10 @@ public final class InternalSupervisor
     }
 
     @Override
-    public void onUndeliveredMessage (CascadeActor sender,
-                                      CascadeToken event,
-                                      CascadeStack stack)
-    {
-        CascadeDirector.super.onUndeliveredMessage(sender, event, stack);
-    }
-
-    @Override
-    public void onProducedMessage (CascadeActor sender,
-                                   CascadeToken event,
-                                   CascadeStack stack)
-    {
-        CascadeDirector.super.onProducedMessage(sender, event, stack);
-    }
-
-    @Override
-    public void onUnhandledException (CascadeActor actor,
+    public void onException (CascadeActor actor,
                              Throwable cause)
     {
-        CascadeDirector.super.onUnhandledException(actor, cause);
+        CascadeDirector.super.onException(actor, cause);
     }
 
     @Override
@@ -76,11 +60,11 @@ public final class InternalSupervisor
     }
 
     @Override
-    public void onReceivedMessage (CascadeActor actor,
+    public void onAcceptedMessage (CascadeActor actor,
                                    CascadeToken event,
                                    CascadeStack stack)
     {
-        CascadeDirector.super.onReceivedMessage(actor, event, stack);
+        CascadeDirector.super.onAcceptedMessage(actor, event, stack);
     }
 
     @Override

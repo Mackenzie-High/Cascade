@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.scripts;
+package com.mackenziehigh.cascade.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

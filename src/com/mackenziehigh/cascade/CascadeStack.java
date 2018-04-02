@@ -977,12 +977,4 @@ public final class CascadeStack
         return value;
     }
 
-    public static void main (String[] args)
-    {
-        CascadeStack stack = CascadeStack.EMPTY;
-
-        stack = stack.pushInt(100).pushInt(200);
-
-        System.out.println(stack.peekAsDouble());
-    }
 }

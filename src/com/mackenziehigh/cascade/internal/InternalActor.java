@@ -1,10 +1,10 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeActor;
+import com.mackenziehigh.cascade.CascadeChannel;
 import com.mackenziehigh.cascade.CascadeContext;
 import com.mackenziehigh.cascade.CascadeDirector;
 import com.mackenziehigh.cascade.CascadeLogger;
@@ -21,7 +21,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * This is the actual implementation of the CascadeActor interface.
@@ -43,6 +43,11 @@ public final class InternalActor
      * This stage contains this actor.
      */
     private final InternalStage stage;
+
+    /**
+     * This is the name of this actor, which may change over time.
+     */
+    private volatile String name = uuid.toString();
 
     /**
      * This is the logger that the script will use.
@@ -69,17 +74,6 @@ public final class InternalActor
      * True, if not closing or closed.
      */
     private final AtomicBoolean alive = new AtomicBoolean(true);
-
-    /**
-     * This is how many messages have been sent to event-streams
-     * that do not have any subscribers.
-     */
-    private final AtomicLong undeliveredMessageCount = new AtomicLong();
-
-    /**
-     * This is how many messages have been sent, period.
-     */
-    private final AtomicLong producedMessageCount = new AtomicLong();
 
     /**
      * Used to implement awaitClose().
@@ -147,6 +141,10 @@ public final class InternalActor
      */
     private final InternalSupervisors directors = new InternalSupervisors();
 
+    private final AtomicReference<CascadeToken> event = new AtomicReference<>();
+
+    private final AtomicReference<CascadeStack> stack = new AtomicReference<>();
+
     /**
      * Sole Constructor.
      *
@@ -167,40 +165,79 @@ public final class InternalActor
         this.task = stage.scheduler().newProcess(0, this);
     }
 
-    public void schedule ()
+    public void act ()
     {
-        task.schedule();
+        synchronized (this)
+        {
+            try
+            {
+                setupIfNeeded();
+            }
+            catch (Throwable ex)
+            {
+                reportUnhandledException(ex);
+                close();
+                return;
+            }
+
+            try
+            {
+                processMessageIfNeeded();
+            }
+            catch (Throwable ex)
+            {
+                reportUnhandledException(ex);
+            }
+
+            try
+            {
+                shutdownIfNeeded();
+            }
+            catch (Throwable ex)
+            {
+                reportUnhandledException(ex);
+            }
+        }
     }
 
-    public void setupIfNeeded ()
+    private void setupIfNeeded ()
             throws Throwable
     {
         if (initialized.compareAndSet(false, true))
         {
-            script.onSetup(context); // TODO: This all needs reworked. 
+            script.onSetup(context);
         }
     }
 
-    /**
-     * Send a message and count it.
-     *
-     * @param event identifies the event that produced the message.
-     * @param stack is the content of the message.
-     * @return true, if the message was delivered to at least one interested recipient.
-     */
-    public boolean send (final CascadeToken event,
-                         final CascadeStack stack)
+    private void processMessageIfNeeded ()
+            throws Throwable
     {
-        producedMessageCount.incrementAndGet();
-
-        final boolean undelivered = stage.dispatcher().send(event, stack);
-
-        if (undelivered == false)
+        event.set(null);
+        stack.set(null);
+        syncInflowQueue.removeOldest(event, stack);
+        final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)
+        if (delivered)
         {
-            undeliveredMessageCount.incrementAndGet();
+            script.onMessage(context(), event.get(), stack.get());
         }
+    }
 
-        return !undelivered;
+    private void shutdownIfNeeded ()
+    {
+
+    }
+
+    private void reportUnhandledException (final Throwable cause)
+    {
+        try
+        {
+            script.unhandledExceptionCount.incrementAndGet();
+            script.onException(context, cause);
+        }
+        catch (Throwable ex)
+        {
+            script.unhandledExceptionCount.incrementAndGet();
+        }
     }
 
     /**
@@ -212,11 +249,6 @@ public final class InternalActor
     private void onQueueAdd (final InflowQueue queue)
     {
         task.schedule();
-    }
-
-    public InflowQueue inflowQueue ()
-    {
-        return syncInflowQueue;
     }
 
     /**
@@ -293,17 +325,6 @@ public final class InternalActor
         final InflowQueue newQueue = new ArrayInflowQueue(capacity);
         replaceQueue(policy, newQueue);
         return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public CascadeActor useGrowableArrayInflowQueue (int size,
-                                                     int capacity,
-                                                     int delta)
-    {
-        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /**
@@ -422,15 +443,6 @@ public final class InternalActor
      * {@inheritDoc}
      */
     @Override
-    public Set<CascadeToken> subscriptions ()
-    {
-        return ImmutableSet.copyOf(subscriptions);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public boolean isActing ()
     {
         return acting.get();
@@ -518,7 +530,7 @@ public final class InternalActor
      * {@inheritDoc}
      */
     @Override
-    public long receivedMessages ()
+    public long acceptedMessages ()
     {
         return boundedInflowQueue.offered(); // Thread-Safe via AtomicLong
     }
@@ -539,24 +551,6 @@ public final class InternalActor
     public long consumedMessages ()
     {
         return script.consumedMessageCount.get(); // Thread-Safe via AtomicLong
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public long producedMessages ()
-    {
-        return producedMessageCount.get();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public long undeliveredMessages ()
-    {
-        return undeliveredMessageCount.get();
     }
 
     /**
@@ -599,8 +593,109 @@ public final class InternalActor
     {
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(stack, "stack");
-        inflowQueue().offer(event, stack);
+        syncInflowQueue.offer(event, stack);
         return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CascadeActor named (final String name)
+    {
+        this.name = Objects.requireNonNull(name, "name");
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String name ()
+    {
+        return name;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean hasArrayInflowQueue ()
+    {
+        return storageInflowQueue instanceof ArrayInflowQueue;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean hasLinkedInflowQueue ()
+    {
+        return storageInflowQueue instanceof LinkedInflowQueue;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isOverflowPolicyDropAll ()
+    {
+        return boundedInflowQueue.policy() == OverflowPolicy.DROP_ALL;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isOverflowPolicyDropPending ()
+    {
+        return boundedInflowQueue.policy() == OverflowPolicy.DROP_PENDING;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isOverflowPolicyDropOldest ()
+    {
+        return boundedInflowQueue.policy() == OverflowPolicy.DROP_OLDEST;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isOverflowPolicyDropNewest ()
+    {
+        return boundedInflowQueue.policy() == OverflowPolicy.DROP_NEWEST;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isOverflowPolicyDropIncoming ()
+    {
+        return boundedInflowQueue.policy() == OverflowPolicy.DROP_INCOMING;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Set<CascadeDirector> directors ()
+    {
+
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Set<CascadeChannel> subscriptions ()
+    {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
 }

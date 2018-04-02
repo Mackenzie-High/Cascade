@@ -1,13 +1,13 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.mackenziehigh.cascade.CascadeActor;
+import com.mackenziehigh.cascade.CascadeDirector;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeToken;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
-import com.mackenziehigh.cascade.CascadeDirector;
 
 /**
  * A supervisor composed of zero-or-more supervisors.
@@ -57,32 +57,10 @@ public final class InternalSupervisors
      * {@inheritDoc}
      */
     @Override
-    public void onUndeliveredMessage (final CascadeActor sender,
-                                      final CascadeToken event,
-                                      final CascadeStack stack)
-    {
-        delegates.get().forEach(x -> x.onUndeliveredMessage(sender, event, stack));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void onProducedMessage (final CascadeActor sender,
-                                   final CascadeToken event,
-                                   final CascadeStack stack)
-    {
-        delegates.get().forEach(x -> x.onProducedMessage(sender, event, stack));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void onUnhandledException (final CascadeActor actor,
+    public void onException (final CascadeActor actor,
                              final Throwable cause)
     {
-        delegates.get().forEach(x -> x.onUnhandledException(actor, cause));
+        delegates.get().forEach(x -> x.onException(actor, cause));
     }
 
     /**
@@ -122,11 +100,11 @@ public final class InternalSupervisors
      * {@inheritDoc}
      */
     @Override
-    public void onReceivedMessage (final CascadeActor actor,
+    public void onAcceptedMessage (final CascadeActor actor,
                                    final CascadeToken event,
                                    final CascadeStack stack)
     {
-        delegates.get().forEach(x -> x.onReceivedMessage(actor, event, stack));
+        delegates.get().forEach(x -> x.onAcceptedMessage(actor, event, stack));
     }
 
     /**

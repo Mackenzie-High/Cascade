@@ -10,6 +10,10 @@ import com.mackenziehigh.cascade.CascadeContext;
 import com.mackenziehigh.cascade.CascadeScript;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeToken;
+import com.mackenziehigh.cascade.functions.CloseFunction;
+import com.mackenziehigh.cascade.functions.ExceptionFunction;
+import com.mackenziehigh.cascade.functions.MessageFunction;
+import com.mackenziehigh.cascade.functions.SetupFunction;
 import java.util.Set;
 
 /**
@@ -103,61 +107,6 @@ public final class LambdaScript
         {
             function.accept(ctx);
         }
-    }
-
-    /**
-     * Lambda function whose signature is the same as the onSetup() event-handler.
-     */
-    @FunctionalInterface
-    public interface SetupFunction
-    {
-        public void accept (CascadeContext ctx)
-                throws Throwable;
-    }
-
-    /**
-     * Lambda function whose signature is the same as the onMessage() event-handler.
-     */
-    @FunctionalInterface
-    public interface MessageFunction
-    {
-        public void accept (CascadeContext ctx,
-                            CascadeToken event,
-                            CascadeStack stack)
-                throws Throwable;
-    }
-
-    /**
-     * Lambda function whose signature is the same as the onUnhandledException() event-handler.
-     */
-    @FunctionalInterface
-    public interface ExceptionFunction
-    {
-        public void accept (CascadeContext ctx,
-                            Throwable cause)
-                throws Throwable;
-    }
-
-    /**
-     * Lambda function whose signature is the same as the onUndeliveredMessage() event-handler.
-     */
-    @FunctionalInterface
-    public interface UndeliveredMessageFunction
-    {
-        public void accept (CascadeContext ctx,
-                            CascadeToken event,
-                            CascadeStack stack)
-                throws Throwable;
-    }
-
-    /**
-     * Lambda function whose signature is the same as the onClose() event-handler.
-     */
-    @FunctionalInterface
-    public interface CloseFunction
-    {
-        public void accept (CascadeContext ctx)
-                throws Throwable;
     }
 
     /**

@@ -37,9 +37,36 @@ public interface CascadeDirector
     }
 
     /**
+     * This method will be invoked whenever the given actor subscribes to an event-channel.
+     *
+     * @param actor is the actor that just subscribed to the event-channel.
+     * @param event identifies the event-channel that the actor subscribed to.
+     */
+    public default void onSubscription (CascadeActor actor,
+                                        CascadeToken event)
+    {
+        // Pass
+    }
+
+    /**
+     * This method will be invoked whenever the given actor unsubscribes from an event-channel.
+     *
+     * @param actor is the actor that just unsubscribed from the event-channel.
+     * @param event identifies the event-channel that the actor unsubscribed from.
+     */
+    public default void onUnsubscription (CascadeActor actor,
+                                          CascadeToken event)
+    {
+        // Pass
+    }
+
+    /**
      * This method will be invoked whenever the given actor
-     * receives an incoming message before it can be processed,
-     * even if the message is ultimately dropped.
+     * enqueues an incoming message before it can be processed.
+     *
+     * <p>
+     * This method will not be invoked, if the message is dropped.
+     * </p>
      *
      * <p>
      * This method will be executed on the thread that sent the message.
@@ -49,7 +76,7 @@ public interface CascadeDirector
      * @param event identifies the event that produced the message.
      * @param stack contains the content of the message.
      */
-    public default void onReceivedMessage (CascadeActor actor,
+    public default void onAcceptedMessage (CascadeActor actor,
                                            CascadeToken event,
                                            CascadeStack stack)
     {
@@ -102,6 +129,11 @@ public interface CascadeDirector
      * This method will be executed on the same thread as the actor itself.
      * </p>
      *
+     * <p>
+     * If an unhandled exception occurs while the actor is processing the message,
+     * then this method will not be invoked, but rather the onException() method.
+     * </p>
+     *
      * @param actor processed the message.
      * @param event identifies the event that produced the message.
      * @param stack contains the content of the message.
@@ -124,45 +156,8 @@ public interface CascadeDirector
      * @param actor threw the exception.
      * @param cause was thrown.
      */
-    public default void onUnhandledException (CascadeActor actor,
-                                              Throwable cause)
-    {
-        // Pass
-    }
-
-    /**
-     * This method will be invoked whenever the given actor sends a message.
-     *
-     * <p>
-     * This method will be executed on the same thread as the actor itself.
-     * </p>
-     *
-     * @param sender sent the message.
-     * @param event identifies the event that produced the message.
-     * @param stack contains the content of the message.
-     */
-    public default void onProducedMessage (CascadeActor sender,
-                                           CascadeToken event,
-                                           CascadeStack stack)
-    {
-        // Pass
-    }
-
-    /**
-     * This method will be invoked whenever the given actor sends a message,
-     * but was not delivered, because no one is subscribed to the event.
-     *
-     * <p>
-     * This method will be executed on the same thread as the actor itself.
-     * </p>
-     *
-     * @param sender sent the message.
-     * @param event identifies the event that produced the message.
-     * @param stack contains the content of the message.
-     */
-    public default void onUndeliveredMessage (CascadeActor sender,
-                                              CascadeToken event,
-                                              CascadeStack stack)
+    public default void onException (CascadeActor actor,
+                                     Throwable cause)
     {
         // Pass
     }

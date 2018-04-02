@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.scripts;
+package com.mackenziehigh.cascade.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -8,11 +8,11 @@ import java.lang.annotation.Target;
 /**
  * This is a marker interface, for annotation-based cores,
  * which indicates that a method will be invoked whenever
- * an unhandled exception occurs in an event-handler.
+ * messages are received from a named event-channel.
  */
 @Retention (RetentionPolicy.RUNTIME)
 @Target (ElementType.METHOD)
-public @interface OnException
+public @interface OnMessage
 {
-    // Pass
+    public String value () default "";
 }

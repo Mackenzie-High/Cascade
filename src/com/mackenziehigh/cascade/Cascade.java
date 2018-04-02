@@ -52,6 +52,14 @@ public interface Cascade
     public CascadeStage newStage (ThreadFactory factory);
 
     /**
+     * Adds a new custom stage.
+     *
+     * @param stage will now be part of this cascade.
+     * @return the given stage.
+     */
+    public CascadeStage newStage (CascadeStage stage);
+
+    /**
      * Getter.
      *
      * @return all of the stages currently controlled by this cascade.
@@ -80,32 +88,12 @@ public interface Cascade
     public boolean isClosed ();
 
     /**
-     * This method broadcasts an event-message to all interested actors.
+     * This method retrieves the event-channel identified by the given token.
      *
-     * <p>
-     * This method is a no-op, if no actors are subscribed to the given event.
-     * </p>
-     *
-     * @param event identifies the event being produced.
-     * @param stack contains the content of the message.
-     * @return this.
+     * @param event identifies the event-channel to find.
+     * @return the channel.
      */
-    public Cascade send (String event,
-                         CascadeStack stack);
-
-    /**
-     * This method broadcasts an event-message to all interested actors.
-     *
-     * <p>
-     * This method is a no-op, if no actors are subscribed to the given event.
-     * </p>
-     *
-     * @param event identifies the event being produced.
-     * @param stack contains the content of the message.
-     * @return this.
-     */
-    public Cascade send (CascadeToken event,
-                         CascadeStack stack);
+    public CascadeChannel lookup (CascadeToken event);
 
     /**
      * This method closes all of the stages and permanently terminates this cascade.

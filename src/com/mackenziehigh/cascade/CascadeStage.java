@@ -12,6 +12,25 @@ import java.util.UUID;
 public interface CascadeStage
 {
     /**
+     * Setter.
+     *
+     * @param name will henceforth be the name of this stage.
+     * @return this.
+     */
+    public CascadeStage named (String name);
+
+    /**
+     * Getter.
+     *
+     * <p>
+     * By default, the name of this stage is the string representation of the stage's UUID.
+     * </p>
+     *
+     * @return the current name of this stage.
+     */
+    public String name ();
+
+    /**
      * Getter.
      *
      * @return a universally-unique-identifier of this object.
@@ -45,6 +64,13 @@ public interface CascadeStage
      * @return the current logger.
      */
     public CascadeLogger logger ();
+
+    /**
+     * Getter.
+     *
+     * @return the time that this stage was created.
+     */
+    public Instant creationTime ();
 
     /**
      * Getter.
@@ -166,21 +192,4 @@ public interface CascadeStage
      */
     public void awaitClose (final Duration timeout)
             throws InterruptedException;
-
-    /**
-     * Getter.
-     *
-     * @return the time that this stage was created.
-     */
-    public Instant creationTime ();
-
-    /**
-     * Getter.
-     *
-     * @return how long this stage has been active.
-     */
-    public default Duration age ()
-    {
-        return Duration.between(creationTime(), Instant.now());
-    }
 }

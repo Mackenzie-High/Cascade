@@ -6,9 +6,7 @@ import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeActor;
 import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeScript;
-import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeStage;
-import com.mackenziehigh.cascade.CascadeToken;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
@@ -18,7 +16,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * This is the actual implementation of the CascadeStage interface.
@@ -33,6 +30,8 @@ public final class InternalStage
     private final UUID uuid = UUID.randomUUID();
 
     private volatile CascadeLogger logger;
+
+    private volatile String name = uuid.toString();
 
     private final Set<InternalActor> actors = Sets.newConcurrentHashSet();
 
@@ -64,16 +63,11 @@ public final class InternalStage
 
     private void run ()
     {
-        final AtomicReference<CascadeToken> event = new AtomicReference<>();
-        final AtomicReference<CascadeStack> stack = new AtomicReference<>();
-
         while (stageAlive.get())
         {
             try
             {
-                event.set(null);
-                stack.set(null);
-                unsafeRun(event, stack);
+                unsafeRun();
             }
             catch (InterruptedException ex1)
             {
@@ -86,8 +80,7 @@ public final class InternalStage
         }
     }
 
-    private void unsafeRun (final AtomicReference<CascadeToken> event,
-                            final AtomicReference<CascadeStack> stack)
+    private void unsafeRun ()
             throws InterruptedException
     {
         final Scheduler.Process<InternalActor> process = scheduler.poll(1000);
@@ -99,23 +92,7 @@ public final class InternalStage
 
         try (Scheduler.Process<InternalActor> task = process)
         {
-
-            final InternalActor actor = task.getUserObject();
-
-            actor.setupIfNeeded(); // TODO: Rework, this is probably broken somehow.
-
-            final InflowQueue queue = actor.inflowQueue();
-            queue.removeOldest(event, stack);
-            final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)
-            if (delivered)
-            {
-                actor.script().onMessage(actor.context(), event.get(), stack.get());
-            }
-        }
-        catch (Throwable ex)
-        {
-            // TODO
-            ex.printStackTrace();
+            task.getUserObject().act();
         }
     }
 
@@ -301,5 +278,18 @@ public final class InternalStage
             throws InterruptedException
     {
         stageAwaitCloseLatch.await(timeout.getNano(), TimeUnit.NANOSECONDS);
+    }
+
+    @Override
+    public CascadeStage named (final String name)
+    {
+        this.name = Objects.requireNonNull(name);
+        return this;
+    }
+
+    @Override
+    public String name ()
+    {
+        return name;
     }
 }

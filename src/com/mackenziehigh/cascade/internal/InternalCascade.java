@@ -4,8 +4,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.Cascade;
+import com.mackenziehigh.cascade.CascadeChannel;
 import com.mackenziehigh.cascade.CascadeLogger;
-import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeStage;
 import com.mackenziehigh.cascade.CascadeToken;
 import com.mackenziehigh.cascade.loggers.StandardIoLogger;
@@ -133,27 +133,6 @@ public final class InternalCascade
      * {@inheritDoc}
      */
     @Override
-    public Cascade send (final String event,
-                         final CascadeStack stack)
-    {
-        return send(CascadeToken.token(event), stack);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Cascade send (final CascadeToken event,
-                         final CascadeStack stack)
-    {
-        dispatcher.send(event, stack);
-        return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public void close ()
     {
         /**
@@ -185,5 +164,23 @@ public final class InternalCascade
             throws InterruptedException
     {
         cascadeAwaitCloseLatch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CascadeStage newStage (CascadeStage stage)
+    {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CascadeChannel lookup (CascadeToken event)
+    {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 }

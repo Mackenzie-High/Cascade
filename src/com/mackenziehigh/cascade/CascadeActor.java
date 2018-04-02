@@ -67,6 +67,25 @@ public interface CascadeActor
     }
 
     /**
+     * Setter.
+     *
+     * @param name will henceforth be the name of this actor.
+     * @return this.
+     */
+    public CascadeActor named (String name);
+
+    /**
+     * Getter.
+     *
+     * <p>
+     * By default, the name of this actor is the string representation of the actor's UUID.
+     * </p>
+     *
+     * @return the current name of this actor.
+     */
+    public String name ();
+
+    /**
      * Getter.
      *
      * @return a UUID that uniquely identifies this actor in time and space.
@@ -134,34 +153,11 @@ public interface CascadeActor
     public CascadeActor useArrayInflowQueue (int capacity);
 
     /**
-     * Causes this actor to switch to an automatically expanding
-     * array-based inflow-queue, which will be used to store the
-     * messages that are pending processing by this actor.
+     * Getter.
      *
-     * <p>
-     * Whenever the queue becomes full, it will automatically
-     * increase its capacity in order to facilitate storing more
-     * messages, until the maximum capacity is reached.
-     * At that point, the overflow-policy will dictate
-     * how incoming messages affect the queue,
-     * when the size is at capacity.
-     * </p>
-     *
-     * <p>
-     * When backlogSize() reaches backlogCapacity().
-     * the overflow-policy will dictate what happens
-     * when new messages arrive for this actor.
-     * </p>
-     *
-     * @param size will be the initial size of the queue.
-     * @param capacity will be the backlogCapacity() of the queue.
-     * @param delta will be by how much the size of the queue
-     * will increase automatically when the queue becomes too full.
-     * @return this.
+     * @return true, iff this actor is using an array-based inflow-queue.
      */
-    public CascadeActor useGrowableArrayInflowQueue (int size,
-                                                     int capacity,
-                                                     int delta);
+    public boolean hasArrayInflowQueue ();
 
     /**
      * Causes this actor to switch to an fixed-size array-based
@@ -180,6 +176,13 @@ public interface CascadeActor
     public CascadeActor useLinkedInflowQueue (int capacity);
 
     /**
+     * Getter.
+     *
+     * @return true, iff this actor is using a linked-list based inflow-queue.
+     */
+    public boolean hasLinkedInflowQueue ();
+
+    /**
      * Causes the overflow-policy to be changed to Drop All.
      *
      * <p>
@@ -194,6 +197,13 @@ public interface CascadeActor
     public CascadeActor useOverflowPolicyDropAll ();
 
     /**
+     * Getter.
+     *
+     * @return true, iff this actor is using the Drop All overflow-policy.
+     */
+    public boolean isOverflowPolicyDropAll ();
+
+    /**
      * Causes the overflow-policy to be changed to Drop Pending.
      *
      * <p>
@@ -206,6 +216,13 @@ public interface CascadeActor
      * @return this.
      */
     public CascadeActor useOverflowPolicyDropPending ();
+
+    /**
+     * Getter.
+     *
+     * @return true, iff this actor is using the Drop Pending overflow-policy.
+     */
+    public boolean isOverflowPolicyDropPending ();
 
     /**
      * Causes the overflow-policy to be changed to Drop Oldest.
@@ -223,6 +240,13 @@ public interface CascadeActor
     public CascadeActor useOverflowPolicyDropOldest ();
 
     /**
+     * Getter.
+     *
+     * @return true, iff this actor is using the Drop Oldest overflow-policy.
+     */
+    public boolean isOverflowPolicyDropOldest ();
+
+    /**
      * Causes the overflow-policy to be changed to Drop Newest.
      *
      * <p>
@@ -236,6 +260,13 @@ public interface CascadeActor
      * @return this.
      */
     public CascadeActor useOverflowPolicyDropNewest ();
+
+    /**
+     * Getter.
+     *
+     * @return true, iff this actor is using the Drop Newest overflow-policy.
+     */
+    public boolean isOverflowPolicyDropNewest ();
 
     /**
      * Causes the overflow-policy to be changed to Drop Incoming.
@@ -253,12 +284,11 @@ public interface CascadeActor
     public CascadeActor useOverflowPolicyDropIncoming ();
 
     /**
-     * This method causes this actor to begin receiving messages for the given event.
+     * Getter.
      *
-     * @param event identifies the event to listen for.
-     * @return this.
+     * @return true, iff this actor is using the Drop Incoming overflow-policy.
      */
-    public CascadeActor subscribe (CascadeToken event);
+    public boolean isOverflowPolicyDropIncoming ();
 
     /**
      * This method causes this actor to begin receiving messages for the given event.
@@ -266,10 +296,7 @@ public interface CascadeActor
      * @param event identifies the event to listen for.
      * @return this.
      */
-    public default CascadeActor subscribe (final String event)
-    {
-        return subscribe(CascadeToken.token(event));
-    }
+    public CascadeActor subscribe (CascadeToken event);
 
     /**
      * This method causes this actor to stop receiving messages for the given event.
@@ -285,27 +312,11 @@ public interface CascadeActor
     public CascadeActor unsubscribe (CascadeToken event);
 
     /**
-     * This method causes this actor to stop receiving messages for the given event.
-     *
-     * <p>
-     * If this actor is not currently subscribed to the given event,
-     * then this method is simply a no-op.
-     * </p>
-     *
-     * @param event identifies the event to no longer listen for.
-     * @return this.
-     */
-    public default CascadeActor unsubscribe (final String event)
-    {
-        return unsubscribe(CascadeToken.token(event));
-    }
-
-    /**
      * Getter.
      *
      * @return the identities of the events that this actor is listening for.
      */
-    public Set<CascadeToken> subscriptions ();
+    public Set<CascadeChannel> subscriptions ();
 
     /**
      * Getter.
@@ -345,16 +356,6 @@ public interface CascadeActor
     /**
      * Getter.
      *
-     * @return how long this actor has been alive.
-     */
-    public default Duration age ()
-    {
-        return Duration.between(creationTime(), Instant.now());
-    }
-
-    /**
-     * Getter.
-     *
      * @return the current number of messages enqueued in the inflow queue.
      */
     public int backlogSize ();
@@ -369,10 +370,10 @@ public interface CascadeActor
     /**
      * Getter.
      *
-     * @return the total number of messages sent to this actor,
-     * thus far, including messages that had to be dropped.
+     * @return the total number of messages sent to this actor, thus far,
+     * that were enqueued without being immediately dropped.
      */
-    public long receivedMessages ();
+    public long acceptedMessages ();
 
     /**
      * Getter.
@@ -389,23 +390,6 @@ public interface CascadeActor
      * has actually processed using the script(), thus far.
      */
     public long consumedMessages ();
-
-    /**
-     * Getter.
-     *
-     * @return the total number of messages that this actor
-     * has sent to other actors and/or itself,
-     * including undelivered messages, thus far.
-     */
-    public long producedMessages ();
-
-    /**
-     * Getter.
-     *
-     * @return the total number of messages that this actor has sent,
-     * but no actors were listening for.
-     */
-    public long undeliveredMessages ();
 
     /**
      * Getter.
@@ -460,6 +444,13 @@ public interface CascadeActor
     public CascadeActor deregisterDirector (CascadeDirector director);
 
     /**
+     * Getter.
+     *
+     * @return the directors that are monitoring this actor.
+     */
+    public Set<CascadeDirector> directors ();
+
+    /**
      * This method kills this actor, which causes it to stop listening
      * for incoming messages, remove itself from the stage, etc.
      *
@@ -478,4 +469,5 @@ public interface CascadeActor
      */
     public void awaitClose (Duration timeout)
             throws InterruptedException;
+
 }
