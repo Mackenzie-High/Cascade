@@ -17,7 +17,7 @@ public interface OneToOne<T extends CascadeActor.Builder>
     public T setDataInput (CascadeToken input);
 
     @Override
-    public T setDataOutput (CascadeToken input);
+    public T setDataOutput (CascadeToken output);
 
     @Override
     public Optional<CascadeToken> getDataInput ();

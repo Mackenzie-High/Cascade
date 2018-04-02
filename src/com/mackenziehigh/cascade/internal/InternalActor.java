@@ -51,6 +51,11 @@ public final class InternalActor
     private volatile CascadeLogger logger;
 
     /**
+     * True, iff the onSetup() of the script was already executed.
+     */
+    private final AtomicBoolean initialized = new AtomicBoolean();
+
+    /**
      * True, if the script is executing.
      */
     private final AtomicBoolean acting = new AtomicBoolean(false);
@@ -160,6 +165,20 @@ public final class InternalActor
         this.schedulerInflowQueue = new NotificationInflowQueue(swappableInflowQueue, q -> onQueueAdd(q));
         this.syncInflowQueue = new SynchronizedInflowQueue(schedulerInflowQueue);
         this.task = stage.scheduler().newProcess(0, this);
+    }
+
+    public void schedule ()
+    {
+        task.schedule();
+    }
+
+    public void setupIfNeeded ()
+            throws Throwable
+    {
+        if (initialized.compareAndSet(false, true))
+        {
+            script.onSetup(context); // TODO: This all needs reworked. 
+        }
     }
 
     /**

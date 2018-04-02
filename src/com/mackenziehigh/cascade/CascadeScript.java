@@ -48,26 +48,8 @@ public interface CascadeScript
      * @param cause is the unhandled exception that was thrown.
      * @throws Throwable if something horrible happens.
      */
-    public default void onUnhandledException (CascadeContext ctx,
-                                              Throwable cause)
-            throws Throwable
-    {
-        // Pass
-    }
-
-    /**
-     * This event-handler will be executed whenever the enclosing actor
-     * sends a message, but the message is not delivered,
-     * because no one is interested in the message.
-     *
-     * @param ctx provides access to the actor itself, etc.
-     * @param event identifies the event that created the message.
-     * @param stack contains the content of the message.
-     * @throws Throwable if something horrible happens.
-     */
-    public default void onUndeliveredMessage (CascadeContext ctx,
-                                              CascadeToken event,
-                                              CascadeStack stack)
+    public default void onException (CascadeContext ctx,
+                                     Throwable cause)
             throws Throwable
     {
         // Pass

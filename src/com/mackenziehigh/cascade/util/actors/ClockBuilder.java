@@ -498,7 +498,8 @@ public final class ClockBuilder
          * The clock-pulses themselves are send via the Executor Service asynchronously.
          * The clock-pulses only appear to come from the actor itself.
          */
-        final LambdaScript script = new LambdaScript();
+        final LambdaScript.Builder script = LambdaScript.newBuilder();
+        script.bindOnClose(ctx -> close());
 
         /**
          * Ensure the output producer is configured correctly for the first pulse.
@@ -513,7 +514,7 @@ public final class ClockBuilder
         {
             final CascadeToken event = toggle.get().get();
             final MessageFunction handler = (ctx, evt, stack) -> reset();
-            script.subscribe(event, handler);
+            script.bindOnMessage(event, handler);
         }
 
         /**
@@ -524,13 +525,13 @@ public final class ClockBuilder
         {
             final CascadeToken event = toggle.get().get();
             final MessageFunction handler = (ctx, evt, stack) -> toggle(stack);
-            script.subscribe(event, handler);
+            script.bindOnMessage(event, handler);
         }
 
         /**
          * Create the actor itself.
          */
-        actor = stage().newActor(script);
+        actor = stage().newActor(script.build());
 
         /**
          * Obtain the executor that actually fires the clock-pulses.
@@ -548,8 +549,8 @@ public final class ClockBuilder
         /**
          * Schedule the task for periodic-execution.
          */
-        final long delayNanos = delay.get().get().toNanos();
-        final long periodNanos = period.get().get().toNanos();
+        final long delayNanos = delay.get().orElse(Duration.ZERO).toNanos();
+        final long periodNanos = period.get().orElse(Duration.ZERO).toNanos();
 
         if (fixedDelay.isSet())
         {
@@ -583,6 +584,11 @@ public final class ClockBuilder
             final CascadeStack stack = outputType.get().get().next();
             actor.context().send(event, stack);
         }
+    }
+
+    private synchronized void close ()
+    {
+        // TODO Shutdown executor?? Be careful if default.
     }
 
     /**

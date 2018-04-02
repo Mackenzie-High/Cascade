@@ -99,7 +99,11 @@ public final class InternalStage
 
         try (Scheduler.Process<InternalActor> task = process)
         {
+
             final InternalActor actor = task.getUserObject();
+
+            actor.setupIfNeeded(); // TODO: Rework, this is probably broken somehow.
+
             final InflowQueue queue = actor.inflowQueue();
             queue.removeOldest(event, stack);
             final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)
@@ -111,6 +115,7 @@ public final class InternalStage
         catch (Throwable ex)
         {
             // TODO
+            ex.printStackTrace();
         }
     }
 

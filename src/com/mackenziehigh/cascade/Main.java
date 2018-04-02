@@ -33,9 +33,8 @@ public final class Main
                 .setInput(ticks)
                 .build();
 
-        final LambdaScript script = new LambdaScript();
-        script.bindOnMessage((ctx, evt, msg) -> System.out.println("X = " + msg.peekAsObject()));
-        script.subscribe(ticks, (ctx, evt, msg) -> System.out.println("Y = " + msg.peekAsObject()));
+        final LambdaScript.Builder script = LambdaScript.newBuilder();
+        script.bindOnMessage(ticks, (ctx, evt, msg) -> System.out.println("Y = " + msg.peekAsObject()));
 
     }
 

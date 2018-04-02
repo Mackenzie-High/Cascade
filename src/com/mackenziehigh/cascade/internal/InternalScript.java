@@ -37,7 +37,7 @@ public final class InternalScript
         }
         catch (Throwable ex)
         {
-            onUnhandledException(ctx, ex);
+            onException(ctx, ex);
         }
     }
 
@@ -57,7 +57,7 @@ public final class InternalScript
         }
         catch (Throwable ex)
         {
-            onUnhandledException(ctx, ex);
+            onException(ctx, ex);
         }
     }
 
@@ -65,33 +65,14 @@ public final class InternalScript
      * {@inheritDoc}
      */
     @Override
-    public synchronized void onUndeliveredMessage (final CascadeContext ctx,
-                                                   final CascadeToken event,
-                                                   final CascadeStack stack)
-            throws Throwable
-    {
-        try
-        {
-            delegate.onUndeliveredMessage(ctx, event, stack);
-        }
-        catch (Throwable ex)
-        {
-            onUnhandledException(ctx, ex);
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public synchronized void onUnhandledException (final CascadeContext ctx,
-                                                   final Throwable cause)
+    public synchronized void onException (final CascadeContext ctx,
+                                          final Throwable cause)
             throws Throwable
     {
         try
         {
             unhandledExceptionCount.incrementAndGet();
-            delegate.onUnhandledException(ctx, cause);
+            delegate.onException(ctx, cause);
         }
         catch (Throwable ex)
         {
@@ -112,7 +93,7 @@ public final class InternalScript
         }
         catch (Throwable ex)
         {
-            onUnhandledException(ctx, ex);
+            onException(ctx, ex);
         }
     }
 }

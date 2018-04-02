@@ -1,9 +1,9 @@
 package com.mackenziehigh.cascade.util.actors;
 
 /**
- *
- * @author mackenzie
+ * Preserve last pulse.
  */
-public class ValveBuilder {
+public class RateLimiter
+{
 
 }

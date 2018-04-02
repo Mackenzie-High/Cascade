@@ -5,7 +5,8 @@ TODO:
 + User-defined attribute set/has/get methods on actors?
 + Better access to the settings used to create scripts somehow?
 + More well-defined mechanism for stack serialization.
-+ Add blocking consumers that receive values from actor. 
++ Add blocking consumers that receive values from actor.
++ Rename CommandChain, since it could conflict conceptually with Commandable.
 
 
 

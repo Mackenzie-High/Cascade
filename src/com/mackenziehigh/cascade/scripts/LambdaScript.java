@@ -1,10 +1,10 @@
 package com.mackenziehigh.cascade.scripts;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Multimaps;
-import com.google.common.collect.SetMultimap;
+import com.google.common.collect.LinkedListMultimap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.CascadeContext;
 import com.mackenziehigh.cascade.CascadeScript;
@@ -18,191 +18,48 @@ import java.util.Set;
 public final class LambdaScript
         implements CascadeScript
 {
-    @FunctionalInterface
-    public interface SetupFunction
+
+    private final Set<SetupFunction> immutableSetupFunctions;
+
+    private final ListMultimap<CascadeToken, MessageFunction> immutableMessageFunctions;
+
+    private final Set<ExceptionFunction> immutableExceptionFunctions;
+
+    private final Set<CloseFunction> immutableCloseFunctions;
+
+    private LambdaScript (final Builder builder)
     {
-        public void accept (CascadeContext ctx)
-                throws Throwable;
+        immutableSetupFunctions = ImmutableSet.copyOf(builder.setupFunctions);
+        immutableMessageFunctions = ImmutableListMultimap.copyOf(builder.messageFunctions);
+        immutableExceptionFunctions = ImmutableSet.copyOf(builder.unhandledExceptionFunctions);
+        immutableCloseFunctions = ImmutableSet.copyOf(builder.closeFunctions);
     }
 
-    @FunctionalInterface
-    public interface MessageFunction
+    /**
+     * Creates a new builder that builds lambda-scripts.
+     *
+     * @return the new builder.
+     */
+    public static LambdaScript.Builder newBuilder ()
     {
-        public void accept (CascadeContext ctx,
-                            CascadeToken event,
-                            CascadeStack stack)
-                throws Throwable;
-    }
-
-    @FunctionalInterface
-    public interface UnhandledExceptionFunction
-    {
-        public void accept (CascadeContext ctx,
-                            Throwable cause)
-                throws Throwable;
-    }
-
-    @FunctionalInterface
-    public interface UndeliveredMessageFunction
-    {
-        public void accept (CascadeContext ctx,
-                            CascadeToken event,
-                            CascadeStack stack)
-                throws Throwable;
-    }
-
-    @FunctionalInterface
-    public interface CloseFunction
-    {
-        public void accept (CascadeContext ctx)
-                throws Throwable;
-    }
-
-    private final Set<SetupFunction> setupFunctions = Sets.newConcurrentHashSet();
-
-    private final SetMultimap<CascadeToken, MessageFunction> messageFunctions = Multimaps.synchronizedSetMultimap(HashMultimap.create());
-
-    private final Set<UndeliveredMessageFunction> undeliveredMessageFunctions = Sets.newConcurrentHashSet();
-
-    private final Set<UnhandledExceptionFunction> unhandledExceptionFunctions = Sets.newConcurrentHashSet();
-
-    private final Set<CloseFunction> closeFunctions = Sets.newConcurrentHashSet();
-
-    public LambdaScript bindOnSetup (final SetupFunction functor)
-    {
-        Preconditions.checkNotNull(functor, "functor");
-        setupFunctions.add(functor);
-        return this;
-    }
-
-    public LambdaScript bindOnMessage (final MessageFunction functor)
-    {
-        Preconditions.checkNotNull(functor, "functor");
-        messageFunctions.put(null, functor);
-        return this;
-    }
-
-    public LambdaScript bindOnUndeliveredMessage (final UndeliveredMessageFunction functor)
-    {
-        Preconditions.checkNotNull(functor, "functor");
-        undeliveredMessageFunctions.add(functor);
-        return this;
-    }
-
-    public LambdaScript bindOnUnhandledException (final UnhandledExceptionFunction functor)
-    {
-        Preconditions.checkNotNull(functor, "functor");
-        unhandledExceptionFunctions.add(functor);
-        return this;
-    }
-
-    public LambdaScript bindOnClose (final CloseFunction functor)
-    {
-        Preconditions.checkNotNull(functor, "functor");
-        closeFunctions.add(functor);
-        return this;
-    }
-
-    public LambdaScript subscribe (final String event,
-                                   final MessageFunction functor)
-    {
-        return subscribe(CascadeToken.token(event), functor);
-    }
-
-    public LambdaScript subscribe (final CascadeToken event,
-                                   final MessageFunction functor)
-    {
-        Preconditions.checkNotNull(functor, "functor");
-        messageFunctions.put(event, functor);
-        return this;
-    }
-
-    public LambdaScript unsubscribe (final MessageFunction functor,
-                                     final String event)
-    {
-        return unsubscribe(CascadeToken.token(event), functor);
-    }
-
-    public LambdaScript unsubscribe (final CascadeToken event,
-                                     final MessageFunction functor)
-    {
-        return this;
-    }
-
-    public Set<SetupFunction> getSetupFunctions ()
-    {
-        return ImmutableSet.copyOf(setupFunctions);
-    }
-
-    public Set<MessageFunction> getMessageFunctions ()
-    {
-        return ImmutableSet.copyOf(messageFunctions.values());
-    }
-
-    public Set<UndeliveredMessageFunction> getUndeliverdMessageFunctions ()
-    {
-        return ImmutableSet.copyOf(undeliveredMessageFunctions);
-    }
-
-    public Set<UnhandledExceptionFunction> getUnhandledExceptionFunctions ()
-    {
-        return ImmutableSet.copyOf(unhandledExceptionFunctions);
-    }
-
-    public Set<CloseFunction> getCloseFunctions ()
-    {
-        return ImmutableSet.copyOf(closeFunctions);
-    }
-
-    public Set<CascadeToken> subscriptionsOf (final MessageFunction functor)
-    {
-        return ImmutableSet.of();
-    }
-
-    public Set<CascadeToken> subscriptions ()
-    {
-        return ImmutableSet.of();
+        return new Builder();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void onClose (final CascadeContext ctx)
+    public void onSetup (final CascadeContext ctx)
             throws Throwable
     {
-        for (CloseFunction function : closeFunctions)
+        for (CascadeToken input : immutableMessageFunctions.keySet())
+        {
+            ctx.actor().subscribe(input);
+        }
+
+        for (SetupFunction function : immutableSetupFunctions)
         {
             function.accept(ctx);
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void onUndeliveredMessage (final CascadeContext ctx,
-                                      final CascadeToken event,
-                                      final CascadeStack stack)
-            throws Throwable
-    {
-        for (UndeliveredMessageFunction function : undeliveredMessageFunctions)
-        {
-            function.accept(ctx, event, stack);
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void onUnhandledException (final CascadeContext ctx,
-                                      final Throwable cause)
-            throws Throwable
-    {
-        for (UnhandledExceptionFunction function : unhandledExceptionFunctions)
-        {
-            function.accept(ctx, cause);
         }
     }
 
@@ -215,12 +72,7 @@ public final class LambdaScript
                            final CascadeStack stack)
             throws Throwable
     {
-        for (MessageFunction function : messageFunctions.get(null))
-        {
-            function.accept(ctx, event, stack);
-        }
-
-        for (MessageFunction function : messageFunctions.get(event))
+        for (MessageFunction function : immutableMessageFunctions.get(event))
         {
             function.accept(ctx, event, stack);
         }
@@ -230,13 +82,189 @@ public final class LambdaScript
      * {@inheritDoc}
      */
     @Override
-    public void onSetup (final CascadeContext ctx)
+    public void onException (final CascadeContext ctx,
+                             final Throwable cause)
             throws Throwable
     {
-        for (SetupFunction function : setupFunctions)
+        for (ExceptionFunction function : immutableExceptionFunctions)
+        {
+            function.accept(ctx, cause);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onClose (final CascadeContext ctx)
+            throws Throwable
+    {
+        for (CloseFunction function : immutableCloseFunctions)
         {
             function.accept(ctx);
         }
     }
 
+    /**
+     * Lambda function whose signature is the same as the onSetup() event-handler.
+     */
+    @FunctionalInterface
+    public interface SetupFunction
+    {
+        public void accept (CascadeContext ctx)
+                throws Throwable;
+    }
+
+    /**
+     * Lambda function whose signature is the same as the onMessage() event-handler.
+     */
+    @FunctionalInterface
+    public interface MessageFunction
+    {
+        public void accept (CascadeContext ctx,
+                            CascadeToken event,
+                            CascadeStack stack)
+                throws Throwable;
+    }
+
+    /**
+     * Lambda function whose signature is the same as the onUnhandledException() event-handler.
+     */
+    @FunctionalInterface
+    public interface ExceptionFunction
+    {
+        public void accept (CascadeContext ctx,
+                            Throwable cause)
+                throws Throwable;
+    }
+
+    /**
+     * Lambda function whose signature is the same as the onUndeliveredMessage() event-handler.
+     */
+    @FunctionalInterface
+    public interface UndeliveredMessageFunction
+    {
+        public void accept (CascadeContext ctx,
+                            CascadeToken event,
+                            CascadeStack stack)
+                throws Throwable;
+    }
+
+    /**
+     * Lambda function whose signature is the same as the onClose() event-handler.
+     */
+    @FunctionalInterface
+    public interface CloseFunction
+    {
+        public void accept (CascadeContext ctx)
+                throws Throwable;
+    }
+
+    /**
+     * A builder that builds lambda-scripts.
+     */
+    public static final class Builder
+    {
+        private final Set<SetupFunction> setupFunctions = Sets.newConcurrentHashSet();
+
+        private final ListMultimap<CascadeToken, MessageFunction> messageFunctions = LinkedListMultimap.create();
+
+        private final Set<ExceptionFunction> unhandledExceptionFunctions = Sets.newConcurrentHashSet();
+
+        private final Set<CloseFunction> closeFunctions = Sets.newConcurrentHashSet();
+
+        /**
+         * Specify a function that will be invoked by the actor's onSetup() event-handler.
+         *
+         * <p>
+         * This method may be invoked multiple times in order to
+         * specify a sequence of behaviors for the event-handler.
+         * </p>
+         *
+         * @param functor will define the behavior of the event-handler.
+         * @return this.
+         */
+        public Builder bindOnSetup (final SetupFunction functor)
+        {
+            Preconditions.checkNotNull(functor, "functor");
+            setupFunctions.add(functor);
+            return this;
+        }
+
+        /**
+         * Specify a function that will be invoked by the actor's onMessage() event-handler.
+         *
+         * <p>
+         * The given function will be invoked whenever an event-message
+         * is received that was produced by the by the given event.
+         * </p>
+         *
+         * <p>
+         * This method, or its overload, may be invoked multiple times in
+         * order to specify a sequence of behaviors for the event-handler.
+         * </p>
+         *
+         * @param event identifies the even that the function will handle.
+         * @param functor will define the behavior of the event-handler.
+         * @return this.
+         */
+        public Builder bindOnMessage (final CascadeToken event,
+                                      final MessageFunction functor)
+        {
+            Preconditions.checkNotNull(functor, "functor");
+            messageFunctions.put(event, functor);
+            return this;
+        }
+
+        /**
+         * Specify a function that will be invoked by the actor's onException() event-handler.
+         *
+         * <p>
+         * The given function will be invoked whenever an unhandled exception
+         * occurs and causes the actor's onException() event-handler to execute.
+         * </p>
+         *
+         * <p>
+         * This method, or its overload, may be invoked multiple times in
+         * order to specify a sequence of behaviors for the event-handler.
+         * </p>
+         *
+         * @param functor will define the behavior of the event-handler.
+         * @return this.
+         */
+        public Builder bindOnException (final ExceptionFunction functor)
+        {
+            Preconditions.checkNotNull(functor, "functor");
+            unhandledExceptionFunctions.add(functor);
+            return this;
+        }
+
+        /**
+         * Specify a function that will be invoked by the actor's onClose() event-handler.
+         *
+         * <p>
+         * This method, or its overload, may be invoked multiple times in
+         * order to specify a sequence of behaviors for the event-handler.
+         * </p>
+         *
+         * @param functor will define the behavior of the event-handler.
+         * @return this.
+         */
+        public Builder bindOnClose (final CloseFunction functor)
+        {
+            Preconditions.checkNotNull(functor, "functor");
+            closeFunctions.add(functor);
+            return this;
+        }
+
+        /**
+         * Create the lambda-script based on the settings in this builder.
+         *
+         * @return the new script.
+         */
+        public LambdaScript build ()
+        {
+            return new LambdaScript(this);
+        }
+    }
 }

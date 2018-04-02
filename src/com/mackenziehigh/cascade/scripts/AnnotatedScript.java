@@ -4,8 +4,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.CascadeContext;
-import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeScript;
+import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeToken;
 import com.mackenziehigh.cascade.scripts.LambdaScript.SetupFunction;
 import java.lang.annotation.Annotation;
@@ -30,7 +30,7 @@ public abstract class AnnotatedScript
 
     private final ImmutableMap<CascadeToken, Method> closeMethods;
 
-    private final LambdaScript functorScript = new LambdaScript();
+    private final LambdaScript.Builder functorScript = LambdaScript.newBuilder();
 
     public AnnotatedScript ()
     {
