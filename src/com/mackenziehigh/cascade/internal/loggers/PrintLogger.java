@@ -1,22 +1,25 @@
-package com.mackenziehigh.cascade.loggers;
+package com.mackenziehigh.cascade.internal.loggers;
 
 import com.mackenziehigh.cascade.CascadeLogger;
-import java.util.logging.Logger;
+import java.io.PrintStream;
+import java.util.Objects;
 
 /**
- *
+ * Synchronously writes log messages to a print-stream.
  */
-public final class StandardIoLogger
+public final class PrintLogger
         implements CascadeLogger
 {
-    private final Logger logger;
+
+    private final PrintStream out;
 
     private final Object site;
 
-    public StandardIoLogger (final Object site)
+    public PrintLogger (final Object site,
+                        final PrintStream stream)
     {
         this.site = site;
-        this.logger = Logger.getLogger(site.getClass().getName());
+        this.out = Objects.requireNonNull(stream, "stream");
     }
 
     @Override
@@ -30,7 +33,7 @@ public final class StandardIoLogger
                               final String message,
                               final Object... args)
     {
-        logger.warning(message); // TODO
+        CascadeLogger.format("[{}][{}]", args);
         return this;
     }
 
@@ -38,7 +41,7 @@ public final class StandardIoLogger
     public CascadeLogger log (LogLevel level,
                               Throwable message)
     {
-        logger.warning(message.getMessage()); // TODO
+
         message.printStackTrace(System.err);
         return this;
     }

@@ -1,11 +1,13 @@
 package com.mackenziehigh.cascade;
 
+import java.util.Objects;
+
 /**
  * Use this interface to issue log-messages.
  *
  * <p>
  * Many of the logging methods herein support argument substitution.
- * The substitutions will be performed using the <code>String.format(*)</code> method.
+ * The substitutions will be performed using the <code>format()</code> method herein.
  * </p>
  */
 public interface CascadeLogger
@@ -200,5 +202,66 @@ public interface CascadeLogger
     public default CascadeLogger trace (final Throwable message)
     {
         return log(LogLevel.TRACE, message);
+    }
+
+    /**
+     * This method substitutes the given arguments into the given format string.
+     *
+     * <p>
+     * This method will replace occurrences of the substring, "{}",
+     * with the equivalently indexed arguments. For example,
+     * <code>
+     * format("{} = {} + {}", "A", "B", "C") => "A = B + C"
+     * </code>
+     * </p>
+     *
+     * @param format will have the given arguments substituted into it.
+     * @param arguments will be substituted into the given format string.
+     * @return the result of the substitution.
+     */
+    public static String format (final String format,
+                                 final Object... arguments)
+    {
+        final StringBuilder result = new StringBuilder();
+
+        boolean opened = false;
+        int idx = 0;
+
+        for (int i = 0; i < format.length(); i++)
+        {
+            final char chr = format.charAt(i);
+
+            if (chr == '{' && i < format.length() - 1)
+            {
+                opened = true;
+            }
+            else if (chr == '{')
+            {
+                result.append(chr);
+                opened = false;
+            }
+            else if (chr == '}' && opened)
+            {
+                final Object argument = idx < arguments.length ? arguments[idx] : "";
+                final String value = Objects.toString(argument);
+                ++idx;
+                result.append('{');
+                result.append(value);
+                result.append('}');
+                opened = false;
+            }
+            else if (chr == '}' && !opened)
+            {
+                result.append(chr);
+                opened = false;
+            }
+            else
+            {
+                result.append(chr);
+                opened = false;
+            }
+        }
+
+        return result.toString();
     }
 }

@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.loggers;
+package com.mackenziehigh.cascade.internal.loggers;
 
 import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeToken;
