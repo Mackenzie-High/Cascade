@@ -159,6 +159,7 @@ public final class InternalStage
                 Objects.requireNonNull(script, "script");
                 final InternalActor actor = new InternalActor(this, script);
                 actors.add(actor);
+                actor.schedule();
                 return actor;
             }
         }

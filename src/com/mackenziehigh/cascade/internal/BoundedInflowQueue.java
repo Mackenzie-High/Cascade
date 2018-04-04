@@ -141,22 +141,27 @@ public final class BoundedInflowQueue
 
         if (overflow && policy == OverflowPolicy.DROP_OLDEST)
         {
+            droppedCount.incrementAndGet();
             delegate.removeOldest(tokenSink, operandSink);
         }
         else if (overflow && policy == OverflowPolicy.DROP_NEWEST)
         {
+            droppedCount.incrementAndGet();
             delegate.removeNewest(tokenSink, operandSink);
         }
         else if (overflow && policy == OverflowPolicy.DROP_INCOMING)
         {
+            droppedCount.incrementAndGet();
             return false; // TODO: Should this really be returned here???
         }
         else if (overflow && policy == OverflowPolicy.DROP_PENDING)
         {
+            droppedCount.addAndGet(delegate.size());
             delegate.clear();
         }
         else if (overflow && policy == OverflowPolicy.DROP_ALL)
         {
+            droppedCount.addAndGet(delegate.size() + 1);
             delegate.clear();
             return false;
         }
@@ -181,8 +186,15 @@ public final class BoundedInflowQueue
     public boolean removeOldest (final AtomicReference<CascadeToken> eventOut,
                                  final AtomicReference<CascadeStack> stackOut)
     {
-        removedCount.incrementAndGet();
-        return delegate.removeOldest(eventOut, stackOut);
+        if (delegate.removeOldest(eventOut, stackOut))
+        {
+            removedCount.incrementAndGet();
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     /**
@@ -192,8 +204,15 @@ public final class BoundedInflowQueue
     public boolean removeNewest (final AtomicReference<CascadeToken> eventOut,
                                  final AtomicReference<CascadeStack> stackOut)
     {
-        removedCount.incrementAndGet();
-        return delegate.removeNewest(eventOut, stackOut);
+        if (delegate.removeNewest(eventOut, stackOut))
+        {
+            removedCount.incrementAndGet();
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     /**
@@ -202,6 +221,7 @@ public final class BoundedInflowQueue
     @Override
     public void clear ()
     {
+        removedCount.addAndGet(delegate.size());
         delegate.clear();
     }
 

@@ -119,10 +119,10 @@ public final class InternalActor
     private final SynchronizedInflowQueue syncInflowQueue;
 
     /**
-     * These tokens identify all of the event-streams that this
-     * actor is interested in receiving event-messages from.
+     * These are all of the event-streams that this actor is
+     * currently interested in receiving event-messages from.
      */
-    private final Set<CascadeToken> subscriptions = Sets.newConcurrentHashSet();
+    private final Set<CascadeChannel> subscriptions = Sets.newConcurrentHashSet();
 
     /**
      * This object will be used to schedule this actor for execution by a thread.
@@ -154,7 +154,12 @@ public final class InternalActor
         this.swappableInflowQueue = new SwappableInflowQueue(boundedInflowQueue);
         this.schedulerInflowQueue = new NotificationInflowQueue(swappableInflowQueue, q -> onQueueAdd(q));
         this.syncInflowQueue = new SynchronizedInflowQueue(schedulerInflowQueue);
-        this.task = stage.scheduler().newProcess(0, this);
+        this.task = stage.scheduler().newProcess(this);
+    }
+
+    public void schedule ()
+    {
+        task.schedule();
     }
 
     public void act ()
@@ -390,7 +395,8 @@ public final class InternalActor
         synchronized (this)
         {
             stage.dispatcher().register(event, syncInflowQueue);
-            subscriptions.add(event);
+            final CascadeChannel channel = cascade().lookup(event);
+            subscriptions.add(channel);
             return this;
         }
     }
@@ -668,7 +674,7 @@ public final class InternalActor
     @Override
     public Set<CascadeChannel> subscriptions ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return subscriptions;
     }
 
 }

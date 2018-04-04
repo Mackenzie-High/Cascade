@@ -10,6 +10,8 @@ import java.util.function.Consumer;
 
 /**
  * This is the actual implementation of the CascadeChannel interface.
+ *
+ * TODO: Much work needs done!
  */
 public final class InternalChannel
         implements CascadeChannel
@@ -70,6 +72,24 @@ public final class InternalChannel
     {
         dispatcher.send(event, stack);
         return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode ()
+    {
+        return 97 * event.hashCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean equals (final Object other)
+    {
+        return other instanceof CascadeChannel && ((CascadeChannel) other).event().equals(event);
     }
 
 }

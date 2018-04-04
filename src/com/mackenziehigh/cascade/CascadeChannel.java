@@ -9,7 +9,7 @@ import java.util.function.Consumer;
 public interface CascadeChannel
 {
     /**
-     * Retrieve the name of events that are sent via this channel.
+     * Retrieve the identifier of events that are sent via this channel.
      *
      * @return identifies this event-channel.
      */

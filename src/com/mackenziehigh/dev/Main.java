@@ -2,6 +2,7 @@ package com.mackenziehigh.dev;
 
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeActor;
+import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeStage;
 import com.mackenziehigh.cascade.CascadeToken;
 import com.mackenziehigh.cascade.Cascades;
@@ -35,6 +36,7 @@ public final class Main
 
     @Override
     public void start (final Stage primaryStage)
+            throws InterruptedException
     {
 
         final BorderPane root = new BorderPane();
@@ -60,6 +62,7 @@ public final class Main
     }
 
     private void createCascade ()
+            throws InterruptedException
     {
         final Cascade cascade = Cascades.newCascade();
         final CascadeStage stage = cascade.newStage();
@@ -67,19 +70,23 @@ public final class Main
 
         final CascadeToken ticks = CascadeToken.token("ticks");
 
-        stage.newActor(CommonActors.CLOCK)
+        final CascadeActor clock = stage.newActor(CommonActors.CLOCK)
                 .setPeriod(Duration.ofMillis(1000))
                 .setDataOutput(ticks)
                 .setDelay(Duration.ofSeconds(1))
                 .useFixedDelay()
                 .sendElapsed(TimeUnit.SECONDS)
-                .build();
+                .build()
+                .named("clock");
 
-        final CascadeActor actor1 = new TextFieldActor(stage, field1).setDataInput(ticks).build();
-        final CascadeActor actor2 = new TextFieldActor(stage, field2).setDataInput(ticks).build();
-        actor1.subscribe(ticks);
-        actor2.subscribe(ticks);
-        stage.newActor(CommonActors.STDOUT).setInput(ticks).build();
+        Thread.sleep(1000);
 
+        final CascadeActor actor1 = new TextFieldActor(stage, field1).setDataInput(ticks).build().named("actor1");
+        final CascadeActor actor2 = new TextFieldActor(stage, field2).setDataInput(ticks).build().named("actor2");
+//        actor1.subscribe(ticks);
+//        actor2.subscribe(ticks);
+        stage.newActor(CommonActors.STDOUT).setInput(ticks).build().named("stdout");
+
+        cascade.lookup(ticks).send(ticks, CascadeStack.newStack());
     }
 }

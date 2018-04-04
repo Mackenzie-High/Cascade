@@ -159,6 +159,7 @@ public final class InternalCascade
     @Override
     public CascadeStage newStage (CascadeStage stage)
     {
+        // TODO
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -166,8 +167,8 @@ public final class InternalCascade
      * {@inheritDoc}
      */
     @Override
-    public CascadeChannel lookup (CascadeToken event)
+    public CascadeChannel lookup (final CascadeToken event)
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return new InternalChannel(dispatcher, event);
     }
 }

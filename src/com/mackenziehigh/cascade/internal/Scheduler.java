@@ -1,7 +1,9 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Verify;
+import com.google.common.collect.Maps;
 import java.util.Comparator;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
@@ -35,21 +37,13 @@ public final class Scheduler<E>
      * Use this method to define a new process that can
      * be scheduled for execution using this scheduler.
      *
-     * @param priority will be the priority of the new process.
      * @param userObject a user-defined object to associate with the new process.
      * @return the newly defined process.
      */
-    public Process<E> newProcess (final int priority,
-                                  final E userObject)
+    public Process<E> newProcess (final E userObject)
     {
-        if (priority < 0)
-        {
-            throw new IllegalArgumentException("priority < 0");
-        }
-        else
-        {
-            return new Process(this, priority, userObject);
-        }
+        return new Process(this, userObject);
+
     }
 
     /**
@@ -76,6 +70,8 @@ public final class Scheduler<E>
         }
     }
 
+    private static final Map<Object, Process> instances = Maps.newConcurrentMap();
+
     /**
      * A Process represents an executable entity that can
      * be scheduled for execution using a Scheduler object.
@@ -96,16 +92,6 @@ public final class Scheduler<E>
          * This is the Scheduler that is able to schedule this Process.
          */
         private final Scheduler owner;
-
-        /**
-         * This is the priority with which the Scheduler will treat
-         * this Process relative to other Processes.
-         *
-         * <p>
-         * Larger numbers equal higher priorities.
-         * </p>
-         */
-        private final int priority;
 
         /**
          * This counter is incremented every time that this Process is executed.
@@ -130,12 +116,11 @@ public final class Scheduler<E>
         private final AtomicLong pendingExecutionCount = new AtomicLong();
 
         private Process (final Scheduler owner,
-                         final int priority,
                          final T userObject)
         {
             this.owner = Objects.requireNonNull(owner, "owner");
-            this.priority = priority;
             this.userObject = Objects.requireNonNull(userObject, "userObject");
+            instances.put(userObject, this);
         }
 
         /**
@@ -198,11 +183,7 @@ public final class Scheduler<E>
         @Override
         public int compareTo (final Process<T> other)
         {
-            if (priority != other.priority)
-            {
-                return Integer.compare(priority, other.priority);
-            }
-            else if (sequenceNumber.get() > other.sequenceNumber.get())
+            if (sequenceNumber.get() > other.sequenceNumber.get())
             {
                 return -1; // Higher Seq Num == Lower Priority
             }
@@ -222,8 +203,8 @@ public final class Scheduler<E>
     {
         final Scheduler<String> ss = new Scheduler<>();
 
-        ss.newProcess(0, "A").schedule();
-        ss.newProcess(1, "B").schedule();
+        ss.newProcess("A").schedule();
+        ss.newProcess("B").schedule();
 
         while (true)
         {
