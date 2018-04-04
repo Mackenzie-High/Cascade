@@ -5,7 +5,6 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeChannel;
-import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeStage;
 import com.mackenziehigh.cascade.CascadeToken;
 import java.time.Duration;
@@ -43,15 +42,6 @@ public final class InternalCascade
     public UUID uuid ()
     {
         return uuid;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public CascadeLogger logger ()
-    {
-        return null;
     }
 
     /**

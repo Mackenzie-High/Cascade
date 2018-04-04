@@ -16,7 +16,6 @@ public final class CascadeTest
         assertTrue(cascade.isActive());
         assertFalse(cascade.isClosing());
         assertFalse(cascade.isClosed());
-        assertNotNull(cascade.logger());
         assertTrue(cascade.stages().isEmpty());
 
         /**

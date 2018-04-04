@@ -44,16 +44,6 @@ public interface CascadeContext
     }
 
     /**
-     * Getter.
-     *
-     * @return the logger that the actor() currently uses.
-     */
-    public default CascadeLogger logger ()
-    {
-        return actor().logger();
-    }
-
-    /**
      * This method causes the actor() to broadcast an event-message.
      *
      * <p>

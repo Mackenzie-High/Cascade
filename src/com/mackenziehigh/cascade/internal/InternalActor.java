@@ -7,7 +7,6 @@ import com.mackenziehigh.cascade.CascadeActor;
 import com.mackenziehigh.cascade.CascadeChannel;
 import com.mackenziehigh.cascade.CascadeContext;
 import com.mackenziehigh.cascade.CascadeDirector;
-import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeScript;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeStage;
@@ -48,12 +47,6 @@ public final class InternalActor
      * This is the name of this actor, which may change over time.
      */
     private volatile String name = uuid.toString();
-
-    /**
-     * This is the logger that the script will use.
-     * If this is null, then this is the logger of the stage().
-     */
-    private volatile CascadeLogger logger;
 
     /**
      * True, iff the onSetup() of the script was already executed.
@@ -155,7 +148,6 @@ public final class InternalActor
                           final CascadeScript script)
     {
         this.stage = stage;
-        this.logger = null;
         this.script = new InternalScript(script);
         this.storageInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);
         this.boundedInflowQueue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);
@@ -285,25 +277,6 @@ public final class InternalActor
     public CascadeStage stage ()
     {
         return stage;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public CascadeActor useLogger (final CascadeLogger logger)
-    {
-        this.logger = Objects.requireNonNull(logger, "logger");
-        return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public CascadeLogger logger ()
-    {
-        return logger == null ? stage.logger() : logger;
     }
 
     /**

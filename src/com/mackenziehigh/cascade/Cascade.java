@@ -21,13 +21,6 @@ public interface Cascade
     public UUID uuid ();
 
     /**
-     * Getter.
-     *
-     * @return the current logger.
-     */
-    public CascadeLogger logger ();
-
-    /**
      * Creates a new stage using a non-daemon thread.
      *
      * <p>

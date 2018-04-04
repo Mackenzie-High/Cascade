@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.CascadeActor;
-import com.mackenziehigh.cascade.CascadeLogger;
 import com.mackenziehigh.cascade.CascadeScript;
 import com.mackenziehigh.cascade.CascadeStage;
 import java.time.Duration;
@@ -28,8 +27,6 @@ public final class InternalStage
     private final Dispatcher dispatcher;
 
     private final UUID uuid = UUID.randomUUID();
-
-    private volatile CascadeLogger logger;
 
     private volatile String name = uuid.toString();
 
@@ -57,7 +54,6 @@ public final class InternalStage
     {
         this.cascade = Objects.requireNonNull(cascade, "cascade");
         this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
-        this.logger = cascade.logger();
         this.threadFactory = Objects.requireNonNull(factory, "factory");
     }
 
@@ -222,25 +218,6 @@ public final class InternalStage
     public CascadeStage decrementThreadCount ()
     {
         throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public CascadeStage useLogger (final CascadeLogger logger)
-    {
-        this.logger = Objects.requireNonNull(logger, "logger");
-        return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public CascadeLogger logger ()
-    {
-        return logger;
     }
 
     /**

@@ -45,27 +45,6 @@ public interface CascadeStage
     public Cascade cascade ();
 
     /**
-     * Setter.
-     *
-     * <p>
-     * In effect, this method overrides the default logger provided by
-     * the default logger() that was specified by the enclosing cascade()
-     * when this actor was created.
-     * </p>
-     *
-     * @param logger will be used as the logger() henceforth.
-     * @return this.
-     */
-    public CascadeStage useLogger (CascadeLogger logger);
-
-    /**
-     * Getter.
-     *
-     * @return the current logger.
-     */
-    public CascadeLogger logger ();
-
-    /**
      * Getter.
      *
      * @return the time that this stage was created.
