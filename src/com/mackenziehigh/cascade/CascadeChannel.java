@@ -48,12 +48,10 @@ public interface CascadeChannel
      * This method is a no-op, if no actors are subscribed to the given event.
      * </p>
      *
-     * @param event identifies the event being produced.
      * @param stack contains the content of the message.
      * @return this.
      */
-    public CascadeChannel send (CascadeToken event,
-                                CascadeStack stack);
+    public CascadeChannel send (CascadeStack stack);
 
     /**
      * Two channels are equal, if they have equal event() objects.

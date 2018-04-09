@@ -8,7 +8,7 @@ import org.junit.Test;
  */
 public final class CascadeTest
 {
-    private final Cascade cascade = Cascades.newCascade();
+    private final Cascade cascade = Cascade.newCascade();
 
     @Test
     public void testInitialState ()

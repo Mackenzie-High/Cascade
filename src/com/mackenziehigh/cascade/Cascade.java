@@ -1,24 +1,120 @@
 package com.mackenziehigh.cascade;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * An instance of this interface is a concurrent set of stages,
- * which each contain zero-or-more actors, which send and receive
+ * An instance of this interface contains a concurrent set of stages,
+ * where each stage contains zero-or-more actors, which send and receive
  * event-messages for processing according to their scripts.
  */
-public interface Cascade
+public final class Cascade
 {
+    private static final int ACTIVE = 0;
+
+    private static final int CLOSING = 1;
+
+    private static final int CLOSED = 2;
+
+    private final UUID uuid = UUID.randomUUID();
+
+    private final AtomicReference<String> name = new AtomicReference<>(uuid.toString());
+
+    private final CascadeDispatcher dispatcher;
+
+    private final Set<CascadeStage> stages = Sets.newConcurrentHashSet();
+
+    private final AtomicBoolean close = new AtomicBoolean();
+
+    private final AtomicInteger state = new AtomicInteger();
+
+    private final CountDownLatch awaitCloseLatch = new CountDownLatch(1);
+
+    private final Object lock = new Object();
+
+    /**
+     * Sole Constructor.
+     *
+     * @param dispatcher will be used to route event-messages.
+     */
+    private Cascade (final CascadeDispatcher dispatcher)
+    {
+        this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
+        Verify.verify(isActive());
+        Verify.verify(!isClosing());
+        Verify.verify(isClosed());
+    }
+
+    /**
+     * Factory method.
+     *
+     * @return a new instance of this class.
+     */
+    public static Cascade newCascade ()
+    {
+        final CascadeDispatcher disp = CascadeDispatcher.newDispatcher();
+        final Cascade cas = new Cascade(disp);
+        return cas;
+    }
+
+    /**
+     * Factory method.
+     *
+     * @param dispatcher will be used to route event-messages.
+     * @return a new instance of this class.
+     */
+    public static Cascade newCascade (final CascadeDispatcher dispatcher)
+    {
+        final Cascade cas = new Cascade(dispatcher);
+        return cas;
+    }
 
     /**
      * Getter.
      *
      * @return a universally-unique-identifier of this object.
      */
-    public UUID uuid ();
+    public UUID uuid ()
+    {
+        return uuid;
+    }
+
+    /**
+     * Setter.
+     *
+     * @param name will henceforth be the name of this cascade.
+     * @return this.
+     */
+    public Cascade named (final String name)
+    {
+        this.name.set(Objects.requireNonNull(name, "name"));
+        return this;
+    }
+
+    /**
+     * Getter.
+     *
+     * <p>
+     * By default, the name of this cascade is the string representation of the uuid().
+     * </p>
+     *
+     * @return the current name of this cascade.
+     */
+    public String name ()
+    {
+        return name.get();
+    }
 
     /**
      * Creates a new stage using a non-daemon thread.
@@ -27,22 +123,13 @@ public interface Cascade
      * Initially, the stage will not have any threads.
      * </p>
      *
+     * @param threadCount is how many threads will be used to power the stage.
      * @return the new stage.
      */
-    public CascadeStage newStage ();
-
-    /**
-     * Creates a new stage that will use the given thread-factory,
-     * whenever the stage needs to create a thread.
-     *
-     * <p>
-     * Initially, the stage will not have any threads.
-     * </p>
-     *
-     * @param factory will provide the threads for the new stage.
-     * @return the new stage.
-     */
-    public CascadeStage newStage (ThreadFactory factory);
+    public CascadeStage newStage (final int threadCount)
+    {
+        return null;
+    }
 
     /**
      * Adds a new custom stage.
@@ -50,43 +137,113 @@ public interface Cascade
      * @param stage will now be part of this cascade.
      * @return the given stage.
      */
-    public CascadeStage newStage (CascadeStage stage);
+    public CascadeStage newStage (final CascadeStage stage)
+    {
+        /**
+         * Prevent new stages from being created as we close them.
+         */
+        synchronized (lock)
+        {
+            if (stage.isClosing())
+            {
+                throw new IllegalArgumentException("The stage is already closing!");
+            }
+            else if (stage.isClosed())
+            {
+                throw new IllegalArgumentException("The stage is already closed!");
+            }
+            else if (this.equals(stage.cascade()) == false)
+            {
+                throw new IllegalArgumentException("The stage has a different cascade!");
+            }
+            else if (stages.contains(stage))
+            {
+                throw new IllegalStateException("The cascade already contains the given stage!");
+            }
+            else if (close.get() == false)
+            {
+                stages.add(stage);
+            }
+            else
+            {
+                throw new IllegalStateException("The stage is already closing!");
+            }
+        }
+
+        return stage;
+    }
+
+    /**
+     * Removes a closed stage from this cascade.
+     *
+     * <p>
+     * Do not invoke this method directly.
+     * Instead, close the stage and it will remove itself.
+     * </p>
+     *
+     * @param stage will be removed from this cascade.
+     * @return this.
+     * @throws IllegalArgumentException if the stage is not yet fully closed.
+     * @throws IllegalArgumentException if the stage is not part of this cascade.
+     */
+    public Cascade removeStage (final CascadeStage stage)
+    {
+        Preconditions.checkNotNull(stage, "stage");
+        Preconditions.checkArgument(stage.isClosed(), "The stage is not closed yet!");
+        Preconditions.checkArgument(this.equals(stage.cascade()), "The stage has a different cascade!");
+        stages.remove(stage);
+        return this;
+    }
 
     /**
      * Getter.
      *
-     * @return all of the stages currently controlled by this cascade.
+     * @return all of the stages currently active in this cascade.
      */
-    public Set<CascadeStage> stages ();
+    public Set<CascadeStage> stages ()
+    {
+        return ImmutableSet.copyOf(stages);
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the dispatcher that routes event-messages to interested actors.
+     */
+    public CascadeDispatcher dispatcher ()
+    {
+        return dispatcher;
+    }
 
     /**
      * Getter.
      *
      * @return true, if and only if, this cascade is not closed or closing.
      */
-    public boolean isActive ();
+    public boolean isActive ()
+    {
+        return state.get() == ACTIVE;
+    }
 
     /**
      * Getter.
      *
      * @return true, if and only if, this cascade is closing.
      */
-    public boolean isClosing ();
+    public boolean isClosing ()
+    {
+        return state.get() == CLOSING;
+    }
 
     /**
      * Getter.
      *
      * @return true, if and only, this cascade is now closed.
      */
-    public boolean isClosed ();
-
-    /**
-     * This method retrieves the event-channel identified by the given token.
-     *
-     * @param event identifies the event-channel to find.
-     * @return the channel.
-     */
-    public CascadeChannel lookup (CascadeToken event);
+    public boolean isClosed ()
+    {
+        return state.get() == CLOSED;
+    }
 
     /**
      * This method closes all of the stages and permanently terminates this cascade.
@@ -95,8 +252,79 @@ public interface Cascade
      * This method returns immediately; however, the cascade will
      * not be closed until all stages therein close.
      * </p>
+     *
+     * @return this.
      */
-    public void close ();
+    public Cascade close ()
+    {
+        /**
+         * Prevent new stages from being created as we close them.
+         */
+        synchronized (lock)
+        {
+            if (close.compareAndSet(false, true))
+            {
+                asyncPerformClose();
+            }
+        }
+
+        return this;
+    }
+
+    private void asyncPerformClose ()
+    {
+        final Thread thread = new Thread(() -> performClose(), "Close Cascade");
+        thread.start();
+        thread.setDaemon(false);
+    }
+
+    private void performClose ()
+    {
+        Verify.verify(isActive());
+        Verify.verify(!isClosing());
+        Verify.verify(!isClosed());
+        state.set(CLOSING);
+        Verify.verify(!isActive());
+        Verify.verify(isClosing());
+        Verify.verify(!isClosed());
+
+        final Duration timeout = Duration.ofSeconds(1);
+
+        while (stages.isEmpty() == false) // in-case of exception
+        {
+            for (CascadeStage stage : stages)
+            {
+                stage.close();
+            }
+
+            for (CascadeStage stage : stages)
+            {
+                try
+                {
+                    stage.awaitClose(timeout);
+                }
+                catch (InterruptedException ex)
+                {
+                    ex.printStackTrace(System.err);
+                    Thread.currentThread().interrupt();
+                }
+                catch (Throwable ex)
+                {
+                    ex.printStackTrace(System.err);
+                }
+            }
+        }
+
+        Verify.verify(!isActive());
+        Verify.verify(isClosing());
+        Verify.verify(!isClosed());
+        state.set(CLOSED);
+        Verify.verify(!isActive());
+        Verify.verify(!isClosing());
+        Verify.verify(isClosed());
+
+        awaitCloseLatch.countDown();
+    }
 
     /**
      * This method blocks, until this cascade closes.
@@ -108,8 +336,13 @@ public interface Cascade
      * </p>
      *
      * @param timeout is the maximum amount of time to wait.
+     * @return this.
      * @throws java.lang.InterruptedException
      */
-    public void awaitClose (Duration timeout)
-            throws InterruptedException;
+    public Cascade awaitClose (final Duration timeout)
+            throws InterruptedException
+    {
+        awaitCloseLatch.await(timeout.getNano(), TimeUnit.NANOSECONDS);
+        return this;
+    }
 }

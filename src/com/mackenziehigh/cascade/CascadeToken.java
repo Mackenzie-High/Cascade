@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade;
 
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableList;
@@ -18,8 +19,8 @@ import java.util.UUID;
  * A token is a series of one or more textual keys, which form a name.
  *
  * <p>
- * Tokens are optimized for efficient equality testing via the use of MD5 hashing.
- * The hash is not intended to be used for cryptological purposes,
+ * Tokens are optimized for efficient equality testing via the use of SHA-256 hashing.
+ * The hash is <b>not</b> intended to be used for cryptological purposes,
  * rather the hash is simple used for efficiency.
  * </p>
  *
@@ -41,11 +42,13 @@ public final class CascadeToken
 
     private final Optional<CascadeToken> parent;
 
-    private final long highMD5;
+    private final long hash1;
 
-    private final long lowMD5;
+    private final long hash2;
 
-    private final byte[] hashBytes;
+    private final long hash3;
+
+    private final long hash4;
 
     private final String hashString;
 
@@ -56,17 +59,24 @@ public final class CascadeToken
     private CascadeToken (final CascadeToken parent,
                           final String suffix)
     {
+        Preconditions.checkArgument(CharMatcher.ascii().matchesAllOf(suffix), "Non-ASCII Token");
         this.parent = Optional.ofNullable(parent);
         this.prefix = parent == null ? "" : parent.name();
         this.suffix = suffix;
         this.name = prefix.isEmpty() ? suffix : prefix + '.' + suffix;
-        this.hashString = Hashing.md5().hashString(name, Charset.forName("ASCII")).toString();
-        this.hashBytes = Hashing.md5().hashString(name, Charset.forName("ASCII")).asBytes();
+        this.hashString = Hashing.sha256().hashString(name, Charset.forName("ASCII")).toString();
+        final byte[] hashBytes = Hashing.sha256().hashString(name, Charset.forName("ASCII")).asBytes();
         this.hashInt = new BigInteger(hashBytes);
-        Verify.verify(hashBytes.length == 128 / 8); // 128 bits to bytes
-        this.highMD5 = Longs.fromByteArray(Arrays.copyOfRange(hashBytes, 8, 16));
-        this.lowMD5 = Longs.fromByteArray(Arrays.copyOfRange(hashBytes, 0, 8));
-        Verify.verify(Arrays.equals(hashBytes, Bytes.concat(Longs.toByteArray(lowMD5), Longs.toByteArray(highMD5))));
+        Verify.verify(hashBytes.length == 256 / 8); // 256 bits to bytes
+        this.hash4 = Longs.fromByteArray(Arrays.copyOfRange(hashBytes, 24, 32));
+        this.hash3 = Longs.fromByteArray(Arrays.copyOfRange(hashBytes, 16, 24));
+        this.hash2 = Longs.fromByteArray(Arrays.copyOfRange(hashBytes, 8, 16));
+        this.hash1 = Longs.fromByteArray(Arrays.copyOfRange(hashBytes, 0, 8));
+        Verify.verify(Arrays.equals(hashBytes,
+                                    Bytes.concat(Longs.toByteArray(hash1),
+                                                 Longs.toByteArray(hash2),
+                                                 Longs.toByteArray(hash3),
+                                                 Longs.toByteArray(hash4))));
         this.hashCode = HashCode.fromBytes(hashBytes).hashCode();
         this.keys = parent == null
                 ? ImmutableList.of(name)
@@ -76,7 +86,7 @@ public final class CascadeToken
     /**
      * Create a new token with a random name based on a UUID.
      *
-     * @return the new token.
+     * @return the new random token.
      */
     public static CascadeToken random ()
     {
@@ -154,7 +164,7 @@ public final class CascadeToken
     /**
      * Getter.
      *
-     * @return the textual representation of the MD5 hash.
+     * @return the textual representation of the SHA-256 hash.
      */
     public String hashString ()
     {
@@ -164,29 +174,87 @@ public final class CascadeToken
     /**
      * Getter.
      *
-     * @param out will receive the binary representation of the MD5 hash.
+     * @return the first series of eight bytes of the binary hash.
+     */
+    public long hash1 ()
+    {
+        return hash1;
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the second series of eight bytes of the binary hash.
+     */
+    public long hash2 ()
+    {
+        return hash2;
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the third series of eight bytes of the binary hash.
+     */
+    public long hash3 ()
+    {
+        return hash3;
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the fourth series of eight bytes of the binary hash.
+     */
+    public long hash4 ()
+    {
+        return hash4;
+    }
+
+    /**
+     * Getter.
+     *
+     * @param out will receive the binary representation of the SHA-256 hash.
      * @return this.
      */
     public CascadeToken toHashBytes (final byte[] out)
     {
-        System.arraycopy(hashBytes, 0, out, 0, hashBytes.length);
-        return this;
+        if (out.length < 8 * 4)
+        {
+            throw new IllegalArgumentException("out is too small.");
+        }
+        else
+        {
+            out[0] = (byte) (hash1 & (0xFF));
+            out[1] = (byte) (hash1 & (0xFF << 1));
+            out[2] = (byte) (hash1 & (0xFF << 2));
+            out[3] = (byte) (hash1 & (0xFF << 3));
+            out[4] = (byte) (hash1 & (0xFF << 4));
+            out[5] = (byte) (hash1 & (0xFF << 5));
+            out[6] = (byte) (hash1 & (0xFF << 6));
+            out[7] = (byte) (hash1 & (0xFF << 7));
+            out[8] = (byte) (hash1 & (0xFF << 8));
+            // TODO
+            return this;
+        }
     }
 
     /**
      * Getter.
      *
-     * @return the binary representation of the MD5 hash.
+     * @return the binary representation of the SHA-256 hash.
      */
     public byte[] toHashBytes ()
     {
-        return Arrays.copyOf(hashBytes, hashBytes.length);
+        final byte[] bytes = new byte[4 * 8];
+        toHashBytes(bytes);
+        return bytes;
     }
 
     /**
      * Getter.
      *
-     * @return the cached integer representation of the MD5 hash.
+     * @return the cached integer representation of the SHA-256 hash.
      */
     public BigInteger toHashInt ()
     {
@@ -263,7 +331,11 @@ public final class CascadeToken
      */
     public boolean isWeaklyEqualTo (final CascadeToken other)
     {
-        return (other != null) && (lowMD5 == other.lowMD5) && (highMD5 == other.highMD5);
+        return (other != null)
+               && (hash1 == other.hash1)
+               && (hash2 == other.hash2)
+               && (hash3 == other.hash3)
+               && (hash4 == other.hash4);
     }
 
     /**

@@ -7,7 +7,11 @@ TODO:
 + More well-defined mechanism for stack serialization.
 + Add blocking consumers that receive values from actor.
 + Rename CommandChain, since it could conflict conceptually with Commandable.
-+ onSetup() / Scheduler is broken. 
++ onSetup() / Scheduler is broken.
++ Add isStarted() method.
++ Add/rename isStopped() method.
++ Rename close() to stop.
++ Rename onClose() handler to onStop() handler. 
 
 
 

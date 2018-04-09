@@ -4,8 +4,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeToken;
-import java.math.BigInteger;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -14,7 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Routes event-messages to interested inflow-queues.
  */
-public final class Dispatcher
+public final class SimpleDispatcher
 {
     /**
      * This map maps the name of an event-stream to the inflow-queues
@@ -36,7 +34,7 @@ public final class Dispatcher
      * and then swapped-in as the replacement for the existing list.
      * </p>
      */
-    private final Map<BigInteger, AtomicReference<List<InflowQueue>>> subscriptions = Collections.synchronizedMap(Maps.newTreeMap());
+    private final Map<CascadeToken, AtomicReference<List<InflowQueue>>> subscriptions = Maps.newConcurrentMap();
 
     /**
      * After this method returns, the given inflow-queue will
@@ -56,11 +54,9 @@ public final class Dispatcher
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(subscriber, "subscriber");
 
-        final BigInteger key = event.toHashInt();
-
-        if (subscriptions.containsKey(key))
+        if (subscriptions.containsKey(event))
         {
-            final AtomicReference<List<InflowQueue>> ref = subscriptions.get(key);
+            final AtomicReference<List<InflowQueue>> ref = subscriptions.get(event);
             final CopyOnWriteArrayList modified = new CopyOnWriteArrayList(ref.get());
             modified.add(subscriber);
             ref.set(modified);
@@ -69,7 +65,7 @@ public final class Dispatcher
         {
             final List<InflowQueue> list = new CopyOnWriteArrayList<>();
             list.add(subscriber);
-            subscriptions.put(key, new AtomicReference<>(list));
+            subscriptions.put(event, new AtomicReference<>(list));
         }
     }
 
@@ -96,18 +92,16 @@ public final class Dispatcher
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(subscriber, "subscriber");
 
-        final BigInteger key = event.toHashInt();
-
-        if (subscriptions.containsKey(key) == false)
+        if (subscriptions.containsKey(event) == false)
         {
             return;
         }
 
-        final AtomicReference<List<InflowQueue>> ref = subscriptions.get(key);
+        final AtomicReference<List<InflowQueue>> ref = subscriptions.get(event);
 
         if (ref.get().size() == 1)
         {
-            subscriptions.remove(key);
+            subscriptions.remove(event);
         }
         else
         {
@@ -136,13 +130,11 @@ public final class Dispatcher
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(stack, "stack");
 
-        final BigInteger key = event.toHashInt();
-
         /**
          * These are all of the inflow-queues that are interested
          * in receiving messages from the given event, if any.
          */
-        final AtomicReference<List<InflowQueue>> ref = subscriptions.get(key);
+        final AtomicReference<List<InflowQueue>> ref = subscriptions.get(event);
 
         if (ref == null)
         {

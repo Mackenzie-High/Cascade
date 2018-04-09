@@ -29,7 +29,7 @@ public interface CascadeContext
     /**
      * Getter.
      *
-     * @return the actor that contains the script(), logger(), etc.
+     * @return the actor that contains the script(), etc.
      */
     public CascadeActor actor ();
 
@@ -58,7 +58,7 @@ public interface CascadeContext
     public default CascadeContext send (final CascadeToken event,
                                         final CascadeStack stack)
     {
-        cascade().lookup(event).send(event, stack);
+        cascade().dispatcher().lookup(event).send(stack);
         return this;
     }
 

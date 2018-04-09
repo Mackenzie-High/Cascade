@@ -16,11 +16,11 @@ import java.util.function.Consumer;
 public final class InternalChannel
         implements CascadeChannel
 {
-    private final Dispatcher dispatcher;
+    private final SimpleDispatcher dispatcher;
 
     private final CascadeToken event;
 
-    public InternalChannel (final Dispatcher dispatcher,
+    public InternalChannel (final SimpleDispatcher dispatcher,
                             final CascadeToken event)
     {
         this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
@@ -67,8 +67,7 @@ public final class InternalChannel
      * {@inheritDoc}
      */
     @Override
-    public CascadeChannel send (final CascadeToken event,
-                                final CascadeStack stack)
+    public CascadeChannel send (final CascadeStack stack)
     {
         dispatcher.send(event, stack);
         return this;

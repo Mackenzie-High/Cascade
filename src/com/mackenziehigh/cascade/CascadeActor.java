@@ -1,9 +1,23 @@
 package com.mackenziehigh.cascade;
 
+import com.google.common.base.Preconditions;
+import com.mackenziehigh.cascade.internal.ArrayInflowQueue;
+import com.mackenziehigh.cascade.internal.BoundedInflowQueue;
+import com.mackenziehigh.cascade.internal.InflowQueue;
+import com.mackenziehigh.cascade.internal.LinkedInflowQueue;
+import com.mackenziehigh.cascade.internal.NotificationInflowQueue;
+import com.mackenziehigh.cascade.internal.SwappableInflowQueue;
+import com.mackenziehigh.cascade.internal.SynchronizedInflowQueue;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Actors receive, process, and send event-messages.
@@ -27,7 +41,7 @@ import java.util.UUID;
  * By default, actors use the Drop Incoming overflow-policy.
  * </p>
  */
-public interface CascadeActor
+public final class CascadeActor
 {
     /**
      * A builder that builds actor objects.
@@ -64,6 +78,128 @@ public interface CascadeActor
          * @return the newly built actor.
          */
         public CascadeActor build ();
+
+        /**
+         * Getter.
+         *
+         * @return the newly built and started actor.
+         */
+        public default CascadeActor buildAndStart ()
+        {
+            final CascadeActor actor = build();
+            actor.start();
+            return actor;
+        }
+    }
+
+    private static final int UNSTARTED = 0;
+
+    private static final int ACTIVE = 1;
+
+    private static final int CLOSING = 1;
+
+    private static final int CLOSED = 2;
+
+    private final CascadeActor SELF = this;
+
+    /**
+     * This UUID uniquely identifies this actor.
+     */
+    private final UUID uuid = UUID.randomUUID();
+
+    /**
+     * The birth-date of this actor.
+     */
+    private final Instant creationTime = Instant.now();
+
+    /**
+     * This is the name of this actor, which may change over time.
+     */
+    private volatile String name = uuid.toString();
+
+    private final AtomicInteger state = new AtomicInteger();
+
+    private final CascadeStage stage;
+
+    /**
+     * True, if the script is executing.
+     */
+    private final AtomicBoolean acting = new AtomicBoolean(false);
+
+    /**
+     * Used to implement awaitClose().
+     */
+    private final CountDownLatch awaitCloseLatch = new CountDownLatch(1);
+
+    /**
+     * The script will be passed this context in order to provide
+     * the script with access to this actor and send messages.
+     */
+    private final CascadeContext context = new CascadeContext()
+    {
+        @Override
+        public CascadeActor actor ()
+        {
+            return SELF;
+        }
+    };
+
+    /**
+     * This script defines how this actor behaves.
+     */
+    private final CascadeScript script = new CascadeScript();
+
+    /**
+     * This inflow-queue physically stores the incoming event-messages.
+     *
+     * <p>
+     * Whenever this field changes, the bounded-queue must change.
+     * Moreover, the swappable-queue must delegate to the new bounded-queue.
+     * </p>
+     */
+    private volatile InflowQueue storageInflowQueue;
+
+    /**
+     * This inflow-queue is a facade around the storage-queue,
+     * which implements the overflow policy of this actor.
+     */
+    private volatile BoundedInflowQueue boundedInflowQueue;
+
+    /**
+     * This inflow-queue is a facade around the bounded-queue,
+     * which facilitates hot-swapping thereof.
+     */
+    private final SwappableInflowQueue swappableInflowQueue;
+
+    /**
+     * This inflow-queue is a facade around the swappable-queue,
+     * which will invoke onQueueAdd() whenever a message is received.
+     */
+    private final NotificationInflowQueue schedulerInflowQueue;
+
+    /**
+     * This inflow-queue is a facade around the scheduler-queue,
+     * which ensures that all operations are queue synchronized.
+     */
+    private final SynchronizedInflowQueue syncInflowQueue;
+
+    private final AtomicReference<CascadeToken> event = new AtomicReference<>();
+
+    private final AtomicReference<CascadeStack> stack = new AtomicReference<>();
+
+    /**
+     * Sole Constructor.
+     *
+     * @param stage contains this actor.
+     */
+    CascadeActor (final CascadeStage stage)
+    {
+        this.stage = Objects.requireNonNull(stage, "stage");
+        this.storageInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);
+        this.boundedInflowQueue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);
+        this.swappableInflowQueue = new SwappableInflowQueue(boundedInflowQueue);
+        this.schedulerInflowQueue = new NotificationInflowQueue(swappableInflowQueue, q -> onQueueAdd(q));
+        this.syncInflowQueue = new SynchronizedInflowQueue(schedulerInflowQueue);
     }
 
     /**
@@ -72,7 +208,11 @@ public interface CascadeActor
      * @param name will henceforth be the name of this actor.
      * @return this.
      */
-    public CascadeActor named (String name);
+    public CascadeActor named (final String name)
+    {
+        this.name = Objects.requireNonNull(name, "name");
+        return this;
+    }
 
     /**
      * Getter.
@@ -83,21 +223,27 @@ public interface CascadeActor
      *
      * @return the current name of this actor.
      */
-    public String name ();
+    public String name ()
+    {
+        return name;
+    }
 
     /**
      * Getter.
      *
      * @return a UUID that uniquely identifies this actor in time and space.
      */
-    public UUID uuid ();
+    public UUID uuid ()
+    {
+        return uuid;
+    }
 
     /**
      * Getter.
      *
      * @return the enclosing cascade.
      */
-    public default Cascade cascade ()
+    public Cascade cascade ()
     {
         return stage().cascade();
     }
@@ -107,14 +253,20 @@ public interface CascadeActor
      *
      * @return the enclosing stage.
      */
-    public CascadeStage stage ();
+    public CascadeStage stage ()
+    {
+        return stage;
+    }
 
     /**
      * Getter.
      *
      * @return the script that will be executed whenever messages are received.
      */
-    public CascadeScript script ();
+    public CascadeScript script ()
+    {
+        return script;
+    }
 
     /**
      * Causes this actor to switch to a fixed-size array-based
@@ -130,14 +282,23 @@ public interface CascadeActor
      * @param capacity will be the backlogCapacity() of the queue.
      * @return this.
      */
-    public CascadeActor useArrayInflowQueue (int capacity);
+    public CascadeActor useArrayInflowQueue (final int capacity)
+    {
+        final BoundedInflowQueue.OverflowPolicy policy = boundedInflowQueue.policy();
+        final InflowQueue newQueue = new ArrayInflowQueue(capacity);
+        replaceQueue(policy, newQueue);
+        return this;
+    }
 
     /**
      * Getter.
      *
      * @return true, iff this actor is using an array-based inflow-queue.
      */
-    public boolean hasArrayInflowQueue ();
+    public boolean hasArrayInflowQueue ()
+    {
+        return storageInflowQueue instanceof ArrayInflowQueue;
+    }
 
     /**
      * Causes this actor to switch to an fixed-size array-based
@@ -153,14 +314,23 @@ public interface CascadeActor
      * @param capacity will be the backlogCapacity() of the queue.
      * @return this.
      */
-    public CascadeActor useLinkedInflowQueue (int capacity);
+    public CascadeActor useLinkedInflowQueue (final int capacity)
+    {
+        final BoundedInflowQueue.OverflowPolicy policy = boundedInflowQueue.policy();
+        final InflowQueue newQueue = new LinkedInflowQueue(capacity);
+        replaceQueue(policy, newQueue);
+        return this;
+    }
 
     /**
      * Getter.
      *
      * @return true, iff this actor is using a linked-list based inflow-queue.
      */
-    public boolean hasLinkedInflowQueue ();
+    public boolean hasLinkedInflowQueue ()
+    {
+        return storageInflowQueue instanceof LinkedInflowQueue;
+    }
 
     /**
      * Causes the overflow-policy to be changed to Drop All.
@@ -174,14 +344,21 @@ public interface CascadeActor
      *
      * @return this.
      */
-    public CascadeActor useOverflowPolicyDropAll ();
+    public CascadeActor useOverflowPolicyDropAll ()
+    {
+        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_ALL, storageInflowQueue);
+        return this;
+    }
 
     /**
      * Getter.
      *
      * @return true, iff this actor is using the Drop All overflow-policy.
      */
-    public boolean isOverflowPolicyDropAll ();
+    public boolean isOverflowPolicyDropAll ()
+    {
+        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_ALL;
+    }
 
     /**
      * Causes the overflow-policy to be changed to Drop Pending.
@@ -195,14 +372,21 @@ public interface CascadeActor
      *
      * @return this.
      */
-    public CascadeActor useOverflowPolicyDropPending ();
+    public CascadeActor useOverflowPolicyDropPending ()
+    {
+        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_PENDING, storageInflowQueue);
+        return this;
+    }
 
     /**
      * Getter.
      *
      * @return true, iff this actor is using the Drop Pending overflow-policy.
      */
-    public boolean isOverflowPolicyDropPending ();
+    public boolean isOverflowPolicyDropPending ()
+    {
+        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_PENDING;
+    }
 
     /**
      * Causes the overflow-policy to be changed to Drop Oldest.
@@ -217,14 +401,21 @@ public interface CascadeActor
      *
      * @return this.
      */
-    public CascadeActor useOverflowPolicyDropOldest ();
+    public CascadeActor useOverflowPolicyDropOldest ()
+    {
+        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_OLDEST, storageInflowQueue);
+        return this;
+    }
 
     /**
      * Getter.
      *
      * @return true, iff this actor is using the Drop Oldest overflow-policy.
      */
-    public boolean isOverflowPolicyDropOldest ();
+    public boolean isOverflowPolicyDropOldest ()
+    {
+        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_OLDEST;
+    }
 
     /**
      * Causes the overflow-policy to be changed to Drop Newest.
@@ -239,14 +430,21 @@ public interface CascadeActor
      *
      * @return this.
      */
-    public CascadeActor useOverflowPolicyDropNewest ();
+    public CascadeActor useOverflowPolicyDropNewest ()
+    {
+        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_NEWEST, storageInflowQueue);
+        return this;
+    }
 
     /**
      * Getter.
      *
      * @return true, iff this actor is using the Drop Newest overflow-policy.
      */
-    public boolean isOverflowPolicyDropNewest ();
+    public boolean isOverflowPolicyDropNewest ()
+    {
+        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_NEWEST;
+    }
 
     /**
      * Causes the overflow-policy to be changed to Drop Incoming.
@@ -261,14 +459,21 @@ public interface CascadeActor
      *
      * @return this.
      */
-    public CascadeActor useOverflowPolicyDropIncoming ();
+    public CascadeActor useOverflowPolicyDropIncoming ()
+    {
+        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);
+        return this;
+    }
 
     /**
      * Getter.
      *
      * @return true, iff this actor is using the Drop Incoming overflow-policy.
      */
-    public boolean isOverflowPolicyDropIncoming ();
+    public boolean isOverflowPolicyDropIncoming ()
+    {
+        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_INCOMING;
+    }
 
     /**
      * This method causes this actor to begin receiving messages for the given event.
@@ -276,7 +481,11 @@ public interface CascadeActor
      * @param event identifies the event to listen for.
      * @return this.
      */
-    public CascadeActor subscribe (CascadeToken event);
+    public CascadeActor subscribe (final CascadeToken event)
+    {
+        cascade().dispatcher().subscribe(event, this);
+        return this;
+    }
 
     /**
      * This method causes this actor to stop receiving messages for the given event.
@@ -289,63 +498,101 @@ public interface CascadeActor
      * @param event identifies the event to no longer listen for.
      * @return this.
      */
-    public CascadeActor unsubscribe (CascadeToken event);
+    public CascadeActor unsubscribe (final CascadeToken event)
+    {
+        cascade().dispatcher().unsubscribe(event, this);
+        return this;
+    }
 
     /**
      * Getter.
      *
      * @return the identities of the events that this actor is listening for.
      */
-    public Set<CascadeChannel> subscriptions ();
+    public Set<CascadeChannel> subscriptions ()
+    {
+        return cascade().dispatcher().subscriptionsOf(this);
+    }
+
+    /**
+     * Getter.
+     *
+     * @return true, if and only if, start() was already called.
+     */
+    public boolean isStarted ()
+    {
+        return state.get() != UNSTARTED;
+    }
 
     /**
      * Getter.
      *
      * @return true, if and only if, the script() is currently being executed.
      */
-    public boolean isActing ();
+    public boolean isActing ()
+    {
+        return acting.get();
+    }
 
     /**
      * Getter.
      *
-     * @return true, if and only if, this actor is not closed or closing.
+     * @return true, if and only if, this actor is not unstarted, closed, or closing.
      */
-    public boolean isActive ();
+    public boolean isActive ()
+    {
+        return state.get() == ACTIVE;
+    }
 
     /**
      * Getter.
      *
      * @return true, if and only if, this actor is leaving the stage.
      */
-    public boolean isClosing ();
+    public boolean isClosing ()
+    {
+        return state.get() == CLOSING;
+    }
 
     /**
      * Getter.
      *
      * @return true, if and only if, this actor has left the stage.
      */
-    public boolean isClosed ();
+    public boolean isClosed ()
+    {
+        return state.get() == CLOSED;
+    }
 
     /**
      * Getter.
      *
      * @return the time that this actor was created.
      */
-    public Instant creationTime ();
+    public Instant creationTime ()
+    {
+        return creationTime;
+    }
 
     /**
      * Getter.
      *
      * @return the current number of messages enqueued in the inflow queue.
      */
-    public int backlogSize ();
+    public int backlogSize ()
+    {
+        return syncInflowQueue.size();
+    }
 
     /**
      * Getter.
      *
      * @return the current capacity of the inflow queue.
      */
-    public int backlogCapacity ();
+    public int backlogCapacity ()
+    {
+        return syncInflowQueue.capacity();
+    }
 
     /**
      * Getter.
@@ -353,7 +600,10 @@ public interface CascadeActor
      * @return the total number of messages sent to this actor, thus far,
      * that were enqueued without being immediately dropped.
      */
-    public long acceptedMessages ();
+    public long acceptedMessages ()
+    {
+        return 0;
+    }
 
     /**
      * Getter.
@@ -361,7 +611,10 @@ public interface CascadeActor
      * @return the total number of messages that this actor
      * has dropped upon receiving them, thus far.
      */
-    public long droppedMessages ();
+    public long droppedMessages ()
+    {
+        return 0;
+    }
 
     /**
      * Getter.
@@ -369,7 +622,10 @@ public interface CascadeActor
      * @return the total number of messages that this actor
      * has actually processed using the script(), thus far.
      */
-    public long consumedMessages ();
+    public long consumedMessages ()
+    {
+        return 0;
+    }
 
     /**
      * Getter.
@@ -377,7 +633,10 @@ public interface CascadeActor
      * @return the number of unhandled exceptions that
      * have been thrown by the script(), thus far.
      */
-    public long unhandledExceptions ();
+    public long unhandledExceptions ()
+    {
+        return 0;
+    }
 
     /**
      * Getter.
@@ -385,7 +644,10 @@ public interface CascadeActor
      * @return the context that is passed to the script()
      * whenever messages are processed by this actor.
      */
-    public CascadeContext context ();
+    public CascadeContext context ()
+    {
+        return context;
+    }
 
     /**
      * Sends an event-message directly to this actor.
@@ -400,35 +662,51 @@ public interface CascadeActor
      * @param stack is the content of the event-message.
      * @return this.
      */
-    public CascadeActor tell (CascadeToken event,
-                              CascadeStack stack);
+    public CascadeActor tell (final CascadeToken event,
+                              final CascadeStack stack)
+    {
+        Preconditions.checkNotNull(event, "event");
+        Preconditions.checkNotNull(stack, "stack");
+        syncInflowQueue.offer(event, stack);
+        return this;
+    }
 
     /**
-     * Causes this actor to be monitored by the given director.
+     * Schedule this actor for startup.
      *
-     * @param director will monitor this actor.
      * @return this.
      */
-    public CascadeActor registerDirector (CascadeDirector director);
+    public CascadeActor start ()
+    {
+        stage().schedule(this);
+        return this;
+    }
 
     /**
-     * Causes this actor will no-longer be monitored by the given director.
+     * Cause this actor to perform one unit-of-work and then return.
      *
      * <p>
-     * This method is a no-op, if the given director does not monitor this actor.
+     * A single unit-of-work is either executing the startup-script,
+     * processing a single incoming message using the message
+     * handling script, or executing the stop-script.
      * </p>
      *
-     * @param director will no-longer monitor this actor.
+     * <p>
+     * Only one unit-of-work is performed during each invocation
+     * in order to implement cooperative multi-tasking.
+     * </p>
+     *
+     * <p>
+     * If no work is immediately available, then this method is a no-op.
+     * </p>
+     *
      * @return this.
      */
-    public CascadeActor deregisterDirector (CascadeDirector director);
-
-    /**
-     * Getter.
-     *
-     * @return the directors that are monitoring this actor.
-     */
-    public Set<CascadeDirector> directors ();
+    public CascadeActor perform ()
+    {
+        act();
+        return this;
+    }
 
     /**
      * This method kills this actor, which causes it to stop listening
@@ -438,16 +716,116 @@ public interface CascadeActor
      * This method returns immediately; however, the actor will not close
      * until it has finished any work that it is currently performing.
      * </p>
+     *
+     * @return this.
      */
-    public void close ();
+    public CascadeActor close ()
+    {
+
+        return this;
+    }
 
     /**
      * This method blocks, until this actor dies.
      *
      * @param timeout is the maximum amount of time to wait.
+     * @return this.
      * @throws java.lang.InterruptedException
      */
-    public void awaitClose (Duration timeout)
-            throws InterruptedException;
+    public CascadeActor awaitClose (final Duration timeout)
+            throws InterruptedException
+    {
+        awaitCloseLatch.await(timeout.getNano(), TimeUnit.NANOSECONDS);
+        return this; // TODO: boolean instead?
+    }
+
+    private void act ()
+    {
+        synchronized (this)
+        {
+            try
+            {
+                setupIfNeeded();
+            }
+            catch (Throwable ex)
+            {
+                //reportUnhandledException(ex);
+                close();
+                return;
+            }
+
+            try
+            {
+                processMessageIfNeeded();
+            }
+            catch (Throwable ex)
+            {
+                //reportUnhandledException(ex);
+            }
+
+            try
+            {
+                shutdownIfNeeded();
+            }
+            catch (Throwable ex)
+            {
+                //reportUnhandledException(ex);
+            }
+        }
+    }
+
+    private void setupIfNeeded ()
+            throws Throwable
+    {
+        if (isStarted())
+        {
+            script.onSetup(context);
+        }
+    }
+
+    private void processMessageIfNeeded ()
+            throws Throwable
+    {
+        event.set(null);
+        stack.set(null);
+        syncInflowQueue.removeOldest(event, stack);
+        final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)
+        if (delivered)
+        {
+            script.onMessage(context(), event.get(), stack.get());
+        }
+    }
+
+    private void shutdownIfNeeded ()
+    {
+
+    }
+
+    /**
+     * This method will be executed whenever an event-message is received,
+     * even if the message is ultimately dropped by this actor.
+     *
+     * @param queue just received the new message.
+     */
+    private void onQueueAdd (final InflowQueue queue)
+    {
+        stage().schedule(this);
+    }
+
+    private void replaceQueue (final BoundedInflowQueue.OverflowPolicy policy,
+                               final InflowQueue newStorageQueue)
+    {
+        final Runnable action = () ->
+        {
+            storageInflowQueue = newStorageQueue;
+            boundedInflowQueue = new BoundedInflowQueue(policy, newStorageQueue);
+            swappableInflowQueue.replaceDelegate(boundedInflowQueue);
+        };
+
+        /**
+         * The replacement must be synchronized with regard to other queue operations.
+         */
+        syncInflowQueue.sync(action);
+    }
 
 }
