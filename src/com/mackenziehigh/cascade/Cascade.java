@@ -157,14 +157,19 @@ public final class Cascade
      * @param executor will be used to power the new stage.
      * @return the given stage.
      */
-    public CascadeStage newStage (final CascadeExecutor executor)
+    public synchronized CascadeStage newStage (final CascadeExecutor executor)
     {
+        if (isClosing())
+        {
+            throw new IllegalStateException("Already Closing!");
+        }
+
         /**
          * Prevent new stages from being created as we close the existing ones.
          */
         synchronized (lock)
         {
-            final CascadeStage stage = new CascadeStage(this, dispatcher, executor, s -> stages.remove(s));
+            final CascadeStage stage = new CascadeStage(this, dispatcher, executor, s -> removeStage(s));
 
             if (stage.isClosing())
             {
@@ -264,66 +269,16 @@ public final class Cascade
         {
             if (close.compareAndSet(false, true))
             {
-                asyncPerformClose();
+                state.set(CLOSING);
+
+                for (CascadeStage stage : stages)
+                {
+                    stage.close();
+                }
             }
         }
 
         return this;
-    }
-
-    private void asyncPerformClose ()
-    {
-        final Thread thread = new Thread(() -> performClose(), "Close Cascade");
-        thread.start();
-        thread.setDaemon(false);
-    }
-
-    private void performClose ()
-    {
-        Verify.verify(isActive());
-        Verify.verify(!isClosing());
-        Verify.verify(!isClosed());
-        state.set(CLOSING);
-        Verify.verify(!isActive());
-        Verify.verify(isClosing());
-        Verify.verify(!isClosed());
-
-        final Duration timeout = Duration.ofSeconds(1);
-
-        while (stages.isEmpty() == false) // in-case of exception
-        {
-            for (CascadeStage stage : stages)
-            {
-                stage.close();
-            }
-
-            for (CascadeStage stage : stages)
-            {
-                try
-                {
-                    stage.awaitClose(timeout);
-                }
-                catch (InterruptedException ex)
-                {
-                    ex.printStackTrace(System.err);
-                    Thread.currentThread().interrupt();
-                }
-                catch (Throwable ex)
-                {
-                    ex.printStackTrace(System.err);
-                }
-            }
-        }
-
-        Verify.verify(!isActive());
-        Verify.verify(isClosing());
-        Verify.verify(!isClosed());
-        state.set(CLOSED);
-        Verify.verify(!isActive());
-        Verify.verify(!isClosing());
-        Verify.verify(isClosed());
-
-        awaitCloseLatch.countDown();
     }
 
     /**
@@ -380,5 +335,16 @@ public final class Cascade
         }
 
         return this;
+    }
+
+    private synchronized void removeStage (final CascadeStage stage)
+    {
+        stages.remove(stage);
+
+        if (stages.isEmpty() && isClosing())
+        {
+            state.set(CLOSED);
+            awaitCloseLatch.countDown();
+        }
     }
 }

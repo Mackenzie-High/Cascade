@@ -1,165 +1,300 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>Dispatcher.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.internal</a> &gt; <span class="el_source">Dispatcher.java</span></div><h1>Dispatcher.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.internal;
 
-import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.math.LongMath;
+import com.mackenziehigh.cascade.CascadeActor;
+import com.mackenziehigh.cascade.CascadeChannel;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeToken;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
- * Routes event-messages to interested inflow-queues.
+ *
  */
-<span class="nc" id="L15">public final class Dispatcher</span>
+public final class Dispatcher
 {
-    /**
-     * This map maps the name of an event-stream to the inflow-queues
-     * that are interested in that particular event-stream.
-     *
-     * &lt;p&gt;
-     * This map is optimized for performance.
-     * The ConcurrentHashMap uses stripped locking, so that insertions/removals
-     * will have less impact on lookups that are occurring concurrently.
-     * The AtomicReference enables us to atomically swap-in a replacement
-     * list whenever an insertion or removal is performed, which ensures
-     * that no blocking of senders must be performed to add additional
-     * subscriptions to a given event-stream. Otherwise, unrelated listeners
-     * that are interested in the same event-stream could cause random
-     * performance problems for each other by momentarily blocking lookups
-     * due to subscriptions and/or unsubscriptions being synchronized.
-     * Notice that the List is never modified while in the map.
-     * When the List needs modified, a copy is created, modified,
-     * and then swapped-in as the replacement for the existing list.
-     * &lt;/p&gt;
-     */
-<span class="nc" id="L37">    private final Map&lt;CascadeToken, AtomicReference&lt;List&lt;InflowQueue&gt;&gt;&gt; subscriptions = new ConcurrentHashMap&lt;&gt;();</span>
+    private final AtomicReferenceArray&lt;Bucket&gt; buckets;
 
     /**
-     * After this method returns, the given inflow-queue will
-     * receive any event-messages from the given event-stream.
-     *
-     * &lt;p&gt;
-     * This method is synchronized in order to prevent concurrent
-     * registrations or deregistrations for the same event
-     * &lt;/p&gt;
-     *
-     * @param event identifies the event-stream to subscribe to.
-     * @param subscriber will be subscribed to the event-stream.
+     * Sole constructor.
      */
-    public synchronized void register (final CascadeToken event,
-                                       final InflowQueue subscriber)
-    {
-<span class="nc" id="L54">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
-<span class="nc" id="L55">        Preconditions.checkNotNull(subscriber, &quot;subscriber&quot;);</span>
+    private Dispatcher (final int bucketCount,
+                        final int bucketCapacity,
+                        final float bucketLoadFactor)
+<span class="fc" id="L36">    {</span>
+<span class="fc" id="L37">        this.buckets = new AtomicReferenceArray&lt;&gt;(bucketCount);</span>
 
-<span class="nc bnc" id="L57" title="All 2 branches missed.">        if (subscriptions.containsKey(event))</span>
+<span class="fc bfc" id="L39" title="All 2 branches covered.">        for (int i = 0; i &lt; bucketCount; i++)</span>
         {
-<span class="nc" id="L59">            final AtomicReference&lt;List&lt;InflowQueue&gt;&gt; ref = subscriptions.get(this);</span>
-<span class="nc" id="L60">            final CopyOnWriteArrayList modified = new CopyOnWriteArrayList(ref.get());</span>
-<span class="nc" id="L61">            modified.add(subscriber);</span>
-<span class="nc" id="L62">            ref.set(modified);</span>
-<span class="nc" id="L63">        }</span>
+<span class="fc" id="L41">            buckets.set(i, new Bucket(bucketCapacity, bucketLoadFactor));</span>
+        }
+<span class="fc" id="L43">    }</span>
+
+    /**
+     * Create a new dispatcher with default configuration settings.
+     *
+     * @return the new dispatcher.
+     */
+    public static Dispatcher newDispatcher ()
+    {
+<span class="fc" id="L52">        return new Dispatcher(256, 8, 0.5F);</span>
+    }
+
+    private Bucket resolveBucketFor (final CascadeToken event)
+    {
+<span class="nc" id="L57">        final int idx = (int) LongMath.mod(event.hash1(), buckets.length());</span>
+<span class="nc" id="L58">        return buckets.get(idx);</span>
+    }
+
+    /**
+     * This method causes the given actor to begin receiving messages from the given event.
+     *
+     * &lt;p&gt;
+     * If the actor is currently subscribed to the named event-channel,
+     * then this method is simply a no-op.
+     * &lt;/p&gt;
+     *
+     * @param event identifies the event to listen for.
+     * @param actor will receive the corresponding event-messages.
+     * @return this.
+     */
+    public Dispatcher subscribe (final CascadeToken event,
+                                 final CascadeActor actor)
+    {
+<span class="nc" id="L76">        final Bucket bucket = resolveBucketFor(event);</span>
+
+<span class="nc" id="L78">        synchronized (bucket)</span>
+        {
+<span class="nc bnc" id="L80" title="All 2 branches missed.">            if (bucket.channels.containsKey(event) == false)</span>
+            {
+<span class="nc" id="L82">                bucket.channels.put(event, new Channel(bucket, event));</span>
+            }
+
+<span class="nc" id="L85">            final Channel channel = bucket.channels.get(event);</span>
+
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            if (channel.subscribers.get().contains(actor))</span>
+            {
+<span class="nc" id="L89">                return this;</span>
+            }
+
+            final ImmutableList&lt;CascadeActor&gt; modified = ImmutableList
+<span class="nc" id="L93">                    .&lt;CascadeActor&gt;builder()</span>
+<span class="nc" id="L94">                    .addAll(channel.subscribers.get())</span>
+<span class="nc" id="L95">                    .add(actor)</span>
+<span class="nc" id="L96">                    .build();</span>
+
+<span class="nc" id="L98">            channel.subscribers.set(modified);</span>
+<span class="nc" id="L99">        }</span>
+
+<span class="nc" id="L101">        return this;</span>
+    }
+
+    /**
+     * This method causes given the actor to stop receiving messages from the given event.
+     *
+     * &lt;p&gt;
+     * If the actor is not currently subscribed to the given event,
+     * then this method is simply a no-op.
+     * &lt;/p&gt;
+     *
+     * @param event identifies the event to no longer listen for.
+     * @param actor will no longer receive the corresponding event-messages.
+     * @return this.
+     */
+    public Dispatcher unsubscribe (final CascadeToken event,
+                                   final CascadeActor actor)
+    {
+<span class="nc" id="L119">        final Bucket bucket = resolveBucketFor(event);</span>
+
+<span class="nc" id="L121">        synchronized (bucket)</span>
+        {
+<span class="nc" id="L123">            final Channel channel = bucket.channels.get(event);</span>
+
+<span class="nc bnc" id="L125" title="All 2 branches missed.">            if (channel == null)</span>
+            {
+<span class="nc" id="L127">                return this;</span>
+            }
+
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            if (channel.subscribers.get().contains(actor) == false)</span>
+            {
+<span class="nc" id="L132">                return this;</span>
+            }
+
+<span class="nc" id="L135">            final List&lt;CascadeActor&gt; modified = channel.subscribers</span>
+<span class="nc" id="L136">                    .get()</span>
+<span class="nc" id="L137">                    .stream()</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">                    .filter(x -&gt; !x.equals(actor))</span>
+<span class="nc" id="L139">                    .collect(Collectors.toList());</span>
+
+<span class="nc bnc" id="L141" title="All 2 branches missed.">            if (modified.isEmpty())</span>
+            {
+<span class="nc" id="L143">                bucket.channels.remove(event);</span>
+            }
+            else
+            {
+<span class="nc" id="L147">                channel.subscribers.set(ImmutableList.copyOf(modified));</span>
+            }
+<span class="nc" id="L149">        }</span>
+
+<span class="nc" id="L151">        return this;</span>
+    }
+
+    /**
+     * This method retrieves the event-channel identified by the given token.
+     *
+     * @param event identifies the event-channel to find.
+     * @return the channel, if it has at least one subscribed actor.
+     */
+    public Optional&lt;CascadeChannel&gt; lookup (final CascadeToken event)
+    {
+<span class="nc" id="L162">        final Bucket bucket = resolveBucketFor(event);</span>
+<span class="nc" id="L163">        final Channel channel = bucket.channels.get(event);</span>
+
+<span class="nc bnc" id="L165" title="All 2 branches missed.">        if (channel != null)</span>
+        {
+<span class="nc" id="L167">            return channel.self;</span>
+        }
         else
         {
-<span class="nc" id="L66">            final List&lt;InflowQueue&gt; list = new CopyOnWriteArrayList&lt;&gt;();</span>
-<span class="nc" id="L67">            list.add(subscriber);</span>
-<span class="nc" id="L68">            subscriptions.put(event, new AtomicReference&lt;&gt;(list));</span>
+<span class="nc" id="L171">            return Optional.empty();</span>
         }
-<span class="nc" id="L70">    }</span>
+    }
 
     /**
-     * After this method returns, the given inflow-queue will no longer
-     * receive any event-messages from the given event-stream.
+     * Getter.
      *
-     * &lt;p&gt;
-     * This method is a no-op, if the subscriber is not
-     * actually subscribed to the given event-stream.
-     * &lt;/p&gt;
-     *
-     * &lt;p&gt;
-     * This method is synchronized in order to prevent concurrent
-     * registrations or deregistrations for the same event
-     * &lt;/p&gt;
-     *
-     * @param event identifies the event-stream to unsubscribe from.
-     * @param subscriber will be unsubscribed to the event-stream.
+     * @return an immutable map containing all the event-channels herein.
      */
-    public synchronized void deregister (final CascadeToken event,
-                                         final InflowQueue subscriber)
+    public SortedMap&lt;CascadeToken, CascadeChannel&gt; channels ()
     {
-<span class="nc" id="L92">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
-<span class="nc" id="L93">        Preconditions.checkNotNull(subscriber, &quot;subscriber&quot;);</span>
+<span class="nc" id="L182">        final ImmutableSortedMap.Builder&lt;CascadeToken, CascadeChannel&gt; builder = ImmutableSortedMap.naturalOrder();</span>
 
-<span class="nc bnc" id="L95" title="All 2 branches missed.">        if (subscriptions.containsKey(event) == false)</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">        for (int i = 0; i &lt; buckets.length(); i++)</span>
         {
-<span class="nc" id="L97">            return;</span>
+<span class="nc" id="L186">            builder.putAll(buckets.get(i).channels);</span>
         }
 
-<span class="nc" id="L100">        final AtomicReference&lt;List&lt;InflowQueue&gt;&gt; ref = subscriptions.get(this);</span>
+<span class="nc" id="L189">        return builder.build();</span>
+    }
 
-<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (ref.get().size() == 1)</span>
-        {
-<span class="nc" id="L104">            subscriptions.remove(event);</span>
-        }
-        else
-        {
-<span class="nc" id="L108">            final CopyOnWriteArrayList modified = new CopyOnWriteArrayList(ref.get());</span>
-<span class="nc" id="L109">            modified.remove(subscriber);</span>
-<span class="nc" id="L110">            ref.set(modified);</span>
-        }
-<span class="nc" id="L112">    }</span>
-
-    /**
-     * Use this method to enqueue an event-message in all interested inflow-queues.
-     *
-     * &lt;p&gt;
-     * This method is deliberately *not* synchronized.
-     * The manipulated internal data-structures are themselves thread-safe.
-     * &lt;/p&gt;
-     *
-     * @param event identifies the event-message.
-     * @param stack is the content of the event-message.
-     */
-    public void send (final CascadeToken event,
-                      final CascadeStack stack)
+    private final class Bucket
     {
-<span class="nc" id="L128">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
-<span class="nc" id="L129">        Preconditions.checkNotNull(stack, &quot;stack&quot;);</span>
+        public final Map&lt;CascadeToken, Channel&gt; channels;
+
+        public Bucket (final int initialCapacity,
+                       final float loadFactor)
+<span class="fc" id="L198">        {</span>
+<span class="fc" id="L199">            channels = new ConcurrentHashMap&lt;&gt;(initialCapacity, loadFactor);</span>
+<span class="fc" id="L200">        }</span>
+    }
+
+    private final class Channel
+            implements CascadeChannel
+    {
+
+        private final Bucket bucket;
+
+        private final CascadeToken event;
+
+<span class="nc" id="L211">        public final AtomicReference&lt;ImmutableList&lt;CascadeActor&gt;&gt; subscribers = new AtomicReference&lt;&gt;(ImmutableList.of());</span>
+
+<span class="nc" id="L213">        public final Optional&lt;CascadeChannel&gt; self = Optional.of(this);</span>
+
+        public Channel (final Bucket bucket,
+                        final CascadeToken event)
+<span class="nc" id="L217">        {</span>
+<span class="nc" id="L218">            this.bucket = Objects.requireNonNull(bucket, &quot;bucket&quot;);</span>
+<span class="nc" id="L219">            this.event = Objects.requireNonNull(event, &quot;event&quot;);</span>
+<span class="nc" id="L220">        }</span>
+
+        @Override
+        public CascadeToken event ()
+        {
+<span class="nc" id="L225">            return event;</span>
+        }
+
+        @Override
+        public int subscriberCount ()
+        {
+<span class="nc" id="L231">            return subscribers.get().size();</span>
+        }
+
+        @Override
+        public Set&lt;CascadeActor&gt; subscribers ()
+        {
+<span class="nc" id="L237">            return ImmutableSet.copyOf(subscribers.get());</span>
+        }
+
+        @Override
+        public CascadeChannel forEachSubscriber (final Consumer&lt;CascadeActor&gt; functor)
+        {
+<span class="nc" id="L243">            final List&lt;CascadeActor&gt; actors = subscribers.get();</span>
+
+            /**
+             * Do *not* use a for-each loop here in order to avoid an Iterator allocation.
+             */
+<span class="nc bnc" id="L248" title="All 2 branches missed.">            for (int i = 0; i &lt; actors.size(); i++)</span>
+            {
+<span class="nc" id="L250">                functor.accept(actors.get(i));</span>
+            }
+
+<span class="nc" id="L253">            return this;</span>
+        }
+
+        @Override
+        public CascadeChannel send (final CascadeStack stack)
+        {
+<span class="nc" id="L259">            final List&lt;CascadeActor&gt; actors = subscribers.get();</span>
+
+            /**
+             * Do *not* use a for-each loop here in order to avoid an Iterator allocation.
+             */
+<span class="nc bnc" id="L264" title="All 2 branches missed.">            for (int i = 0; i &lt; actors.size(); i++)</span>
+            {
+<span class="nc" id="L266">                actors.get(i).tell(event, stack);</span>
+            }
+
+<span class="nc" id="L269">            return this;</span>
+        }
 
         /**
-         * These are all of the inflow-queues that are interested
-         * in receiving messages from the given event, if any.
+         * {@inheritDoc}
          */
-<span class="nc" id="L135">        final AtomicReference&lt;List&lt;InflowQueue&gt;&gt; ref = subscriptions.get(event);</span>
-
-<span class="nc bnc" id="L137" title="All 2 branches missed.">        if (ref == null)</span>
+        @Override
+        public int hashCode ()
         {
-<span class="nc" id="L139">            return;</span>
-        }
-
-<span class="nc" id="L142">        final List&lt;InflowQueue&gt; list = ref.get();</span>
-
-<span class="nc bnc" id="L144" title="All 2 branches missed.">        if (list == null)</span>
-        {
-<span class="nc" id="L146">            return;</span>
+<span class="nc" id="L278">            return 97 * event.hashCode();</span>
         }
 
         /**
-         * Enqueue the event-message in each of the inflow-queues.
-         * Iterate using a for-loop, rather than a foreach-loop,
-         * because a foreach-loop would cause an Iterator to
-         * be allocated, which is an unnecessary waste here
-         * given that this method requires extremely high performance.
+         * {@inheritDoc}
          */
-<span class="nc" id="L156">        final int length = list.size();</span>
-<span class="nc bnc" id="L157" title="All 2 branches missed.">        for (int i = 0; i &lt; length; i++)</span>
+        @Override
+        public boolean equals (final Object other)
         {
-<span class="nc" id="L159">            final InflowQueue queue = list.get(i);</span>
-<span class="nc" id="L160">            queue.offer(event, stack);</span>
+<span class="nc bnc" id="L287" title="All 4 branches missed.">            return other instanceof CascadeChannel &amp;&amp; ((CascadeChannel) other).event().equals(event);</span>
         }
-<span class="nc" id="L162">    }</span>
 
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public String toString ()
+        {
+<span class="nc" id="L296">            return event.name();</span>
+        }
+    }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

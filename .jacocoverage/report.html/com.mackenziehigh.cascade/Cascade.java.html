@@ -1,68 +1,79 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>Cascade.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade</a> &gt; <span class="el_source">Cascade.java</span></div><h1>Cascade.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade;
 
+import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.mackenziehigh.cascade.allocators.CascadeAllocator;
 import com.mackenziehigh.cascade.internal.Dispatcher;
-import com.mackenziehigh.cascade.internal.InflowQueue;
-import com.mackenziehigh.cascade.internal.LinkedInflowQueue;
-import com.mackenziehigh.cascade.internal.NotificationInflowQueue;
-import com.mackenziehigh.cascade.internal.Scheduler;
-import com.mackenziehigh.cascade.internal.SwappableInflowQueue;
-import com.mackenziehigh.cascade.internal.SynchronizedInflowQueue;
-import com.mackenziehigh.cascade.old.internal.StandardLogger;
+import com.mackenziehigh.cascade.internal.PooledExecutor;
+import com.mackenziehigh.cascade.internal.ServiceExecutor;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * An instance of this class is a concurrent set of stages,
- * when each contain zero or more actors, where the actors send
- * and receive event-messages for processing using &quot;scripts&quot;.
+ * An instance of this interface contains a concurrent set of stages,
+ * where each stage contains zero-or-more actors, which send and receive
+ * event-messages for processing according to their scripts.
  */
 public final class Cascade
 {
-<span class="nc" id="L37">    private final Cascade cascade = this;</span>
+    private static final int ACTIVE = 0;
 
-<span class="nc" id="L39">    private final UUID cascadeUUID = UUID.randomUUID();</span>
+    private static final int CLOSING = 1;
 
-<span class="nc" id="L41">    private final Dispatcher dispatcher = new Dispatcher();</span>
+    private static final int CLOSED = 2;
 
-<span class="nc" id="L43">    private final Set&lt;Stage&gt; stages = Sets.newConcurrentHashSet();</span>
+<span class="fc" id="L38">    private final UUID uuid = UUID.randomUUID();</span>
 
-<span class="nc" id="L45">    private volatile CascadeLogger.Factory cascadeLoggerFactory = site -&gt; new StandardLogger(site);</span>
+<span class="fc" id="L40">    private final AtomicReference&lt;String&gt; name = new AtomicReference&lt;&gt;(uuid.toString());</span>
 
-<span class="nc" id="L47">    private final AtomicBoolean cascadeActive = new AtomicBoolean(true);</span>
+    private final Dispatcher dispatcher;
 
-<span class="nc" id="L49">    private final AtomicBoolean cascadeClosing = new AtomicBoolean(false);</span>
+<span class="fc" id="L44">    private final Set&lt;CascadeStage&gt; stages = Sets.newConcurrentHashSet();</span>
 
-<span class="nc" id="L51">    private final CountDownLatch cascadeAwaitCloseLatch = new CountDownLatch(1);</span>
+<span class="fc" id="L46">    private final AtomicBoolean close = new AtomicBoolean();</span>
 
-    private Cascade ()
-<span class="nc" id="L54">    {</span>
-        // Pass.
-<span class="nc" id="L56">    }</span>
+<span class="fc" id="L48">    private final AtomicInteger state = new AtomicInteger();</span>
+
+<span class="fc" id="L50">    private final CountDownLatch awaitCloseLatch = new CountDownLatch(1);</span>
+
+<span class="fc" id="L52">    private final Object lock = new Object();</span>
 
     /**
-     * Getter.
+     * Sole Constructor.
      *
-     * @return a new instance.
+     * @param dispatcher will be used to route event-messages.
      */
-    public static Cascade create ()
+    private Cascade (final Dispatcher dispatcher)
+<span class="fc" id="L60">    {</span>
+<span class="fc" id="L61">        this.dispatcher = Objects.requireNonNull(dispatcher, &quot;dispatcher&quot;);</span>
+<span class="fc" id="L62">        Verify.verify(isActive());</span>
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">        Verify.verify(!isClosing());</span>
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        Verify.verify(!isClosed());</span>
+<span class="fc" id="L65">    }</span>
+
+    /**
+     * Factory method.
+     *
+     * @return a new instance of this class.
+     */
+    public static Cascade newCascade ()
     {
-<span class="nc" id="L65">        return new Cascade();</span>
+<span class="fc" id="L74">        final Dispatcher disp = Dispatcher.newDispatcher();</span>
+<span class="fc" id="L75">        final Cascade cas = new Cascade(disp);</span>
+<span class="fc" id="L76">        return cas;</span>
     }
 
     /**
@@ -72,103 +83,151 @@ public final class Cascade
      */
     public UUID uuid ()
     {
-<span class="nc" id="L75">        return cascadeUUID;</span>
+<span class="fc" id="L86">        return uuid;</span>
     }
 
     /**
      * Setter.
      *
-     * @param logger will be used to create default loggers,
-     * for any stages created after this method returns.
+     * @param name will henceforth be the name of this cascade.
      * @return this.
      */
-    public Cascade useLoggerFactory (final CascadeLogger.Factory logger)
+    public Cascade named (final String name)
     {
-<span class="nc" id="L87">        this.cascadeLoggerFactory = Objects.requireNonNull(logger, &quot;logger&quot;);</span>
-<span class="nc" id="L88">        return this;</span>
+<span class="nc" id="L97">        this.name.set(Objects.requireNonNull(name, &quot;name&quot;));</span>
+<span class="nc" id="L98">        return this;</span>
     }
 
     /**
      * Getter.
      *
-     * @return the logger-factory that is currently in use herein.
+     * &lt;p&gt;
+     * By default, the name of this cascade is the string representation of the uuid().
+     * &lt;/p&gt;
+     *
+     * @return the current name of this cascade.
      */
-    public CascadeLogger.Factory loggerFactory ()
+    public String name ()
     {
-<span class="nc" id="L98">        return cascadeLoggerFactory;</span>
+<span class="nc" id="L112">        return name.get();</span>
     }
 
     /**
-     * Creates a new single-threaded stage using a non-daemon thread.
+     * Adds a new stage powered by a single thread.
      *
-     * @return the new stage.
+     * @return the given stage.
      */
     public CascadeStage newStage ()
     {
-<span class="nc" id="L108">        return newPooledStage(1);</span>
+<span class="nc" id="L122">        return newStage(Executors.newFixedThreadPool(1)); // TODO</span>
     }
 
     /**
-     * Creates a new single-threaded stage using the given factory.
+     * Adds a new stage powered by a pool of non-daemon worker threads.
      *
-     * @param factory will provide the thread for the new stage.
-     * @return the new stage.
+     * @param count is the number of threads in the pool.
+     * @return the given stage.
      */
-    public CascadeStage newStage (final ThreadFactory factory)
+    public CascadeStage newStage (final int count)
     {
-<span class="nc" id="L119">        return newPooledStage(factory, 1);</span>
+<span class="nc" id="L133">        final ThreadFactory factory = new ThreadFactoryBuilder().setDaemon(false).build();</span>
+<span class="nc" id="L134">        final CascadeExecutor executor = PooledExecutor.create(factory, count);</span>
+<span class="nc" id="L135">        return newStage(executor);</span>
     }
 
     /**
-     * Creates a new multi-threaded stage using non-daemon thread(s).
+     * Adds a new stage powered by a given ExecutorService.
      *
-     * @param threadPoolSize is the number of threads to create.
+     * &lt;p&gt;
+     * The service can safely be shared with other stages.
+     * When the last stage closes, the service will be shutdown.
+     * &lt;/p&gt;
+     *
+     * @param service provides the power.
      * @return the new stage.
      */
-    public CascadeStage newPooledStage (final int threadPoolSize)
+    public CascadeStage newStage (final ExecutorService service)
     {
-<span class="nc" id="L130">        final ThreadFactoryBuilder factory = new ThreadFactoryBuilder();</span>
-<span class="nc" id="L131">        factory.setDaemon(false);</span>
-<span class="nc" id="L132">        return newPooledStage(factory.build(), threadPoolSize);</span>
+<span class="nc" id="L151">        return newStage(new ServiceExecutor(service));</span>
     }
 
     /**
-     * Creates a new multi-threaded stage using non-daemon thread(s).
+     * Adds a new stage.
      *
-     * @param factory will provide the thread(s) for the new stage.
-     * @param threadPoolSize is the number of threads to create.
-     * @return the new stage.
+     * @param executor will be used to power the new stage.
+     * @return the given stage.
      */
-    public CascadeStage newPooledStage (final ThreadFactory factory,
-                                        final int threadPoolSize)
+    public synchronized CascadeStage newStage (final CascadeExecutor executor)
     {
-<span class="nc" id="L145">        synchronized (cascade)</span>
+<span class="pc bpc" id="L162" title="1 of 2 branches missed.">        if (isClosing())</span>
         {
-<span class="nc bnc" id="L147" title="All 2 branches missed.">            if (cascade.isActive() == false)</span>
+<span class="nc" id="L164">            throw new IllegalStateException(&quot;Already Closing!&quot;);</span>
+        }
+
+        /**
+         * Prevent new stages from being created as we close the existing ones.
+         */
+<span class="fc" id="L170">        synchronized (lock)</span>
+        {
+<span class="fc" id="L172">            final CascadeStage stage = new CascadeStage(this, dispatcher, executor, s -&gt; removeStage(s));</span>
+
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">            if (stage.isClosing())</span>
             {
-<span class="nc" id="L149">                throw new IllegalStateException(&quot;Cascade is already closed.&quot;);</span>
+<span class="nc" id="L176">                throw new IllegalArgumentException(&quot;The stage is already closing!&quot;);</span>
             }
-<span class="nc bnc" id="L151" title="All 2 branches missed.">            else if (cascadeClosing.get())</span>
+<span class="pc bpc" id="L178" title="1 of 2 branches missed.">            else if (stage.isClosed())</span>
             {
-<span class="nc" id="L153">                throw new IllegalStateException(&quot;Cascade is already closing.&quot;);</span>
+<span class="nc" id="L180">                throw new IllegalArgumentException(&quot;The stage is already closed!&quot;);</span>
+            }
+<span class="pc bpc" id="L182" title="1 of 2 branches missed.">            else if (this.equals(stage.cascade()) == false)</span>
+            {
+<span class="nc" id="L184">                throw new IllegalArgumentException(&quot;The stage has a different cascade!&quot;);</span>
+            }
+<span class="pc bpc" id="L186" title="1 of 2 branches missed.">            else if (stages.contains(stage))</span>
+            {
+<span class="nc" id="L188">                throw new IllegalStateException(&quot;The cascade already contains the given stage!&quot;);</span>
+            }
+<span class="pc bpc" id="L190" title="1 of 2 branches missed.">            else if (close.get() == false)</span>
+            {
+<span class="fc" id="L192">                stages.add(stage);</span>
             }
             else
             {
-<span class="nc" id="L157">                final Stage stage = new Stage(factory, threadPoolSize);</span>
-<span class="nc" id="L158">                stages.add(stage);</span>
-<span class="nc" id="L159">                return stage;</span>
+<span class="nc" id="L196">                throw new IllegalStateException(&quot;The stage is already closing!&quot;);</span>
             }
-<span class="nc" id="L161">        }</span>
+
+<span class="fc" id="L199">            return stage;</span>
+<span class="nc" id="L200">        }</span>
     }
 
     /**
      * Getter.
      *
-     * @return true, if and only if, this cascade has not yet closed.
+     * @return all of the stages currently active in this cascade.
+     */
+    public Set&lt;CascadeStage&gt; stages ()
+    {
+<span class="fc" id="L210">        return ImmutableSet.copyOf(stages);</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the event-channels that currently have at least one subscribed actor.
+     */
+    public Map&lt;CascadeToken, CascadeChannel&gt; channels ()
+    {
+<span class="nc" id="L220">        return dispatcher.channels();</span>
+    }
+
+    /**
+     * Getter.
+     *
+     * @return true, if and only if, this cascade is not closed or closing.
      */
     public boolean isActive ()
     {
-<span class="nc" id="L171">        return cascadeActive.get();</span>
+<span class="pc bpc" id="L230" title="1 of 2 branches missed.">        return state.get() == ACTIVE;</span>
     }
 
     /**
@@ -178,75 +237,88 @@ public final class Cascade
      */
     public boolean isClosing ()
     {
-<span class="nc" id="L181">        return cascadeClosing.get();</span>
+<span class="fc bfc" id="L240" title="All 2 branches covered.">        return state.get() == CLOSING;</span>
     }
-
-    /**
-     * This method closes all of the stages and permanently terminates this cascade.
-     */
-    public void close ()
-    {
-        /**
-         * Prevent new stages from being created as we close them.
-         * Close the existing stages.
-         */
-<span class="nc" id="L193">        cascadeClosing.set(true);</span>
-<span class="nc" id="L194">        synchronized (cascade)</span>
-        {
-<span class="nc bnc" id="L196" title="All 2 branches missed.">            for (Stage stage : stages)</span>
-            {
-<span class="nc" id="L198">                stage.close();</span>
-<span class="nc" id="L199">            }</span>
-<span class="nc" id="L200">        }</span>
-
-        /**
-         * We are now closed.
-         */
-<span class="nc" id="L205">        cascadeActive.set(false);</span>
-<span class="nc" id="L206">        cascadeClosing.set(false); // Closed != Closing</span>
-<span class="nc" id="L207">        cascadeAwaitCloseLatch.countDown();</span>
-<span class="nc" id="L208">    }</span>
-
-    /**
-     * This method blocks, until this cascade closes.
-     *
-     * @param timeout is the maximum amount of time to wait.
-     * @param timeoutUnit describes the timeout.
-     *
-     * @throws java.lang.InterruptedException
-     */
-    public void awaitClose (final long timeout,
-                            final TimeUnit timeoutUnit)
-            throws InterruptedException
-    {
-<span class="nc" id="L222">        cascadeAwaitCloseLatch.await(timeout, timeoutUnit);</span>
-<span class="nc" id="L223">    }</span>
 
     /**
      * Getter.
      *
-     * @return all of the stages currently controlled by this cascade.
+     * @return true, if and only, this cascade is now closed.
      */
-    public Set&lt;CascadeStage&gt; stages ()
+    public boolean isClosed ()
     {
-<span class="nc" id="L232">        return ImmutableSet.copyOf(stages);</span>
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">        return state.get() == CLOSED;</span>
     }
 
     /**
-     * This method broadcasts an event-message to all interested actors.
+     * This method closes all of the stages and permanently terminates this cascade.
      *
-     * @param event identifies the event being produced.
-     * @param stack contains the content of the message.
+     * &lt;p&gt;
+     * This method returns immediately; however, the cascade will
+     * not be closed until all stages therein close.
+     * &lt;/p&gt;
+     *
      * @return this.
      */
-    public Cascade send (final String event,
-                         final CascadeStack stack)
+    public Cascade close ()
     {
-<span class="nc" id="L245">        return send(CascadeToken.token(event), stack);</span>
+        /**
+         * Prevent new stages from being created as we close the existing ones.
+         */
+<span class="fc" id="L268">        synchronized (lock)</span>
+        {
+<span class="pc bpc" id="L270" title="1 of 2 branches missed.">            if (close.compareAndSet(false, true))</span>
+            {
+<span class="fc" id="L272">                state.set(CLOSING);</span>
+
+<span class="fc bfc" id="L274" title="All 2 branches covered.">                for (CascadeStage stage : stages)</span>
+                {
+<span class="fc" id="L276">                    stage.close();</span>
+<span class="fc" id="L277">                }</span>
+            }
+<span class="pc" id="L279">        }</span>
+
+<span class="fc" id="L281">        return this;</span>
     }
 
     /**
-     * This method broadcasts an event-message to all interested actors.
+     * This method blocks, until this cascade closes.
+     *
+     * &lt;p&gt;
+     * This method does not cause the cascade to close.
+     * Rather, this method merely causes the calling thread
+     * to wait for the cascade to close.
+     * &lt;/p&gt;
+     *
+     * @param timeout is the maximum amount of time to wait.
+     * @return this.
+     * @throws java.lang.InterruptedException
+     */
+    public Cascade awaitClose (final Duration timeout)
+            throws InterruptedException
+    {
+<span class="fc" id="L300">        awaitCloseLatch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);</span>
+<span class="fc" id="L301">        return this;</span>
+    }
+
+    /**
+     * This method retrieves the event-channel identified by the given token.
+     *
+     * @param event identifies the event-channel to find.
+     * @return the channel, if it has at least one subscribed actor.
+     */
+    public Optional&lt;CascadeChannel&gt; channelOf (final CascadeToken event)
+    {
+<span class="nc" id="L312">        return dispatcher.lookup(event);</span>
+    }
+
+    /**
+     * This method broadcasts an event-message.
+     *
+     * &lt;p&gt;
+     * This method is a no-op, if no actors are subscribed
+     * to receive event-messages from the given event-channel.
+     * &lt;/p&gt;
      *
      * @param event identifies the event being produced.
      * @param stack contains the content of the message.
@@ -255,651 +327,25 @@ public final class Cascade
     public Cascade send (final CascadeToken event,
                          final CascadeStack stack)
     {
-<span class="nc" id="L258">        dispatcher.send(event, stack);</span>
-<span class="nc" id="L259">        return this;</span>
+<span class="nc" id="L330">        final Optional&lt;CascadeChannel&gt; channel = channelOf(event);</span>
+
+<span class="nc bnc" id="L332" title="All 2 branches missed.">        if (channel.isPresent())</span>
+        {
+<span class="nc" id="L334">            channel.get().send(stack);</span>
+        }
+
+<span class="nc" id="L337">        return this;</span>
     }
 
-    /**
-     * This is the actual implementation of the CascadeStage interface.
-     */
-    private final class Stage
-            implements CascadeStage
+    private synchronized void removeStage (final CascadeStage stage)
     {
-<span class="nc" id="L268">        private final Stage stage = this;</span>
+<span class="fc" id="L342">        stages.remove(stage);</span>
 
-<span class="nc" id="L270">        private final UUID stageUUID = UUID.randomUUID();</span>
-
-        private volatile CascadeLogger.Factory loggerFactory;
-
-        private volatile CascadeAllocator allocator;
-
-<span class="nc" id="L276">        private final Set&lt;Actor&gt; actors = Sets.newConcurrentHashSet();</span>
-
-<span class="nc" id="L278">        private final AtomicBoolean stageAlive = new AtomicBoolean(true);</span>
-
-<span class="nc" id="L280">        private final AtomicBoolean stageActive = new AtomicBoolean(true);</span>
-
-<span class="nc" id="L282">        private final AtomicBoolean stageClosing = new AtomicBoolean(false);</span>
-
-<span class="nc" id="L284">        private final CountDownLatch stageAwaitCloseLatch = new CountDownLatch(1);</span>
-
-<span class="nc" id="L286">        private final Instant creationTime = Instant.now();</span>
-
-        private final Set&lt;Thread&gt; threads;
-
-<span class="nc" id="L290">        private final Scheduler&lt;Actor&gt; scheduler = new Scheduler&lt;&gt;();</span>
-
-        public Stage (final ThreadFactory factory,
-                      final int poolSize)
-<span class="nc" id="L294">        {</span>
-<span class="nc" id="L295">            this.loggerFactory = cascade.loggerFactory();</span>
-
-<span class="nc" id="L297">            final Set&lt;Thread&gt; threadsSet = new HashSet&lt;&gt;();</span>
-
-<span class="nc bnc" id="L299" title="All 2 branches missed.">            for (int i = 0; i &lt; poolSize; i++)</span>
-            {
-<span class="nc" id="L301">                final Thread thread = factory.newThread(() -&gt; run());</span>
-<span class="nc" id="L302">                threadsSet.add(thread);</span>
-
-<span class="nc" id="L304">                thread.start(); // TODO: Move out of ctor!</span>
-            }
-
-<span class="nc" id="L307">            this.threads = ImmutableSet.copyOf(threadsSet);</span>
-<span class="nc" id="L308">        }</span>
-
-        private void run ()
+<span class="pc bpc" id="L344" title="2 of 4 branches missed.">        if (stages.isEmpty() &amp;&amp; isClosing())</span>
         {
-<span class="nc" id="L312">            final AtomicReference&lt;CascadeToken&gt; event = new AtomicReference&lt;&gt;();</span>
-<span class="nc" id="L313">            final AtomicReference&lt;CascadeStack&gt; stack = new AtomicReference&lt;&gt;();</span>
-
-<span class="nc bnc" id="L315" title="All 2 branches missed.">            while (stageAlive.get())</span>
-            {
-                try
-                {
-<span class="nc" id="L319">                    event.set(null);</span>
-<span class="nc" id="L320">                    stack.set(null);</span>
-<span class="nc" id="L321">                    unsafeRun(event, stack);</span>
-                }
-<span class="nc" id="L323">                catch (InterruptedException ex1)</span>
-                {
-<span class="nc" id="L325">                    Thread.currentThread().interrupt();</span>
-                }
-<span class="nc" id="L327">                catch (Throwable ex2)</span>
-                {
-                    // Pass
-<span class="nc" id="L330">                }</span>
-            }
-<span class="nc" id="L332">        }</span>
-
-        private void unsafeRun (final AtomicReference&lt;CascadeToken&gt; event,
-                                final AtomicReference&lt;CascadeStack&gt; stack)
-                throws InterruptedException
-        {
-<span class="nc" id="L338">            final Scheduler.Process&lt;Actor&gt; process = scheduler.poll(1000);</span>
-
-<span class="nc bnc" id="L340" title="All 2 branches missed.">            if (process == null)</span>
-            {
-<span class="nc" id="L342">                return;</span>
-            }
-
-<span class="nc" id="L345">            try (Scheduler.Process&lt;Actor&gt; task = process)</span>
-            {
-<span class="nc" id="L347">                final Actor actor = task.getUserObject();</span>
-<span class="nc" id="L348">                final InflowQueue queue = actor.inflowQueue;</span>
-<span class="nc" id="L349">                queue.removeOldest(event, stack);</span>
-<span class="nc bnc" id="L350" title="All 2 branches missed.">                final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)</span>
-<span class="nc bnc" id="L351" title="All 2 branches missed.">                if (delivered)</span>
-                {
-<span class="nc" id="L353">                    actor.script.onMessage(actor.context, event.get(), stack.get());</span>
-                }
-<span class="nc bnc" id="L355" title="All 8 branches missed.">            }</span>
-<span class="nc" id="L356">            catch (Throwable ex1)</span>
-            {
-                // TODO
-<span class="nc" id="L359">            }</span>
-<span class="nc" id="L360">        }</span>
-
-        @Override
-        public UUID uuid ()
-        {
-<span class="nc" id="L365">            return stageUUID;</span>
+<span class="fc" id="L346">            state.set(CLOSED);</span>
+<span class="fc" id="L347">            awaitCloseLatch.countDown();</span>
         }
-
-        @Override
-        public Cascade cascade ()
-        {
-<span class="nc" id="L371">            return cascade;</span>
-        }
-
-        @Override
-        public Set&lt;Thread&gt; threads ()
-        {
-<span class="nc bnc" id="L377" title="All 2 branches missed.">            return isActive() ? threads : ImmutableSet.of();</span>
-        }
-
-        @Override
-        public CascadeStage useLoggerFactory (final CascadeLogger.Factory logger)
-        {
-<span class="nc" id="L383">            this.loggerFactory = Objects.requireNonNull(logger, &quot;logger&quot;);</span>
-<span class="nc" id="L384">            return this;</span>
-        }
-
-        @Override
-        public CascadeLogger.Factory loggerFactory ()
-        {
-<span class="nc" id="L390">            return loggerFactory;</span>
-        }
-
-        @Override
-        public CascadeStage useAllocator (final CascadeAllocator allocator)
-        {
-<span class="nc" id="L396">            this.allocator = Objects.requireNonNull(allocator, &quot;allocator&quot;);</span>
-<span class="nc" id="L397">            return this;</span>
-        }
-
-        @Override
-        public CascadeAllocator allocator ()
-        {
-<span class="nc" id="L403">            return allocator;</span>
-        }
-
-        @Override
-        public Set&lt;CascadeActor&gt; actors ()
-        {
-<span class="nc" id="L409">            return ImmutableSet.copyOf(actors);</span>
-        }
-
-        @Override
-        public CascadeActor newActor (final CascadeScript script)
-        {
-<span class="nc" id="L415">            synchronized (stage)</span>
-            {
-<span class="nc bnc" id="L417" title="All 2 branches missed.">                if (stage.isActive() == false)</span>
-                {
-<span class="nc" id="L419">                    throw new IllegalStateException(&quot;Stage is already closed.&quot;);</span>
-                }
-<span class="nc bnc" id="L421" title="All 2 branches missed.">                else if (stageClosing.get())</span>
-                {
-<span class="nc" id="L423">                    throw new IllegalStateException(&quot;Stage is already closing.&quot;);</span>
-                }
-                else
-                {
-<span class="nc" id="L427">                    Objects.requireNonNull(script, &quot;script&quot;);</span>
-<span class="nc" id="L428">                    final Actor actor = new Actor(this, script);</span>
-<span class="nc" id="L429">                    actors.add(actor);</span>
-<span class="nc" id="L430">                    return actor;</span>
-                }
-<span class="nc" id="L432">            }</span>
-        }
-
-        @Override
-        public boolean isActive ()
-        {
-<span class="nc" id="L438">            return stageActive.get();</span>
-        }
-
-        @Override
-        public boolean isClosing ()
-        {
-<span class="nc" id="L444">            return stageClosing.get();</span>
-        }
-
-        @Override
-        public void close ()
-        {
-            /**
-             * Prevent new actors from being created as we close them.
-             * Close the existing actors.
-             */
-<span class="nc" id="L454">            stageClosing.set(true);</span>
-<span class="nc" id="L455">            synchronized (stage)</span>
-            {
-<span class="nc bnc" id="L457" title="All 2 branches missed.">                for (Actor actor : actors)</span>
-                {
-<span class="nc" id="L459">                    actor.close();</span>
-<span class="nc" id="L460">                }</span>
-<span class="nc" id="L461">            }</span>
-
-            /**
-             * We are now closed.
-             */
-<span class="nc" id="L466">            stageActive.set(false);</span>
-<span class="nc" id="L467">            stageClosing.set(false); // Closed != Closing</span>
-<span class="nc" id="L468">            stageAwaitCloseLatch.countDown();</span>
-<span class="nc" id="L469">        }</span>
-
-        @Override
-        public void awaitClose (final long timeout,
-                                final TimeUnit timeoutUnit)
-                throws InterruptedException
-        {
-<span class="nc" id="L476">            stageAwaitCloseLatch.await(timeout, timeoutUnit);</span>
-<span class="nc" id="L477">        }</span>
-
-        @Override
-        public Instant creationTime ()
-        {
-<span class="nc" id="L482">            return creationTime;</span>
-        }
-
-    }
-
-    /**
-     * This is the actual implementation of the CascadeActor interface.
-     */
-    private final class Actor
-            implements CascadeActor
-    {
-<span class="nc" id="L493">        private final Actor actor = this;</span>
-
-<span class="nc" id="L495">        private final UUID actorUUID = UUID.randomUUID();</span>
-
-        private final Stage stage;
-
-        private volatile CascadeLogger logger;
-
-        private volatile CascadeAllocator allocator;
-
-<span class="nc" id="L503">        private final AtomicBoolean acting = new AtomicBoolean(false);</span>
-
-<span class="nc" id="L505">        private final AtomicBoolean alive = new AtomicBoolean(true);</span>
-
-<span class="nc" id="L507">        private final AtomicBoolean closing = new AtomicBoolean(false);</span>
-
-<span class="nc" id="L509">        private final CountDownLatch actorAwaitCloseLatch = new CountDownLatch(1);</span>
-
-<span class="nc" id="L511">        private final Instant creationTime = Instant.now();</span>
-
-<span class="nc" id="L513">        private final Context context = new Context(this);</span>
-
-        private final Script script;
-
-        private final SwappableInflowQueue swappableInflowQueue;
-
-        private final NotificationInflowQueue schedulerInflowQueue;
-
-        private final InflowQueue inflowQueue;
-
-<span class="nc" id="L523">        private final Set&lt;CascadeToken&gt; subscriptions = Sets.newConcurrentHashSet();</span>
-
-        private final Scheduler.Process&lt;Actor&gt; task;
-
-        public Actor (final Stage stage,
-                      final CascadeScript script)
-<span class="nc" id="L529">        {</span>
-<span class="nc" id="L530">            this.stage = stage;</span>
-<span class="nc" id="L531">            this.logger = stage.loggerFactory().create(CascadeToken.token(actorUUID.toString()));</span>
-<span class="nc" id="L532">            this.allocator = stage.allocator();</span>
-<span class="nc" id="L533">            this.script = new Script(script);</span>
-<span class="nc" id="L534">            final InflowQueue initialInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);</span>
-<span class="nc" id="L535">            this.swappableInflowQueue = new SwappableInflowQueue(initialInflowQueue);</span>
-<span class="nc" id="L536">            this.schedulerInflowQueue = new NotificationInflowQueue(swappableInflowQueue, q -&gt; onQueueAdd(q));</span>
-<span class="nc" id="L537">            this.inflowQueue = new SynchronizedInflowQueue(schedulerInflowQueue);</span>
-<span class="nc" id="L538">            this.task = stage.scheduler.newProcess(0, actor);</span>
-<span class="nc" id="L539">        }</span>
-
-        private void onQueueAdd (final InflowQueue queue)
-        {
-<span class="nc" id="L543">            task.schedule();</span>
-<span class="nc" id="L544">        }</span>
-
-        @Override
-        public UUID uuid ()
-        {
-<span class="nc" id="L549">            return actorUUID;</span>
-        }
-
-        @Override
-        public Cascade cascade ()
-        {
-<span class="nc" id="L555">            return cascade;</span>
-        }
-
-        @Override
-        public CascadeStage stage ()
-        {
-<span class="nc" id="L561">            return stage;</span>
-        }
-
-        @Override
-        public CascadeActor useLogger (final CascadeLogger logger)
-        {
-<span class="nc" id="L567">            this.logger = Objects.requireNonNull(logger, &quot;logger&quot;);</span>
-<span class="nc" id="L568">            return this;</span>
-        }
-
-        @Override
-        public CascadeLogger logger ()
-        {
-<span class="nc" id="L574">            return logger;</span>
-        }
-
-        @Override
-        public CascadeScript script ()
-        {
-<span class="nc" id="L580">            return script;</span>
-        }
-
-        @Override
-        public CascadeActor useArrayInflowQueue (int capacity)
-        {
-<span class="nc" id="L586">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public CascadeActor useGrowableArrayInflowQueue (int size,
-                                                         int capacity,
-                                                         int delta)
-        {
-<span class="nc" id="L594">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public CascadeActor useLinkedInflowQueue (int capacity)
-        {
-<span class="nc" id="L600">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public CascadeActor useOverflowPolicyDropAll ()
-        {
-<span class="nc" id="L606">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public CascadeActor useOverflowPolicyDropOldest ()
-        {
-<span class="nc" id="L612">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public CascadeActor useOverflowPolicyDropNewest ()
-        {
-<span class="nc" id="L618">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public CascadeActor useOverflowPolicyDropIncoming ()
-        {
-<span class="nc" id="L624">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public CascadeActor subscribe (CascadeToken eventId)
-        {
-<span class="nc" id="L630">            synchronized (actor)</span>
-            {
-<span class="nc" id="L632">                dispatcher.register(eventId, inflowQueue);</span>
-<span class="nc" id="L633">                subscriptions.add(eventId);</span>
-<span class="nc" id="L634">                return this;</span>
-<span class="nc" id="L635">            }</span>
-        }
-
-        @Override
-        public CascadeActor unsubscribe (CascadeToken eventId)
-        {
-<span class="nc" id="L641">            synchronized (actor)</span>
-            {
-<span class="nc" id="L643">                dispatcher.deregister(eventId, inflowQueue);</span>
-<span class="nc" id="L644">                subscriptions.remove(eventId);</span>
-<span class="nc" id="L645">                return this;</span>
-<span class="nc" id="L646">            }</span>
-        }
-
-        @Override
-        public Set&lt;CascadeToken&gt; subscriptions ()
-        {
-<span class="nc" id="L652">            return ImmutableSet.copyOf(subscriptions);</span>
-        }
-
-        @Override
-        public boolean isActing ()
-        {
-<span class="nc" id="L658">            return acting.get();</span>
-        }
-
-        @Override
-        public boolean isAlive ()
-        {
-<span class="nc" id="L664">            return alive.get();</span>
-        }
-
-        @Override
-        public boolean isClosing ()
-        {
-<span class="nc" id="L670">            return closing.get();</span>
-        }
-
-        @Override
-        public void close ()
-        {
-            // TODO
-<span class="nc" id="L677">            closing.set(true);</span>
-<span class="nc" id="L678">            alive.set(false);</span>
-<span class="nc" id="L679">            closing.set(false);</span>
-<span class="nc" id="L680">            acting.set(false);</span>
-<span class="nc" id="L681">        }</span>
-
-        @Override
-        public void awaitClose (final long timeout,
-                                final TimeUnit timeoutUnit)
-                throws InterruptedException
-        {
-<span class="nc" id="L688">            actorAwaitCloseLatch.await(timeout, timeoutUnit);</span>
-<span class="nc" id="L689">        }</span>
-
-        @Override
-        public Instant creationTime ()
-        {
-<span class="nc" id="L694">            return creationTime;</span>
-        }
-
-        @Override
-        public int backlogSize ()
-        {
-<span class="nc" id="L700">            return inflowQueue.size();</span>
-        }
-
-        @Override
-        public int backlogCapacity ()
-        {
-<span class="nc" id="L706">            return inflowQueue.capacity();</span>
-        }
-
-        @Override
-        public long receivedMessageCount ()
-        {
-<span class="nc" id="L712">            return 0;</span>
-        }
-
-        @Override
-        public long droppedMessageCount ()
-        {
-<span class="nc" id="L718">            return 0;</span>
-        }
-
-        @Override
-        public long consumedMessageCount ()
-        {
-<span class="nc" id="L724">            return script.consumedMessageCount.get();</span>
-        }
-
-        @Override
-        public long producedMessageCount ()
-        {
-<span class="nc" id="L730">            return context.producedMessageCount.get();</span>
-        }
-
-        @Override
-        public long undeliveredMessageCount ()
-        {
-<span class="nc" id="L736">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public long unhandledExceptionCount ()
-        {
-<span class="nc" id="L742">            return script.unhandledExceptionCount.get();</span>
-        }
-
-        @Override
-        public CascadeActor toggleStopwatch (boolean state)
-        {
-<span class="nc" id="L748">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public long resetStopwatch ()
-        {
-<span class="nc" id="L754">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public Optional&lt;Duration&gt; elapsedTime ()
-        {
-<span class="nc" id="L760">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public OptionalLong timedMessageCount ()
-        {
-<span class="nc" id="L766">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public Optional&lt;Duration&gt; maximumTime ()
-        {
-<span class="nc" id="L772">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public Optional&lt;Duration&gt; minimumTime ()
-        {
-<span class="nc" id="L778">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public Optional&lt;Duration&gt; totalTime ()
-        {
-<span class="nc" id="L784">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public Optional&lt;Duration&gt; averageTime ()
-        {
-<span class="nc" id="L790">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public CascadeActor monitorInput (CascadeToken dest)
-        {
-            // How do we stop monitoring????
-<span class="nc" id="L797">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-        @Override
-        public CascadeActor monitorOutput (CascadeToken dest)
-        {
-<span class="nc" id="L803">            throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
-        }
-
-    }
-
-    /**
-     * This is the actual implementation of the CascadeScript interface.
-     */
-    private final class Script
-            implements CascadeScript
-    {
-        public final CascadeScript delegate;
-
-<span class="nc" id="L816">        public final AtomicLong unhandledExceptionCount = new AtomicLong();</span>
-
-<span class="nc" id="L818">        public final AtomicLong consumedMessageCount = new AtomicLong();</span>
-
-        public Script (final CascadeScript inner)
-<span class="nc" id="L821">        {</span>
-<span class="nc" id="L822">            this.delegate = Objects.requireNonNull(inner);</span>
-<span class="nc" id="L823">        }</span>
-
-        @Override
-        public void onClose (final CascadeContext ctx)
-                throws Throwable
-        {
-            try
-            {
-<span class="nc" id="L831">                delegate.onClose(ctx);</span>
-            }
-<span class="nc" id="L833">            catch (Throwable ex)</span>
-            {
-<span class="nc" id="L835">                unhandledExceptionCount.incrementAndGet();</span>
-<span class="nc" id="L836">                throw ex;</span>
-<span class="nc" id="L837">            }</span>
-<span class="nc" id="L838">        }</span>
-
-        @Override
-        public void onMessage (final CascadeContext ctx,
-                               final CascadeToken event,
-                               final CascadeStack stack)
-                throws Throwable
-        {
-            try
-            {
-<span class="nc" id="L848">                consumedMessageCount.incrementAndGet();</span>
-<span class="nc" id="L849">                delegate.onMessage(ctx, event, stack);</span>
-            }
-<span class="nc" id="L851">            catch (Throwable ex)</span>
-            {
-<span class="nc" id="L853">                unhandledExceptionCount.incrementAndGet();</span>
-<span class="nc" id="L854">                throw ex;</span>
-<span class="nc" id="L855">            }</span>
-<span class="nc" id="L856">        }</span>
-
-        @Override
-        public void onSetup (final CascadeContext ctx)
-                throws Throwable
-        {
-            try
-            {
-<span class="nc" id="L864">                delegate.onSetup(ctx);</span>
-            }
-<span class="nc" id="L866">            catch (Throwable ex)</span>
-            {
-<span class="nc" id="L868">                unhandledExceptionCount.incrementAndGet();</span>
-<span class="nc" id="L869">                throw ex;</span>
-<span class="nc" id="L870">            }</span>
-<span class="nc" id="L871">        }</span>
-    }
-
-    /**
-     * This is the actual implementation of the CascadeContext interface.
-     */
-    private final class Context
-            implements CascadeContext
-    {
-        private final Actor actor;
-
-<span class="nc" id="L882">        public final AtomicLong producedMessageCount = new AtomicLong();</span>
-
-        public Context (final Actor actor)
-<span class="nc" id="L885">        {</span>
-<span class="nc" id="L886">            this.actor = Objects.requireNonNull(actor);</span>
-<span class="nc" id="L887">        }</span>
-
-        @Override
-        public CascadeActor actor ()
-        {
-<span class="nc" id="L892">            return actor;</span>
-        }
-
-        @Override
-        public CascadeContext send (final CascadeToken event,
-                                    final CascadeStack stack)
-        {
-<span class="nc" id="L899">            producedMessageCount.incrementAndGet();</span>
-<span class="nc" id="L900">            cascade.send(event, stack);</span>
-<span class="nc" id="L901">            return this;</span>
-        }
-    }
+<span class="fc" id="L349">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

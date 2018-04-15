@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>PooledExecutor.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.internal</a> &gt; <span class="el_source">PooledExecutor.java</span></div><h1>PooledExecutor.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.internal;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
+import com.mackenziehigh.cascade.CascadeExecutor;
+import com.mackenziehigh.cascade.CascadeStage;
+import java.util.Set;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+/**
+ * A CascadeExecutor implemented using a fixed-size thread-pool.
+ */
+public final class PooledExecutor
+        implements CascadeExecutor
+{
+    /**
+     * Permits will be added to this semaphore whenever an actor
+     * signals this executor that the actor needs toe be executed.
+     * The threads in this pool will keep trying to obtain a permit.
+     * When one becomes available, the thread will power the stage.
+     */
+<span class="nc" id="L25">    private final Semaphore permits = new Semaphore(0);</span>
+
+    /**
+     * These are all the threads that are in this thread-pool.
+     * Each of these threads executes the run() method herein.
+     */
+<span class="nc" id="L31">    private final Set&lt;Thread&gt; threads = Sets.newConcurrentHashSet();</span>
+
+    /**
+     * This is the stage that this executor is providing power to.
+     */
+<span class="nc" id="L36">    private final AtomicReference&lt;CascadeStage&gt; stage = new AtomicReference&lt;&gt;();</span>
+
+    private PooledExecutor (final ThreadFactory factory,
+                            final int count)
+<span class="nc" id="L40">    {</span>
+<span class="nc" id="L41">        Preconditions.checkNotNull(factory, &quot;factory&quot;);</span>
+<span class="nc bnc" id="L42" title="All 2 branches missed.">        Preconditions.checkArgument(count &gt; 0, &quot;count &lt;= 0&quot;);</span>
+
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        for (int i = 0; i &lt; count; i++)</span>
+        {
+<span class="nc" id="L46">            final Runnable task = () -&gt; run();</span>
+<span class="nc" id="L47">            final Thread thread = factory.newThread(task);</span>
+<span class="nc" id="L48">            threads.add(thread);</span>
+        }
+<span class="nc" id="L50">    }</span>
+
+    private void run ()
+    {
+        while (true)
+        {
+            try
+            {
+<span class="nc bnc" id="L58" title="All 2 branches missed.">                while (permits.tryAcquire(1, TimeUnit.SECONDS))</span>
+                {
+<span class="nc bnc" id="L60" title="All 2 branches missed.">                    if (stage.get() != null)</span>
+                    {
+//                        stage.get().crank();
+                    }
+                }
+
+                /**
+                 * If the stage is dead, then this executor must die too.
+                 */
+<span class="nc bnc" id="L69" title="All 4 branches missed.">                if (stage.get() != null &amp;&amp; stage.get().isClosed())</span>
+                {
+<span class="nc" id="L71">                    return;</span>
+                }
+            }
+<span class="nc" id="L74">            catch (InterruptedException ex)</span>
+            {
+<span class="nc" id="L76">                Thread.currentThread().interrupt();</span>
+            }
+<span class="nc" id="L78">            catch (Throwable ex)</span>
+            {
+                // Pass
+<span class="nc" id="L81">            }</span>
+        }
+    }
+
+    /**
+     * Factory method.
+     *
+     * @param factory will be used to create the threads in this thread-pool.
+     * @param count will be the number of threads in the new thread-pool.
+     * @return the new thread-pool based executor.
+     */
+    public static PooledExecutor create (final ThreadFactory factory,
+                                         final int count)
+    {
+<span class="nc" id="L95">        final PooledExecutor executor = new PooledExecutor(factory, count);</span>
+
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        for (Thread thread : executor.threads)</span>
+        {
+<span class="nc" id="L99">            thread.start();</span>
+<span class="nc" id="L100">        }</span>
+
+<span class="nc" id="L102">        return executor;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onStageOpened (final CascadeStage stage)
+    {
+<span class="nc" id="L111">        throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onStageClosed (final CascadeStage stage)
+    {
+<span class="nc" id="L120">        throw new UnsupportedOperationException(&quot;Not supported yet.&quot;);</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onTask (final CascadeStage value)
+    {
+<span class="nc bnc" id="L129" title="All 4 branches missed.">        Preconditions.checkArgument(stage.get() == null || stage.get().equals(value),</span>
+                                    &quot;An executor can only be used to power one stage at a time.&quot;);
+<span class="nc" id="L131">        stage.compareAndSet(null, value);</span>
+<span class="nc" id="L132">        permits.release();</span>
+<span class="nc" id="L133">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

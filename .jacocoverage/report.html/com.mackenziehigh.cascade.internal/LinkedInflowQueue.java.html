@@ -28,12 +28,12 @@ public final class LinkedInflowQueue
      * @param capacity will be the maximum capacity of the new queue.
      */
     public LinkedInflowQueue (final int capacity)
-<span class="nc" id="L31">    {</span>
-<span class="nc bnc" id="L32" title="All 2 branches missed.">        Preconditions.checkArgument(capacity &gt;= 1, &quot;capacity &lt; 0&quot;);</span>
-<span class="nc" id="L33">        this.capacity = capacity;</span>
-<span class="nc" id="L34">        this.tokens = new LinkedList&lt;&gt;();</span>
-<span class="nc" id="L35">        this.stacks = new LinkedList&lt;&gt;();</span>
-<span class="nc" id="L36">    }</span>
+<span class="fc" id="L31">    {</span>
+<span class="fc bfc" id="L32" title="All 2 branches covered.">        Preconditions.checkArgument(capacity &gt;= 1, &quot;capacity &lt; 0&quot;);</span>
+<span class="fc" id="L33">        this.capacity = capacity;</span>
+<span class="fc" id="L34">        this.tokens = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L35">        this.stacks = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L36">    }</span>
 
     /**
      * {@inheritDoc}
@@ -42,18 +42,18 @@ public final class LinkedInflowQueue
     public boolean offer (final CascadeToken event,
                           final CascadeStack stack)
     {
-<span class="nc" id="L45">        checkState();</span>
-<span class="nc" id="L46">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
-<span class="nc" id="L47">        Preconditions.checkNotNull(stack, &quot;stack&quot;);</span>
-<span class="nc bnc" id="L48" title="All 2 branches missed.">        if (size() &lt; capacity())</span>
+<span class="fc" id="L45">        checkState();</span>
+<span class="fc" id="L46">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
+<span class="fc" id="L47">        Preconditions.checkNotNull(stack, &quot;stack&quot;);</span>
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        if (size() &lt; capacity())</span>
         {
-<span class="nc" id="L50">            tokens.addLast(event);</span>
-<span class="nc" id="L51">            stacks.addLast(stack);</span>
-<span class="nc" id="L52">            return true;</span>
+<span class="fc" id="L50">            tokens.addLast(event);</span>
+<span class="fc" id="L51">            stacks.addLast(stack);</span>
+<span class="fc" id="L52">            return true;</span>
         }
         else
         {
-<span class="nc" id="L56">            return false;</span>
+<span class="fc" id="L56">            return false;</span>
         }
     }
 
@@ -64,20 +64,20 @@ public final class LinkedInflowQueue
     public boolean removeOldest (final AtomicReference&lt;CascadeToken&gt; eventOut,
                                  final AtomicReference&lt;CascadeStack&gt; stackOut)
     {
-<span class="nc" id="L67">        checkState();</span>
-<span class="nc" id="L68">        Preconditions.checkNotNull(eventOut, &quot;eventOut&quot;);</span>
-<span class="nc" id="L69">        Preconditions.checkNotNull(stackOut, &quot;stackOut&quot;);</span>
-<span class="nc bnc" id="L70" title="All 2 branches missed.">        if (size() == 0)</span>
+<span class="fc" id="L67">        checkState();</span>
+<span class="fc" id="L68">        Preconditions.checkNotNull(eventOut, &quot;eventOut&quot;);</span>
+<span class="fc" id="L69">        Preconditions.checkNotNull(stackOut, &quot;stackOut&quot;);</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        if (size() == 0)</span>
         {
-<span class="nc" id="L72">            eventOut.set(null);</span>
-<span class="nc" id="L73">            stackOut.set(null);</span>
-<span class="nc" id="L74">            return false;</span>
+<span class="fc" id="L72">            eventOut.set(null);</span>
+<span class="fc" id="L73">            stackOut.set(null);</span>
+<span class="fc" id="L74">            return false;</span>
         }
         else
         {
-<span class="nc" id="L78">            eventOut.set(tokens.removeFirst());</span>
-<span class="nc" id="L79">            stackOut.set(stacks.removeFirst());</span>
-<span class="nc" id="L80">            return true;</span>
+<span class="fc" id="L78">            eventOut.set(tokens.removeFirst());</span>
+<span class="fc" id="L79">            stackOut.set(stacks.removeFirst());</span>
+<span class="fc" id="L80">            return true;</span>
         }
     }
 
@@ -88,20 +88,20 @@ public final class LinkedInflowQueue
     public boolean removeNewest (final AtomicReference&lt;CascadeToken&gt; eventOut,
                                  final AtomicReference&lt;CascadeStack&gt; stackOut)
     {
-<span class="nc" id="L91">        checkState();</span>
-<span class="nc" id="L92">        Preconditions.checkNotNull(eventOut, &quot;eventOut&quot;);</span>
-<span class="nc" id="L93">        Preconditions.checkNotNull(stackOut, &quot;stackOut&quot;);</span>
-<span class="nc bnc" id="L94" title="All 2 branches missed.">        if (size() == 0)</span>
+<span class="fc" id="L91">        checkState();</span>
+<span class="fc" id="L92">        Preconditions.checkNotNull(eventOut, &quot;eventOut&quot;);</span>
+<span class="fc" id="L93">        Preconditions.checkNotNull(stackOut, &quot;stackOut&quot;);</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">        if (size() == 0)</span>
         {
-<span class="nc" id="L96">            eventOut.set(null);</span>
-<span class="nc" id="L97">            stackOut.set(null);</span>
-<span class="nc" id="L98">            return false;</span>
+<span class="fc" id="L96">            eventOut.set(null);</span>
+<span class="fc" id="L97">            stackOut.set(null);</span>
+<span class="fc" id="L98">            return false;</span>
         }
         else
         {
-<span class="nc" id="L102">            eventOut.set(tokens.removeLast());</span>
-<span class="nc" id="L103">            stackOut.set(stacks.removeLast());</span>
-<span class="nc" id="L104">            return true;</span>
+<span class="fc" id="L102">            eventOut.set(tokens.removeLast());</span>
+<span class="fc" id="L103">            stackOut.set(stacks.removeLast());</span>
+<span class="fc" id="L104">            return true;</span>
         }
     }
 
@@ -111,10 +111,10 @@ public final class LinkedInflowQueue
     @Override
     public void clear ()
     {
-<span class="nc" id="L114">        checkState();</span>
-<span class="nc" id="L115">        tokens.clear();</span>
-<span class="nc" id="L116">        stacks.clear();</span>
-<span class="nc" id="L117">    }</span>
+<span class="fc" id="L114">        checkState();</span>
+<span class="fc" id="L115">        tokens.clear();</span>
+<span class="fc" id="L116">        stacks.clear();</span>
+<span class="fc" id="L117">    }</span>
 
     /**
      * {@inheritDoc}
@@ -122,8 +122,8 @@ public final class LinkedInflowQueue
     @Override
     public int size ()
     {
-<span class="nc" id="L125">        checkState();</span>
-<span class="nc" id="L126">        return tokens.size();</span>
+<span class="fc" id="L125">        checkState();</span>
+<span class="fc" id="L126">        return tokens.size();</span>
     }
 
     /**
@@ -132,8 +132,8 @@ public final class LinkedInflowQueue
     @Override
     public int capacity ()
     {
-<span class="nc" id="L135">        checkState();</span>
-<span class="nc" id="L136">        return capacity;</span>
+<span class="fc" id="L135">        checkState();</span>
+<span class="fc" id="L136">        return capacity;</span>
     }
 
     /**
@@ -142,22 +142,22 @@ public final class LinkedInflowQueue
     @Override
     public void forEach (final BiConsumer&lt;CascadeToken, CascadeStack&gt; functor)
     {
-<span class="nc" id="L145">        checkState();</span>
-<span class="nc" id="L146">        Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
+<span class="fc" id="L145">        checkState();</span>
+<span class="fc" id="L146">        Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
 
-<span class="nc" id="L148">        final Iterator&lt;CascadeToken&gt; tokenIter = tokens.iterator();</span>
-<span class="nc" id="L149">        final Iterator&lt;CascadeStack&gt; stackIter = stacks.iterator();</span>
+<span class="fc" id="L148">        final Iterator&lt;CascadeToken&gt; tokenIter = tokens.iterator();</span>
+<span class="fc" id="L149">        final Iterator&lt;CascadeStack&gt; stackIter = stacks.iterator();</span>
 
-<span class="nc bnc" id="L151" title="All 4 branches missed.">        while (tokenIter.hasNext() &amp;&amp; stackIter.hasNext())</span>
+<span class="fc bfc" id="L151" title="All 2 branches covered.">        while (tokenIter.hasNext())</span>
         {
-<span class="nc" id="L153">            functor.accept(tokenIter.next(), stackIter.next());</span>
+<span class="fc" id="L153">            functor.accept(tokenIter.next(), stackIter.next());</span>
         }
-<span class="nc" id="L155">    }</span>
+<span class="fc" id="L155">    }</span>
 
     private void checkState ()
     {
-<span class="nc bnc" id="L159" title="All 2 branches missed.">        Verify.verify(tokens.size() &lt;= capacity);</span>
-<span class="nc bnc" id="L160" title="All 2 branches missed.">        Verify.verify(tokens.size() == stacks.size());</span>
-<span class="nc" id="L161">    }</span>
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">        Verify.verify(tokens.size() &lt;= capacity);</span>
+<span class="pc bpc" id="L160" title="1 of 2 branches missed.">        Verify.verify(tokens.size() == stacks.size());</span>
+<span class="fc" id="L161">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

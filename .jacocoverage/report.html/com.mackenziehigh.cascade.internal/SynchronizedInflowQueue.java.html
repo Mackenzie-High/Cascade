@@ -21,9 +21,9 @@ public final class SynchronizedInflowQueue
      * @param delegate will be the delegate queue.
      */
     public SynchronizedInflowQueue (final InflowQueue delegate)
-<span class="nc" id="L24">    {</span>
-<span class="nc" id="L25">        this.delegate = Objects.requireNonNull(delegate, &quot;delegate&quot;);</span>
-<span class="nc" id="L26">    }</span>
+<span class="fc" id="L24">    {</span>
+<span class="fc" id="L25">        this.delegate = Objects.requireNonNull(delegate, &quot;delegate&quot;);</span>
+<span class="fc" id="L26">    }</span>
 
     /**
      * Perform the given task synchronously with respect
@@ -33,9 +33,9 @@ public final class SynchronizedInflowQueue
      */
     public synchronized void sync (final Runnable task)
     {
-<span class="nc" id="L36">        Preconditions.checkNotNull(task, &quot;task&quot;);</span>
-<span class="nc" id="L37">        task.run();</span>
-<span class="nc" id="L38">    }</span>
+<span class="fc" id="L36">        Preconditions.checkNotNull(task, &quot;task&quot;);</span>
+<span class="fc" id="L37">        task.run();</span>
+<span class="fc" id="L38">    }</span>
 
     /**
      * {@inheritDoc}
@@ -44,9 +44,9 @@ public final class SynchronizedInflowQueue
     public synchronized boolean offer (final CascadeToken event,
                                        final CascadeStack stack)
     {
-<span class="nc" id="L47">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
-<span class="nc" id="L48">        Preconditions.checkNotNull(stack, &quot;stack&quot;);</span>
-<span class="nc" id="L49">        return delegate.offer(event, stack);</span>
+<span class="fc" id="L47">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
+<span class="fc" id="L48">        Preconditions.checkNotNull(stack, &quot;stack&quot;);</span>
+<span class="fc" id="L49">        return delegate.offer(event, stack);</span>
     }
 
     /**
@@ -56,7 +56,7 @@ public final class SynchronizedInflowQueue
     public synchronized boolean removeOldest (final AtomicReference&lt;CascadeToken&gt; eventOut,
                                               final AtomicReference&lt;CascadeStack&gt; stackOut)
     {
-<span class="nc" id="L59">        return delegate.removeOldest(eventOut, stackOut);</span>
+<span class="fc" id="L59">        return delegate.removeOldest(eventOut, stackOut);</span>
     }
 
     /**
@@ -66,7 +66,7 @@ public final class SynchronizedInflowQueue
     public synchronized boolean removeNewest (final AtomicReference&lt;CascadeToken&gt; eventOut,
                                               final AtomicReference&lt;CascadeStack&gt; stackOut)
     {
-<span class="nc" id="L69">        return delegate.removeNewest(eventOut, stackOut);</span>
+<span class="fc" id="L69">        return delegate.removeNewest(eventOut, stackOut);</span>
     }
 
     /**
@@ -75,8 +75,8 @@ public final class SynchronizedInflowQueue
     @Override
     public synchronized void clear ()
     {
-<span class="nc" id="L78">        delegate.clear();</span>
-<span class="nc" id="L79">    }</span>
+<span class="fc" id="L78">        delegate.clear();</span>
+<span class="fc" id="L79">    }</span>
 
     /**
      * {@inheritDoc}
@@ -84,7 +84,7 @@ public final class SynchronizedInflowQueue
     @Override
     public synchronized int size ()
     {
-<span class="nc" id="L87">        return delegate.size();</span>
+<span class="fc" id="L87">        return delegate.size();</span>
     }
 
     /**
@@ -93,7 +93,7 @@ public final class SynchronizedInflowQueue
     @Override
     public synchronized int capacity ()
     {
-<span class="nc" id="L96">        return delegate.capacity();</span>
+<span class="fc" id="L96">        return delegate.capacity();</span>
     }
 
     /**
@@ -102,7 +102,7 @@ public final class SynchronizedInflowQueue
     @Override
     public synchronized void forEach (final BiConsumer&lt;CascadeToken, CascadeStack&gt; functor)
     {
-<span class="nc" id="L105">        delegate.forEach(functor);</span>
-<span class="nc" id="L106">    }</span>
+<span class="fc" id="L105">        delegate.forEach(functor);</span>
+<span class="fc" id="L106">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

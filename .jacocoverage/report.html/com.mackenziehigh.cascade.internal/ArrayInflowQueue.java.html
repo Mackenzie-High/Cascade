@@ -29,7 +29,7 @@ public final class ArrayInflowQueue
      */
     public ArrayInflowQueue (final int capacity)
 <span class="fc" id="L31">    {</span>
-<span class="pc bpc" id="L32" title="1 of 2 branches missed.">        Preconditions.checkArgument(capacity &gt;= 1, &quot;capacity &lt; 0&quot;);</span>
+<span class="fc bfc" id="L32" title="All 2 branches covered.">        Preconditions.checkArgument(capacity &gt;= 1, &quot;capacity &lt; 0&quot;);</span>
 <span class="fc" id="L33">        this.capacity = capacity;</span>
 <span class="fc" id="L34">        this.tokens = new ArrayDeque&lt;&gt;(capacity);</span>
 <span class="fc" id="L35">        this.stacks = new ArrayDeque&lt;&gt;(capacity);</span>
@@ -148,7 +148,7 @@ public final class ArrayInflowQueue
 <span class="fc" id="L148">        final Iterator&lt;CascadeToken&gt; tokenIter = tokens.iterator();</span>
 <span class="fc" id="L149">        final Iterator&lt;CascadeStack&gt; stackIter = stacks.iterator();</span>
 
-<span class="pc bpc" id="L151" title="1 of 4 branches missed.">        while (tokenIter.hasNext() &amp;&amp; stackIter.hasNext())</span>
+<span class="fc bfc" id="L151" title="All 2 branches covered.">        while (tokenIter.hasNext())</span>
         {
 <span class="fc" id="L153">            functor.accept(tokenIter.next(), stackIter.next());</span>
         }

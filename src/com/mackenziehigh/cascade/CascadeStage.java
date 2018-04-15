@@ -40,18 +40,22 @@ public final class CascadeStage
     private final CountDownLatch stageAwaitCloseLatch = new CountDownLatch(1);
 
     public final Scheduler<CascadeActor> scheduler = new Scheduler<>(() -> executor().onTask(this));
-    
+
     private final Dispatcher dispatcher;
+
+    private final Consumer<CascadeStage> undertaker;
 
     CascadeStage (final Cascade cascade,
                   final Dispatcher dispatcher,
                   final CascadeExecutor executor,
-                  final Consumer<CascadeStage> remover)
+                  final Consumer<CascadeStage> undertaker)
     {
         this.cascade = Objects.requireNonNull(cascade, "cascade");
         this.executor = Objects.requireNonNull(executor, "executor");
         this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
+        this.undertaker = Objects.requireNonNull(undertaker, "undertaker");
         executor.onStageOpened(this);
+
     }
 
     public final AtomicInteger cranks = new AtomicInteger();
@@ -176,8 +180,13 @@ public final class CascadeStage
      *
      * @return the new actor.
      */
-    public CascadeActor newActor ()
+    public synchronized CascadeActor newActor ()
     {
+        if (isClosing())
+        {
+            throw new IllegalStateException("Already Closing!");
+        }
+
         final Scheduler.Process<CascadeActor> task = scheduler.newProcess();
 
         /**
@@ -206,7 +215,7 @@ public final class CascadeStage
         final CascadeActor actor = new CascadeActor(this,
                                                     dispatcher,
                                                     callback,
-                                                    x -> actors.remove(x));
+                                                    x -> removeActor(x));
         actors.add(actor);
         task.userObject().set(actor);
         return actor;
@@ -290,8 +299,11 @@ public final class CascadeStage
      */
     public CascadeStage close ()
     {
-        executor.onStageClosed(this);
-        stageAwaitCloseLatch.countDown();
+        state.set(CLOSING);
+        for (CascadeActor actor : actors)
+        {
+            actor.close();
+        }
         return this;
     }
 
@@ -307,5 +319,18 @@ public final class CascadeStage
     {
         stageAwaitCloseLatch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);
         return this;
+    }
+
+    private synchronized void removeActor (final CascadeActor actor)
+    {
+        actors.remove(actor);
+
+        if (actors.isEmpty() && isClosing())
+        {
+            state.set(CLOSED);
+            executor.onStageClosed(this);
+            undertaker.accept(this);
+            stageAwaitCloseLatch.countDown();
+        }
     }
 }

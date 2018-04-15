@@ -195,20 +195,23 @@ public final class CascadeActor
      */
     private final Runnable scheduler;
 
+    private final Consumer<CascadeActor> undertaker;
+
     /**
      * Sole Constructor.
      *
      * @param stage contains this actor.
-     * @param remover will remove this actor from the stage, when the actor dies.
+     * @param undertaker will remove this actor from the stage, when the actor dies.
      */
     CascadeActor (final CascadeStage stage,
                   final Dispatcher dispatcher,
                   final Runnable scheduler,
-                  final Consumer<CascadeActor> remover)
+                  final Consumer<CascadeActor> undertaker)
     {
         this.stage = Objects.requireNonNull(stage, "stage");
         this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
         this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
+        this.undertaker = Objects.requireNonNull(undertaker, "undertaker");
         this.storageInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);
         this.boundedInflowQueue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);
         this.swappableInflowQueue = new SwappableInflowQueue(boundedInflowQueue);
@@ -665,8 +668,6 @@ public final class CascadeActor
         return context;
     }
 
-    private static final AtomicInteger told = new AtomicInteger();
-
     /**
      * Sends an event-message directly to this actor.
      *
@@ -855,6 +856,7 @@ public final class CascadeActor
             finally
             {
                 state.set(CLOSED);
+                undertaker.accept(this);
             }
         }
     }
