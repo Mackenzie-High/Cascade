@@ -1,12 +1,9 @@
 package com.mackenziehigh.cascade.internal;
 
-import com.google.common.base.Verify;
-import java.time.Duration;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -32,9 +29,23 @@ public final class Scheduler<E>
      * of the inflow-queues of the scheduled actors.
      * </p>
      */
-    public final BlockingQueue<Process<E>> scheduled = new PriorityBlockingQueue<>(32, Comparator.reverseOrder());
+    public final BlockingQueue<Process<E>> scheduled = new PriorityBlockingQueue<>(32, Comparator.naturalOrder());
+
+    private final AtomicLong globalSequenceNumber = new AtomicLong();
 
     private final Object lock = new Object();
+
+    private final Runnable callback;
+
+    /**
+     * Sole constructor.
+     *
+     * @param callback will be invoked in order to signal that work is available.
+     */
+    public Scheduler (final Runnable callback)
+    {
+        this.callback = Objects.requireNonNull(callback, "callback");
+    }
 
     /**
      * Use this method to define a new process that can
@@ -45,26 +56,16 @@ public final class Scheduler<E>
     public Process<E> newProcess ()
     {
         return new Process(this);
-
-    }
-
-    public boolean isEmpty ()
-    {
-        return scheduled.isEmpty();
     }
 
     /**
      * Use this method to retrieve and remove the Process that needs executed next.
      *
-     * @param timeout
      * @return the next scheduled Process, or null, if none is immediately available.
-     * @throws java.lang.InterruptedException
      */
-    public Process<E> poll (final Duration timeout)
-            throws InterruptedException
+    public Process<E> poll ()
     {
-        final Process<E> next = scheduled.poll(timeout.toNanos(), TimeUnit.NANOSECONDS);
-        Verify.verify(next == null || next.locked.get());
+        final Process<E> next = scheduled.poll();
         return next;
     }
 
@@ -80,7 +81,7 @@ public final class Scheduler<E>
     {
         /**
          * This means something to the user of the Scheduler,
-         * but not to us here, we just need to hold it.
+         * but not to us here, we just need to hold onto it.
          */
         private final AtomicReference<T> userObject = new AtomicReference<>();
 
@@ -95,9 +96,12 @@ public final class Scheduler<E>
         private final AtomicLong sequenceNumber = new AtomicLong();
 
         /**
-         * This flag is true, when this Process is currently being executed.
+         * This flag is true, when this Process is currently being
+         * executed or is currently enqueued awaiting execution.
+         * Inversely, this flag is false when this Process is
+         * neither being executed nor awaiting execution.
          */
-        private final AtomicBoolean locked = new AtomicBoolean();
+        private final AtomicBoolean active = new AtomicBoolean();
 
         /**
          * This is the number of pending executions of this Process
@@ -121,7 +125,7 @@ public final class Scheduler<E>
          *
          * @return the user-specified object corresponding to this Process.
          */
-        public AtomicReference<T> getUserObject ()
+        public AtomicReference<T> userObject ()
         {
             return userObject;
         }
@@ -133,13 +137,12 @@ public final class Scheduler<E>
         {
             synchronized (owner.lock)
             {
-                if (locked.compareAndSet(false, true))
+                pendingExecutionCount.incrementAndGet();
+
+                if (active.compareAndSet(false, true))
                 {
                     owner.scheduled.add(this);
-                }
-                else
-                {
-                    pendingExecutionCount.incrementAndGet();
+                    owner.callback.run();
                 }
             }
         }
@@ -154,18 +157,17 @@ public final class Scheduler<E>
         {
             synchronized (owner.lock)
             {
-                sequenceNumber.incrementAndGet();
+                sequenceNumber.set(owner.globalSequenceNumber.incrementAndGet());
 
-                if (pendingExecutionCount.get() > 0)
+                if (pendingExecutionCount.decrementAndGet() > 0)
                 {
-                    pendingExecutionCount.decrementAndGet();
-                    locked.set(true);
+                    active.set(true);
                     owner.scheduled.add(this);
+                    owner.callback.run();
                 }
                 else
                 {
-                    pendingExecutionCount.set(0);
-                    locked.set(false);
+                    active.set(false);
                 }
             }
         }
@@ -176,19 +178,7 @@ public final class Scheduler<E>
         @Override
         public int compareTo (final Process<T> other)
         {
-            if (sequenceNumber.get() > other.sequenceNumber.get())
-            {
-                return -1; // Higher Seq Num == Lower Priority
-            }
-            else if (sequenceNumber.get() < other.sequenceNumber.get())
-            {
-                return +1; // Lower Seq Num == Higher Priority
-            }
-            else
-            {
-                return 0;
-            }
+            return Long.compare(sequenceNumber.get(), other.sequenceNumber.get());
         }
     }
-
 }

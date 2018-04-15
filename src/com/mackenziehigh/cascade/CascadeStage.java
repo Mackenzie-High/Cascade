@@ -39,8 +39,8 @@ public final class CascadeStage
 
     private final CountDownLatch stageAwaitCloseLatch = new CountDownLatch(1);
 
-    public final Scheduler<CascadeActor> scheduler = new Scheduler<>();
-
+    public final Scheduler<CascadeActor> scheduler = new Scheduler<>(() -> executor().onTask(this));
+    
     private final Dispatcher dispatcher;
 
     CascadeStage (final Cascade cascade,
@@ -76,7 +76,7 @@ public final class CascadeStage
          */
         try
         {
-            final Scheduler.Process<CascadeActor> task = scheduler.poll(timeout);
+            final Scheduler.Process<CascadeActor> task = scheduler.poll();
 
             if (task == null)
             {
@@ -88,7 +88,7 @@ public final class CascadeStage
              */
             try (Scheduler.Process<CascadeActor> proc = task)
             {
-                final CascadeActor actor = proc.getUserObject().get();
+                final CascadeActor actor = proc.userObject().get();
                 actor.perform();
             }
             catch (Throwable ex)
@@ -98,10 +98,6 @@ public final class CascadeStage
                  */
                 ex.printStackTrace(System.err);
             }
-        }
-        catch (InterruptedException ex)
-        {
-            Thread.currentThread().interrupt();
         }
         catch (Throwable ex)
         {
@@ -212,7 +208,7 @@ public final class CascadeStage
                                                     callback,
                                                     x -> actors.remove(x));
         actors.add(actor);
-        task.getUserObject().set(actor);
+        task.userObject().set(actor);
         return actor;
     }
 
