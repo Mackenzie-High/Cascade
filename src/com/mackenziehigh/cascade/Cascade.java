@@ -1,14 +1,22 @@
 package com.mackenziehigh.cascade;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.mackenziehigh.cascade.internal.Dispatcher;
+import com.mackenziehigh.cascade.internal.PooledExecutor;
+import com.mackenziehigh.cascade.internal.ServiceExecutor;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,7 +39,7 @@ public final class Cascade
 
     private final AtomicReference<String> name = new AtomicReference<>(uuid.toString());
 
-    private final CascadeDispatcher dispatcher;
+    private final Dispatcher dispatcher;
 
     private final Set<CascadeStage> stages = Sets.newConcurrentHashSet();
 
@@ -48,12 +56,12 @@ public final class Cascade
      *
      * @param dispatcher will be used to route event-messages.
      */
-    private Cascade (final CascadeDispatcher dispatcher)
+    private Cascade (final Dispatcher dispatcher)
     {
         this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
         Verify.verify(isActive());
         Verify.verify(!isClosing());
-        Verify.verify(isClosed());
+        Verify.verify(!isClosed());
     }
 
     /**
@@ -63,20 +71,8 @@ public final class Cascade
      */
     public static Cascade newCascade ()
     {
-        final CascadeDispatcher disp = CascadeDispatcher.newDispatcher();
+        final Dispatcher disp = Dispatcher.newDispatcher();
         final Cascade cas = new Cascade(disp);
-        return cas;
-    }
-
-    /**
-     * Factory method.
-     *
-     * @param dispatcher will be used to route event-messages.
-     * @return a new instance of this class.
-     */
-    public static Cascade newCascade (final CascadeDispatcher dispatcher)
-    {
-        final Cascade cas = new Cascade(dispatcher);
         return cas;
     }
 
@@ -117,33 +113,59 @@ public final class Cascade
     }
 
     /**
-     * Creates a new stage using a non-daemon thread.
+     * Adds a new stage powered by a single thread.
      *
-     * <p>
-     * Initially, the stage will not have any threads.
-     * </p>
-     *
-     * @param threadCount is how many threads will be used to power the stage.
-     * @return the new stage.
+     * @return the given stage.
      */
-    public CascadeStage newStage (final int threadCount)
+    public CascadeStage newStage ()
     {
-        return null;
+        return newStage(Executors.newFixedThreadPool(1)); // TODO
     }
 
     /**
-     * Adds a new custom stage.
+     * Adds a new stage powered by a pool of non-daemon worker threads.
      *
-     * @param stage will now be part of this cascade.
+     * @param count is the number of threads in the pool.
      * @return the given stage.
      */
-    public CascadeStage newStage (final CascadeStage stage)
+    public CascadeStage newStage (final int count)
+    {
+        final ThreadFactory factory = new ThreadFactoryBuilder().setDaemon(false).build();
+        final CascadeExecutor executor = PooledExecutor.create(factory, count);
+        return newStage(executor);
+    }
+
+    /**
+     * Adds a new stage powered by a given ExecutorService.
+     *
+     * <p>
+     * The service can safely be shared with other stages.
+     * When the last stage closes, the service will be shutdown.
+     * </p>
+     *
+     * @param service provides the power.
+     * @return the new stage.
+     */
+    public CascadeStage newStage (final ExecutorService service)
+    {
+        return newStage(new ServiceExecutor(service));
+    }
+
+    /**
+     * Adds a new stage.
+     *
+     * @param executor will be used to power the new stage.
+     * @return the given stage.
+     */
+    public CascadeStage newStage (final CascadeExecutor executor)
     {
         /**
-         * Prevent new stages from being created as we close them.
+         * Prevent new stages from being created as we close the existing ones.
          */
         synchronized (lock)
         {
+            final CascadeStage stage = new CascadeStage(this, dispatcher, executor, s -> stages.remove(s));
+
             if (stage.isClosing())
             {
                 throw new IllegalArgumentException("The stage is already closing!");
@@ -168,31 +190,9 @@ public final class Cascade
             {
                 throw new IllegalStateException("The stage is already closing!");
             }
+
+            return stage;
         }
-
-        return stage;
-    }
-
-    /**
-     * Removes a closed stage from this cascade.
-     *
-     * <p>
-     * Do not invoke this method directly.
-     * Instead, close the stage and it will remove itself.
-     * </p>
-     *
-     * @param stage will be removed from this cascade.
-     * @return this.
-     * @throws IllegalArgumentException if the stage is not yet fully closed.
-     * @throws IllegalArgumentException if the stage is not part of this cascade.
-     */
-    public Cascade removeStage (final CascadeStage stage)
-    {
-        Preconditions.checkNotNull(stage, "stage");
-        Preconditions.checkArgument(stage.isClosed(), "The stage is not closed yet!");
-        Preconditions.checkArgument(this.equals(stage.cascade()), "The stage has a different cascade!");
-        stages.remove(stage);
-        return this;
     }
 
     /**
@@ -208,11 +208,11 @@ public final class Cascade
     /**
      * Getter.
      *
-     * @return the dispatcher that routes event-messages to interested actors.
+     * @return the event-channels that currently have at least one subscribed actor.
      */
-    public CascadeDispatcher dispatcher ()
+    public Map<CascadeToken, CascadeChannel> channels ()
     {
-        return dispatcher;
+        return dispatcher.channels();
     }
 
     /**
@@ -258,7 +258,7 @@ public final class Cascade
     public Cascade close ()
     {
         /**
-         * Prevent new stages from being created as we close them.
+         * Prevent new stages from being created as we close the existing ones.
          */
         synchronized (lock)
         {
@@ -342,7 +342,43 @@ public final class Cascade
     public Cascade awaitClose (final Duration timeout)
             throws InterruptedException
     {
-        awaitCloseLatch.await(timeout.getNano(), TimeUnit.NANOSECONDS);
+        awaitCloseLatch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        return this;
+    }
+
+    /**
+     * This method retrieves the event-channel identified by the given token.
+     *
+     * @param event identifies the event-channel to find.
+     * @return the channel, if it has at least one subscribed actor.
+     */
+    public Optional<CascadeChannel> channelOf (final CascadeToken event)
+    {
+        return dispatcher.lookup(event);
+    }
+
+    /**
+     * This method broadcasts an event-message.
+     *
+     * <p>
+     * This method is a no-op, if no actors are subscribed
+     * to receive event-messages from the given event-channel.
+     * </p>
+     *
+     * @param event identifies the event being produced.
+     * @param stack contains the content of the message.
+     * @return this.
+     */
+    public Cascade send (final CascadeToken event,
+                         final CascadeStack stack)
+    {
+        final Optional<CascadeChannel> channel = channelOf(event);
+
+        if (channel.isPresent())
+        {
+            channel.get().send(stack);
+        }
+
         return this;
     }
 }

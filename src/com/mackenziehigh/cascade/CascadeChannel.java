@@ -38,8 +38,9 @@ public interface CascadeChannel
      * </p>
      *
      * @param functor will receive the subscribers.
+     * @return this.
      */
-    public void forEachSubscriber (Consumer<CascadeActor> functor);
+    public CascadeChannel forEachSubscriber (Consumer<CascadeActor> functor);
 
     /**
      * This method broadcasts an event-message to all interested actors.

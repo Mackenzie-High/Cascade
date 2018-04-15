@@ -3,18 +3,19 @@ package com.mackenziehigh.cascade;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.mackenziehigh.cascade.internal.Dispatcher;
 import com.mackenziehigh.cascade.internal.Scheduler;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 /**
- * A stage contains actor(s) that are powered by a shared pool of threads.
+ * A stage contains actor(s) that are powered by an underlying executor.
  */
 public final class CascadeStage
 {
@@ -32,25 +33,90 @@ public final class CascadeStage
 
     private final Set<CascadeActor> actors = Sets.newConcurrentHashSet();
 
-    private final Instant creationTime = Instant.now();
+    private final CascadeExecutor executor;
 
     private final AtomicInteger state = new AtomicInteger();
 
     private final CountDownLatch stageAwaitCloseLatch = new CountDownLatch(1);
 
-    CascadeStage (final Cascade cascade)
+    public final Scheduler<CascadeActor> scheduler = new Scheduler<>();
+
+    private final Dispatcher dispatcher;
+
+    CascadeStage (final Cascade cascade,
+                  final Dispatcher dispatcher,
+                  final CascadeExecutor executor,
+                  final Consumer<CascadeStage> remover)
     {
         this.cascade = Objects.requireNonNull(cascade, "cascade");
+        this.executor = Objects.requireNonNull(executor, "executor");
+        this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
+        executor.onStageOpened(this);
     }
 
-    public CascadeStage incrementThreadCount ()
+    public final AtomicInteger cranks = new AtomicInteger();
+
+    /**
+     * Repeatedly invoke this method in order to supply power to the stage,
+     * which in-turn supplies power to the actors contained herein.
+     *
+     * <p>
+     * This method will only perform one unit-of-work at a time.
+     * For example, a single unit-of-work would be when an actor
+     * processes a single incoming message. Or, when an actor is
+     * setup or closed.
+     * </p>
+     *
+     * @param timeout
+     */
+    public void crank (final Duration timeout)
     {
-        return this;
+        /**
+         * Try to obtain a task from the round-robin scheduler.
+         */
+        try
+        {
+            final Scheduler.Process<CascadeActor> task = scheduler.poll(timeout);
+
+            if (task == null)
+            {
+                return; // No Work Performed
+            }
+
+            /**
+             * Execute the actor.
+             */
+            try (Scheduler.Process<CascadeActor> proc = task)
+            {
+                final CascadeActor actor = proc.getUserObject().get();
+                actor.perform();
+            }
+            catch (Throwable ex)
+            {
+                /**
+                 * This should never happen due to the error-handling philosophy of the actor itself.
+                 */
+                ex.printStackTrace(System.err);
+            }
+        }
+        catch (InterruptedException ex)
+        {
+            Thread.currentThread().interrupt();
+        }
+        catch (Throwable ex)
+        {
+            // Pass
+        }
     }
 
-    public CascadeStage decrementThreadCount ()
+    /**
+     * Getter.
+     *
+     * @return the executor that powers this stage.
+     */
+    public CascadeExecutor executor ()
     {
-        return this;
+        return executor;
     }
 
     /**
@@ -102,16 +168,6 @@ public final class CascadeStage
     /**
      * Getter.
      *
-     * @return the time that this stage was created.
-     */
-    public Instant creationTime ()
-    {
-        return creationTime;
-    }
-
-    /**
-     * Getter.
-     *
      * @return the actors that are currently alive on this stage.
      */
     public Set<CascadeActor> actors ()
@@ -126,8 +182,37 @@ public final class CascadeStage
      */
     public CascadeActor newActor ()
     {
-        final CascadeActor actor = new CascadeActor(this);
+        final Scheduler.Process<CascadeActor> task = scheduler.newProcess();
+
+        /**
+         * The actor will invoke this method whenever it needs to be executed.
+         * This callback will be invoked when the actor is started,
+         * enqueues an event-message, or begins being closed.
+         */
+        final Runnable callback = () ->
+        {
+            /**
+             * Schedule the actor for execution using the round-robin scheduler.
+             * In effect, this just adds the actor to a queue or pending tasks for the executor.
+             */
+            task.schedule();
+
+            /**
+             * Inform the executor that it needs to provide power to this stage,
+             * which in-turn will cause the actor to be executed when the power is applied.
+             */
+            executor.onTask(this);
+        };
+
+        /**
+         * This is the new actor itself, which will invoke the callback.
+         */
+        final CascadeActor actor = new CascadeActor(this,
+                                                    dispatcher,
+                                                    callback,
+                                                    x -> actors.remove(x));
         actors.add(actor);
+        task.getUserObject().set(actor);
         return actor;
     }
 
@@ -172,44 +257,6 @@ public final class CascadeStage
     }
 
     /**
-     * Removes a closed actor from this cascade.
-     *
-     * <p>
-     * Do not invoke this method directly.
-     * Instead, close the actor and it will remove itself.
-     * </p>
-     *
-     * @param actor will be removed from this stage.
-     * @return this.
-     * @throws IllegalArgumentException if the actor is not yet fully closed.
-     * @throws IllegalArgumentException if the actor is not part of this stage.
-     */
-    public CascadeStage removeActor (final CascadeActor actor)
-    {
-        Preconditions.checkNotNull(actor, "actor");
-        Preconditions.checkArgument(actor.isClosed(), "The actor is not closed yet!");
-        Preconditions.checkArgument(this.equals(actor.stage()), "The actor is on a different stage!");
-        actors.remove(actor);
-        return this;
-    }
-
-    /**
-     * Schedule the given actor for execution.
-     *
-     * <p>
-     * Do not invoke this method directly.
-     * Instead, send a message to the actor and the actor will schedule itself.
-     * </p>
-     *
-     * @param actor will perform on this stage at the next available opportunity.
-     * @return this.
-     */
-    public CascadeStage schedule (final CascadeActor actor)
-    {
-        return this;
-    }
-
-    /**
      * Getter.
      *
      * @return true, if and only if, this stage is not closing or closed.
@@ -247,6 +294,7 @@ public final class CascadeStage
      */
     public CascadeStage close ()
     {
+        executor.onStageClosed(this);
         stageAwaitCloseLatch.countDown();
         return this;
     }
@@ -261,42 +309,7 @@ public final class CascadeStage
     public CascadeStage awaitClose (final Duration timeout)
             throws InterruptedException
     {
-        stageAwaitCloseLatch.await(timeout.getNano(), TimeUnit.NANOSECONDS);
+        stageAwaitCloseLatch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);
         return this;
-    }
-
-    private void run ()
-    {
-        while (isClosed() == false)
-        {
-            try
-            {
-                unsafeRun();
-            }
-            catch (InterruptedException ex1)
-            {
-                Thread.currentThread().interrupt();
-            }
-            catch (Throwable ex2)
-            {
-                // Pass
-            }
-        }
-    }
-
-    private void unsafeRun ()
-            throws InterruptedException
-    {
-        final Scheduler.Process<CascadeActor> process = scheduler.poll(1000);
-
-        if (process == null)
-        {
-            return;
-        }
-
-        try (Scheduler.Process<CascadeActor> task = process)
-        {
-            task.getUserObject().perform();
-        }
     }
 }

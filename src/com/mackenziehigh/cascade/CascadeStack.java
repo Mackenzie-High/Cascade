@@ -9,7 +9,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Pasta Stack of Operands.
+ * Pasta Stack.
  */
 public final class CascadeStack
 {

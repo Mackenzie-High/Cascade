@@ -1,23 +1,26 @@
 package com.mackenziehigh.cascade;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 import com.mackenziehigh.cascade.internal.ArrayInflowQueue;
 import com.mackenziehigh.cascade.internal.BoundedInflowQueue;
+import com.mackenziehigh.cascade.internal.Dispatcher;
 import com.mackenziehigh.cascade.internal.InflowQueue;
 import com.mackenziehigh.cascade.internal.LinkedInflowQueue;
 import com.mackenziehigh.cascade.internal.NotificationInflowQueue;
 import com.mackenziehigh.cascade.internal.SwappableInflowQueue;
 import com.mackenziehigh.cascade.internal.SynchronizedInflowQueue;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /**
  * Actors receive, process, and send event-messages.
@@ -94,11 +97,13 @@ public final class CascadeActor
 
     private static final int UNSTARTED = 0;
 
-    private static final int ACTIVE = 1;
+    private static final int STARTING = 1;
 
-    private static final int CLOSING = 1;
+    private static final int ACTIVE = 2;
 
-    private static final int CLOSED = 2;
+    private static final int CLOSING = 3;
+
+    private static final int CLOSED = 4;
 
     private final CascadeActor SELF = this;
 
@@ -108,23 +113,27 @@ public final class CascadeActor
     private final UUID uuid = UUID.randomUUID();
 
     /**
-     * The birth-date of this actor.
-     */
-    private final Instant creationTime = Instant.now();
-
-    /**
      * This is the name of this actor, which may change over time.
      */
     private volatile String name = uuid.toString();
 
-    private final AtomicInteger state = new AtomicInteger();
+    private final AtomicInteger state = new AtomicInteger(UNSTARTED);
 
     private final CascadeStage stage;
+
+    private final Dispatcher dispatcher;
+
+    private final CopyOnWriteArraySet<CascadeToken> subscriptions = new CopyOnWriteArraySet<>();
 
     /**
      * True, if the script is executing.
      */
     private final AtomicBoolean acting = new AtomicBoolean(false);
+
+    /**
+     * Used to implement awaitStart().
+     */
+    private final CountDownLatch awaitStartLatch = new CountDownLatch(1);
 
     /**
      * Used to implement awaitClose().
@@ -135,14 +144,7 @@ public final class CascadeActor
      * The script will be passed this context in order to provide
      * the script with access to this actor and send messages.
      */
-    private final CascadeContext context = new CascadeContext()
-    {
-        @Override
-        public CascadeActor actor ()
-        {
-            return SELF;
-        }
-    };
+    private final CascadeContext context = () -> SELF; // TODO: This is unclear.
 
     /**
      * This script defines how this actor behaves.
@@ -188,13 +190,25 @@ public final class CascadeActor
     private final AtomicReference<CascadeStack> stack = new AtomicReference<>();
 
     /**
+     * This is a callback function that will cause this actor to
+     * be scheduled for execution by the enclosing stage's executor.
+     */
+    private final Runnable scheduler;
+
+    /**
      * Sole Constructor.
      *
      * @param stage contains this actor.
+     * @param remover will remove this actor from the stage, when the actor dies.
      */
-    CascadeActor (final CascadeStage stage)
+    CascadeActor (final CascadeStage stage,
+                  final Dispatcher dispatcher,
+                  final Runnable scheduler,
+                  final Consumer<CascadeActor> remover)
     {
         this.stage = Objects.requireNonNull(stage, "stage");
+        this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
+        this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
         this.storageInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);
         this.boundedInflowQueue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);
         this.swappableInflowQueue = new SwappableInflowQueue(boundedInflowQueue);
@@ -483,7 +497,8 @@ public final class CascadeActor
      */
     public CascadeActor subscribe (final CascadeToken event)
     {
-        cascade().dispatcher().subscribe(event, this);
+        subscriptions.add(event);
+        dispatcher.subscribe(event, this);
         return this;
     }
 
@@ -500,7 +515,8 @@ public final class CascadeActor
      */
     public CascadeActor unsubscribe (final CascadeToken event)
     {
-        cascade().dispatcher().unsubscribe(event, this);
+        dispatcher.unsubscribe(event, this);
+        subscriptions.remove(event);
         return this;
     }
 
@@ -509,19 +525,29 @@ public final class CascadeActor
      *
      * @return the identities of the events that this actor is listening for.
      */
-    public Set<CascadeChannel> subscriptions ()
+    public Set<CascadeToken> subscriptions ()
     {
-        return cascade().dispatcher().subscriptionsOf(this);
+        return ImmutableSet.copyOf(subscriptions);
     }
 
     /**
      * Getter.
      *
-     * @return true, if and only if, start() was already called.
+     * @return true, if and only if, startup is in-progress.
+     */
+    public boolean isStarting ()
+    {
+        return state.get() == STARTING;
+    }
+
+    /**
+     * Getter.
+     *
+     * @return true, if and only if, startup has completed.
      */
     public boolean isStarted ()
     {
-        return state.get() != UNSTARTED;
+        return state.get() > STARTING;
     }
 
     /**
@@ -562,16 +588,6 @@ public final class CascadeActor
     public boolean isClosed ()
     {
         return state.get() == CLOSED;
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the time that this actor was created.
-     */
-    public Instant creationTime ()
-    {
-        return creationTime;
     }
 
     /**
@@ -649,6 +665,8 @@ public final class CascadeActor
         return context;
     }
 
+    private static final AtomicInteger told = new AtomicInteger();
+
     /**
      * Sends an event-message directly to this actor.
      *
@@ -678,7 +696,8 @@ public final class CascadeActor
      */
     public CascadeActor start ()
     {
-        stage().schedule(this);
+        state.set(STARTING);
+        scheduler.run();
         return this;
     }
 
@@ -704,43 +723,6 @@ public final class CascadeActor
      */
     public CascadeActor perform ()
     {
-        act();
-        return this;
-    }
-
-    /**
-     * This method kills this actor, which causes it to stop listening
-     * for incoming messages, remove itself from the stage, etc.
-     *
-     * <p>
-     * This method returns immediately; however, the actor will not close
-     * until it has finished any work that it is currently performing.
-     * </p>
-     *
-     * @return this.
-     */
-    public CascadeActor close ()
-    {
-
-        return this;
-    }
-
-    /**
-     * This method blocks, until this actor dies.
-     *
-     * @param timeout is the maximum amount of time to wait.
-     * @return this.
-     * @throws java.lang.InterruptedException
-     */
-    public CascadeActor awaitClose (final Duration timeout)
-            throws InterruptedException
-    {
-        awaitCloseLatch.await(timeout.getNano(), TimeUnit.NANOSECONDS);
-        return this; // TODO: boolean instead?
-    }
-
-    private void act ()
-    {
         synchronized (this)
         {
             try
@@ -751,7 +733,7 @@ public final class CascadeActor
             {
                 //reportUnhandledException(ex);
                 close();
-                return;
+                return this;
             }
 
             try
@@ -772,14 +754,79 @@ public final class CascadeActor
                 //reportUnhandledException(ex);
             }
         }
+
+        return this;
+    }
+
+    /**
+     * This method kills this actor, which causes it to stop listening
+     * for incoming messages, remove itself from the stage, etc.
+     *
+     * <p>
+     * This method returns immediately; however, the actor will not close
+     * until it has finished any work that it is currently performing.
+     * </p>
+     *
+     * @return this.
+     */
+    public CascadeActor close ()
+    {
+        state.set(CLOSING);
+        scheduler.run();
+        return this;
+    }
+
+    /**
+     * This method blocks, until this actor starts.
+     *
+     * <p>
+     * If this actor already started, then this method is a no-op.
+     * </p>
+     *
+     * @param timeout is the maximum amount of time to wait.
+     * @return this.
+     * @throws java.lang.InterruptedException
+     */
+    public CascadeActor awaitStart (final Duration timeout)
+            throws InterruptedException
+    {
+        final long nanos = timeout.toNanos();
+        awaitStartLatch.await(nanos, TimeUnit.NANOSECONDS);
+        return this; // TODO: boolean instead?
+    }
+
+    /**
+     * This method blocks, until this actor dies.
+     *
+     * <p>
+     * If this actor already closed, then this method is a no-op.
+     * </p>
+     *
+     * @param timeout is the maximum amount of time to wait.
+     * @return this.
+     * @throws java.lang.InterruptedException
+     */
+    public CascadeActor awaitClose (final Duration timeout)
+            throws InterruptedException
+    {
+        awaitCloseLatch.await(timeout.getNano(), TimeUnit.NANOSECONDS);
+        return this; // TODO: boolean instead?
     }
 
     private void setupIfNeeded ()
             throws Throwable
     {
-        if (isStarted())
+        if (isStarting())
         {
-            script.onSetup(context);
+            try
+            {
+                script.onSetup(context);
+            }
+            finally
+            {
+                state.set(ACTIVE);
+                awaitStartLatch.countDown();
+            }
         }
     }
 
@@ -797,8 +844,19 @@ public final class CascadeActor
     }
 
     private void shutdownIfNeeded ()
+            throws Throwable
     {
-
+        if (isClosing())
+        {
+            try
+            {
+                script().onClose(context);
+            }
+            finally
+            {
+                state.set(CLOSED);
+            }
+        }
     }
 
     /**
@@ -809,7 +867,8 @@ public final class CascadeActor
      */
     private void onQueueAdd (final InflowQueue queue)
     {
-        stage().schedule(this);
+
+        scheduler.run();
     }
 
     private void replaceQueue (final BoundedInflowQueue.OverflowPolicy policy,

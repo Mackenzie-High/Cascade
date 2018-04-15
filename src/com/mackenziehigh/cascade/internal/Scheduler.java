@@ -1,15 +1,15 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Verify;
-import com.google.common.collect.Maps;
+import java.time.Duration;
 import java.util.Comparator;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Prioritized Least-Recently-Used based Scheduler.
@@ -26,10 +26,13 @@ public final class Scheduler<E>
      * If a single Process is scheduled multiple times,
      * while it is awaiting or undergoing execution,
      * then a counter in the Process will be incremented.
-     * This avoids unnecessary wastage of space.
+     * This avoids unnecessary wastage of space in this queue.
+     * Otherwise, in the context of scheduling actors,
+     * this queue could grow to equal the sum of the sizes
+     * of the inflow-queues of the scheduled actors.
      * </p>
      */
-    private final BlockingQueue<Process<E>> scheduled = new PriorityBlockingQueue<>(32, Comparator.reverseOrder());
+    public final BlockingQueue<Process<E>> scheduled = new PriorityBlockingQueue<>(32, Comparator.reverseOrder());
 
     private final Object lock = new Object();
 
@@ -37,40 +40,33 @@ public final class Scheduler<E>
      * Use this method to define a new process that can
      * be scheduled for execution using this scheduler.
      *
-     * @param userObject a user-defined object to associate with the new process.
      * @return the newly defined process.
      */
-    public Process<E> newProcess (final E userObject)
+    public Process<E> newProcess ()
     {
-        return new Process(this, userObject);
+        return new Process(this);
 
+    }
+
+    public boolean isEmpty ()
+    {
+        return scheduled.isEmpty();
     }
 
     /**
-     * Use this method to retrieve and remove the Process that needs executed next,
-     * blocking if necessary, for a Process to become available.
+     * Use this method to retrieve and remove the Process that needs executed next.
      *
-     * @param timeout is the maximum number of milliseconds to wait.
-     * @return the next scheduled Process, or null, if the timeout occurred.
-     * @throws InterruptedException if an interruption occurs while waiting.
+     * @param timeout
+     * @return the next scheduled Process, or null, if none is immediately available.
+     * @throws java.lang.InterruptedException
      */
-    public Process<E> poll (final long timeout)
+    public Process<E> poll (final Duration timeout)
             throws InterruptedException
     {
-        if (timeout < 1)
-        {
-            throw new IllegalArgumentException("timeout < 1");
-        }
-        else
-        {
-
-            final Process<E> next = scheduled.poll(timeout, TimeUnit.MILLISECONDS);
-            Verify.verify(next == null || next.locked.get());
-            return next;
-        }
+        final Process<E> next = scheduled.poll(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        Verify.verify(next == null || next.locked.get());
+        return next;
     }
-
-    private static final Map<Object, Process> instances = Maps.newConcurrentMap();
 
     /**
      * A Process represents an executable entity that can
@@ -86,7 +82,7 @@ public final class Scheduler<E>
          * This means something to the user of the Scheduler,
          * but not to us here, we just need to hold it.
          */
-        private final T userObject;
+        private final AtomicReference<T> userObject = new AtomicReference<>();
 
         /**
          * This is the Scheduler that is able to schedule this Process.
@@ -115,12 +111,9 @@ public final class Scheduler<E>
          */
         private final AtomicLong pendingExecutionCount = new AtomicLong();
 
-        private Process (final Scheduler owner,
-                         final T userObject)
+        private Process (final Scheduler owner)
         {
             this.owner = Objects.requireNonNull(owner, "owner");
-            this.userObject = Objects.requireNonNull(userObject, "userObject");
-            instances.put(userObject, this);
         }
 
         /**
@@ -128,7 +121,7 @@ public final class Scheduler<E>
          *
          * @return the user-specified object corresponding to this Process.
          */
-        public T getUserObject ()
+        public AtomicReference<T> getUserObject ()
         {
             return userObject;
         }
@@ -198,24 +191,4 @@ public final class Scheduler<E>
         }
     }
 
-    public static void main (String[] args)
-            throws InterruptedException
-    {
-        final Scheduler<String> ss = new Scheduler<>();
-
-        ss.newProcess("A").schedule();
-        ss.newProcess("B").schedule();
-
-        while (true)
-        {
-            final Process<String> ps = ss.poll(1000L);
-            if (ps != null)
-            {
-                try (Process cs = ps)
-                {
-                    System.out.println("X = " + cs.getUserObject());
-                }
-            }
-        }
-    }
 }

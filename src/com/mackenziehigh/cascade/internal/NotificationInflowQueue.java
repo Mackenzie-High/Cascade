@@ -3,6 +3,7 @@ package com.mackenziehigh.cascade.internal;
 import com.mackenziehigh.cascade.CascadeStack;
 import com.mackenziehigh.cascade.CascadeToken;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -30,6 +31,8 @@ public final class NotificationInflowQueue
         this.delegate = Objects.requireNonNull(delegate, "delegate");
         this.listener = Objects.requireNonNull(listener, "listener");
     }
+
+    private static final AtomicInteger offers = new AtomicInteger();
 
     /**
      * {@inheritDoc}

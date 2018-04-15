@@ -1,5 +1,7 @@
 package com.mackenziehigh.cascade;
 
+import java.util.Optional;
+
 /**
  * Contexts provide scripts with access to the enclosing actor
  * and with convenient helper methods for sending event-messages.
@@ -48,7 +50,7 @@ public interface CascadeContext
      *
      * <p>
      * This method is a no-op, if no actors are subscribed
-     * to receive event-messages from the given event-stream.
+     * to receive event-messages from the given event-channel.
      * </p>
      *
      * @param event identifies the event being produced.
@@ -58,7 +60,13 @@ public interface CascadeContext
     public default CascadeContext send (final CascadeToken event,
                                         final CascadeStack stack)
     {
-        cascade().dispatcher().lookup(event).send(stack);
+        final Optional<CascadeChannel> channel = cascade().channelOf(event);
+
+        if (channel.isPresent())
+        {
+            channel.get().send(stack);
+        }
+
         return this;
     }
 
