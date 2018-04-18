@@ -71,9 +71,8 @@ public final class CascadeStage
      * setup or closed.
      * </p>
      *
-     * @param timeout
      */
-    public void crank (final Duration timeout)
+    public void crank ()
     {
         /**
          * Try to obtain a task from the round-robin scheduler.

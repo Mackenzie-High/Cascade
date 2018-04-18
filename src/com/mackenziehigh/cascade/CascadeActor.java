@@ -19,6 +19,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -125,6 +126,10 @@ public final class CascadeActor
 
     private final CopyOnWriteArraySet<CascadeToken> subscriptions = new CopyOnWriteArraySet<>();
 
+    private final AtomicLong consumedMessageCount = new AtomicLong();
+
+    private final AtomicLong unhandledExceptionCount = new AtomicLong();
+
     /**
      * True, if the script is executing.
      */
@@ -149,7 +154,7 @@ public final class CascadeActor
     /**
      * This script defines how this actor behaves.
      */
-    private final CascadeScript script = new CascadeScript();
+    private final CascadeScript script = new CascadeScript(context, unhandledExceptionCount);
 
     /**
      * This inflow-queue physically stores the incoming event-messages.
@@ -621,7 +626,7 @@ public final class CascadeActor
      */
     public long acceptedMessages ()
     {
-        return 0;
+        return boundedInflowQueue.accepted(); // Thread-Safe
     }
 
     /**
@@ -632,7 +637,7 @@ public final class CascadeActor
      */
     public long droppedMessages ()
     {
-        return 0;
+        return boundedInflowQueue.dropped(); // Thread-Safe
     }
 
     /**
@@ -643,7 +648,7 @@ public final class CascadeActor
      */
     public long consumedMessages ()
     {
-        return 0;
+        return consumedMessageCount.get();
     }
 
     /**
@@ -654,7 +659,7 @@ public final class CascadeActor
      */
     public long unhandledExceptions ()
     {
-        return 0;
+        return unhandledExceptionCount.get();
     }
 
     /**
@@ -697,8 +702,10 @@ public final class CascadeActor
      */
     public CascadeActor start ()
     {
-        state.set(STARTING);
-        scheduler.run();
+        if (state.compareAndSet(UNSTARTED, STARTING))
+        {
+            scheduler.run();
+        }
         return this;
     }
 
@@ -772,8 +779,11 @@ public final class CascadeActor
      */
     public CascadeActor close ()
     {
-        state.set(CLOSING);
-        scheduler.run();
+        // TODO: other states?
+        if (state.compareAndSet(ACTIVE, CLOSING) || state.compareAndSet(UNSTARTED, CLOSING))
+        {
+            scheduler.run();
+        }
         return this;
     }
 
@@ -810,7 +820,7 @@ public final class CascadeActor
     public CascadeActor awaitClose (final Duration timeout)
             throws InterruptedException
     {
-        awaitCloseLatch.await(timeout.getNano(), TimeUnit.NANOSECONDS);
+        awaitCloseLatch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);
         return this; // TODO: boolean instead?
     }
 
@@ -840,6 +850,7 @@ public final class CascadeActor
         final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)
         if (delivered)
         {
+            consumedMessageCount.incrementAndGet();
             script.onMessage(context(), event.get(), stack.get());
         }
     }

@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ServiceExecutor.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.internal</a> &gt; <span class="el_source">ServiceExecutor.java</span></div><h1>ServiceExecutor.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.CascadeExecutor;
 import com.mackenziehigh.cascade.CascadeStage;
-import java.time.Duration;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  *
@@ -16,58 +16,66 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class ServiceExecutor
         implements CascadeExecutor
 {
+<span class="fc" id="L19">    private final AtomicBoolean closed = new AtomicBoolean();</span>
+
     private final ExecutorService service;
 
-<span class="fc" id="L21">    private final Set&lt;CascadeStage&gt; stages = Sets.newCopyOnWriteArraySet();</span>
+<span class="fc" id="L23">    private final Set&lt;CascadeStage&gt; stages = Sets.newCopyOnWriteArraySet();</span>
 
     public ServiceExecutor (final ExecutorService service)
-<span class="fc" id="L24">    {</span>
-<span class="fc" id="L25">        this.service = Objects.requireNonNull(service, &quot;service&quot;);</span>
-<span class="fc" id="L26">    }</span>
+<span class="fc" id="L26">    {</span>
+<span class="fc" id="L27">        this.service = Objects.requireNonNull(service, &quot;service&quot;);</span>
+<span class="fc" id="L28">    }</span>
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void onStageOpened (final CascadeStage stage)
+    public synchronized void onStageOpened (final CascadeStage stage)
     {
-<span class="fc" id="L34">        Preconditions.checkNotNull(stage, &quot;stage&quot;);</span>
-<span class="fc" id="L35">        stages.add(stage);</span>
-<span class="fc" id="L36">    }</span>
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void onStageClosed (final CascadeStage stage)
-    {
-<span class="fc" id="L44">        Preconditions.checkNotNull(stage, &quot;stage&quot;);</span>
-<span class="fc" id="L45">        stages.remove(stage);</span>
-
-<span class="pc bpc" id="L47" title="1 of 2 branches missed.">        if (stages.isEmpty())</span>
+<span class="fc" id="L36">        Preconditions.checkNotNull(stage, &quot;stage&quot;);</span>
+<span class="pc bpc" id="L37" title="1 of 2 branches missed.">        if (closed.get() == false)</span>
         {
-<span class="fc" id="L49">            service.shutdown();</span>
+<span class="fc" id="L39">            stages.add(stage);</span>
         }
-<span class="fc" id="L51">    }</span>
-
-<span class="fc" id="L53">    public final AtomicInteger runs = new AtomicInteger();</span>
-
-<span class="fc" id="L55">    public final AtomicInteger tasks = new AtomicInteger();</span>
+<span class="fc" id="L41">    }</span>
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void onTask (final CascadeStage stage)
+    public synchronized void onStageClosed (final CascadeStage stage)
     {
-<span class="fc" id="L63">        final Runnable task = () -&gt;</span>
+<span class="nc" id="L49">        Preconditions.checkNotNull(stage, &quot;stage&quot;);</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">        if (closed.get() == false)</span>
         {
-<span class="fc" id="L65">            runs.incrementAndGet();</span>
-<span class="fc" id="L66">            stage.crank(Duration.ofHours(1));</span>
-<span class="fc" id="L67">        };</span>
-<span class="fc" id="L68">        tasks.incrementAndGet();</span>
-<span class="fc" id="L69">        service.submit(task);</span>
-<span class="fc" id="L70">    }</span>
+<span class="nc" id="L52">            Verify.verify(stage.actors().isEmpty());</span>
+
+<span class="nc" id="L54">            stages.remove(stage);</span>
+
+<span class="nc bnc" id="L56" title="All 2 branches missed.">            if (stages.isEmpty())</span>
+            {
+<span class="nc" id="L58">                closed.set(true);</span>
+<span class="nc" id="L59">                service.shutdown();</span>
+            }
+        }
+<span class="nc" id="L62">    }</span>
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public synchronized void onTask (final CascadeStage stage)
+    {
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">        if (closed.get() == false)</span>
+        {
+<span class="fc" id="L72">            final Runnable task = () -&gt;</span>
+            {
+<span class="fc" id="L74">                stage.crank();</span>
+<span class="fc" id="L75">            };</span>
+<span class="fc" id="L76">            service.submit(task);</span>
+        }
+<span class="fc" id="L78">    }</span>
 
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

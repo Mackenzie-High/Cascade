@@ -90,7 +90,7 @@ public final class CascadeToken
      */
     public static CascadeToken random ()
     {
-<span class="nc" id="L93">        return token(UUID.randomUUID().toString());</span>
+<span class="fc" id="L93">        return token(UUID.randomUUID().toString());</span>
     }
 
     /**
@@ -178,7 +178,7 @@ public final class CascadeToken
      */
     public long hash1 ()
     {
-<span class="nc" id="L181">        return hash1;</span>
+<span class="fc" id="L181">        return hash1;</span>
     }
 
     /**
@@ -357,9 +357,9 @@ public final class CascadeToken
         {
 <span class="nc" id="L358">            return false;</span>
         }
-<span class="pc bpc" id="L360" title="1 of 2 branches missed.">        else if (hashCode != other.hashCode())</span>
+<span class="fc bfc" id="L360" title="All 2 branches covered.">        else if (hashCode != other.hashCode())</span>
         {
-<span class="nc" id="L362">            return false;</span>
+<span class="fc" id="L362">            return false;</span>
         }
 <span class="pc bpc" id="L364" title="1 of 2 branches missed.">        else if (other instanceof CascadeToken == false)</span>
         {

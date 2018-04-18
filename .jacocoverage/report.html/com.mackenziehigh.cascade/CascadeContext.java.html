@@ -60,14 +60,14 @@ public interface CascadeContext
     public default CascadeContext send (final CascadeToken event,
                                         final CascadeStack stack)
     {
-<span class="nc" id="L63">        final Optional&lt;CascadeChannel&gt; channel = cascade().channelOf(event);</span>
+<span class="fc" id="L63">        final Optional&lt;CascadeChannel&gt; channel = cascade().channelOf(event);</span>
 
-<span class="nc bnc" id="L65" title="All 2 branches missed.">        if (channel.isPresent())</span>
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">        if (channel.isPresent())</span>
         {
-<span class="nc" id="L67">            channel.get().send(stack);</span>
+<span class="fc" id="L67">            channel.get().send(stack);</span>
         }
 
-<span class="nc" id="L70">        return this;</span>
+<span class="fc" id="L70">        return this;</span>
     }
 
 }

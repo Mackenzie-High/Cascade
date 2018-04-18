@@ -3,9 +3,7 @@ package com.mackenziehigh.cascade;
 import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.internal.Dispatcher;
-import com.mackenziehigh.cascade.internal.PooledExecutor;
 import com.mackenziehigh.cascade.internal.ServiceExecutor;
 import java.time.Duration;
 import java.util.Map;
@@ -16,7 +14,6 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -119,20 +116,7 @@ public final class Cascade
      */
     public CascadeStage newStage ()
     {
-        return newStage(Executors.newFixedThreadPool(1)); // TODO
-    }
-
-    /**
-     * Adds a new stage powered by a pool of non-daemon worker threads.
-     *
-     * @param count is the number of threads in the pool.
-     * @return the given stage.
-     */
-    public CascadeStage newStage (final int count)
-    {
-        final ThreadFactory factory = new ThreadFactoryBuilder().setDaemon(false).build();
-        final CascadeExecutor executor = PooledExecutor.create(factory, count);
-        return newStage(executor);
+        return newStage(Executors.newFixedThreadPool(1));
     }
 
     /**
@@ -159,11 +143,6 @@ public final class Cascade
      */
     public synchronized CascadeStage newStage (final CascadeExecutor executor)
     {
-        if (isClosing())
-        {
-            throw new IllegalStateException("Already Closing!");
-        }
-
         /**
          * Prevent new stages from being created as we close the existing ones.
          */

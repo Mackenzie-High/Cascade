@@ -24,4 +24,90 @@ public final class CascadeTest
         assertEquals(cascade.uuid(), cascade.uuid());
     }
 
+    /**
+     * Test: 20180415205229762235
+     *
+     * <p>
+     * Case:
+     * </p>
+     */
+    @Test
+    public void test20180415205229762235 ()
+    {
+        System.out.println("Test: 20180415205229762235");
+        fail();
+    }
+
+    /**
+     * Test: 20180415205229762344
+     *
+     * <p>
+     * Method: <code></code>
+     * </p>
+     *
+     * <p>
+     * Case:
+     * </p>
+     */
+    @Test
+    public void test20180415205229762344 ()
+    {
+        System.out.println("Test: 20180415205229762344");
+        fail();
+    }
+
+    /**
+     * Test: 20180415205229762374
+     *
+     * <p>
+     * Method: <code></code>
+     * </p>
+     *
+     * <p>
+     * Case:
+     * </p>
+     */
+    @Test
+    public void test20180415205229762374 ()
+    {
+        System.out.println("Test: 20180415205229762374");
+        fail();
+    }
+
+    /**
+     * Test: 20180415205229762401
+     *
+     * <p>
+     * Method: <code></code>
+     * </p>
+     *
+     * <p>
+     * Case:
+     * </p>
+     */
+    @Test
+    public void test20180415205229762401 ()
+    {
+        System.out.println("Test: 20180415205229762401");
+        fail();
+    }
+
+    /**
+     * Test: 20180415205229762429
+     *
+     * <p>
+     * Method: <code></code>
+     * </p>
+     *
+     * <p>
+     * Case:
+     * </p>
+     */
+    @Test
+    public void test20180415205229762429 ()
+    {
+        System.out.println("Test: 20180415205229762429");
+        fail();
+    }
+
 }

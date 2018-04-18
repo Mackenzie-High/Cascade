@@ -3,9 +3,7 @@
 import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mackenziehigh.cascade.internal.Dispatcher;
-import com.mackenziehigh.cascade.internal.PooledExecutor;
 import com.mackenziehigh.cascade.internal.ServiceExecutor;
 import java.time.Duration;
 import java.util.Map;
@@ -16,7 +14,6 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,21 +32,21 @@ public final class Cascade
 
     private static final int CLOSED = 2;
 
-<span class="fc" id="L38">    private final UUID uuid = UUID.randomUUID();</span>
+<span class="fc" id="L35">    private final UUID uuid = UUID.randomUUID();</span>
 
-<span class="fc" id="L40">    private final AtomicReference&lt;String&gt; name = new AtomicReference&lt;&gt;(uuid.toString());</span>
+<span class="fc" id="L37">    private final AtomicReference&lt;String&gt; name = new AtomicReference&lt;&gt;(uuid.toString());</span>
 
     private final Dispatcher dispatcher;
 
-<span class="fc" id="L44">    private final Set&lt;CascadeStage&gt; stages = Sets.newConcurrentHashSet();</span>
+<span class="fc" id="L41">    private final Set&lt;CascadeStage&gt; stages = Sets.newConcurrentHashSet();</span>
 
-<span class="fc" id="L46">    private final AtomicBoolean close = new AtomicBoolean();</span>
+<span class="fc" id="L43">    private final AtomicBoolean close = new AtomicBoolean();</span>
 
-<span class="fc" id="L48">    private final AtomicInteger state = new AtomicInteger();</span>
+<span class="fc" id="L45">    private final AtomicInteger state = new AtomicInteger();</span>
 
-<span class="fc" id="L50">    private final CountDownLatch awaitCloseLatch = new CountDownLatch(1);</span>
+<span class="fc" id="L47">    private final CountDownLatch awaitCloseLatch = new CountDownLatch(1);</span>
 
-<span class="fc" id="L52">    private final Object lock = new Object();</span>
+<span class="fc" id="L49">    private final Object lock = new Object();</span>
 
     /**
      * Sole Constructor.
@@ -57,12 +54,12 @@ public final class Cascade
      * @param dispatcher will be used to route event-messages.
      */
     private Cascade (final Dispatcher dispatcher)
-<span class="fc" id="L60">    {</span>
-<span class="fc" id="L61">        this.dispatcher = Objects.requireNonNull(dispatcher, &quot;dispatcher&quot;);</span>
-<span class="fc" id="L62">        Verify.verify(isActive());</span>
-<span class="pc bpc" id="L63" title="1 of 2 branches missed.">        Verify.verify(!isClosing());</span>
-<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        Verify.verify(!isClosed());</span>
-<span class="fc" id="L65">    }</span>
+<span class="fc" id="L57">    {</span>
+<span class="fc" id="L58">        this.dispatcher = Objects.requireNonNull(dispatcher, &quot;dispatcher&quot;);</span>
+<span class="fc" id="L59">        Verify.verify(isActive());</span>
+<span class="pc bpc" id="L60" title="1 of 2 branches missed.">        Verify.verify(!isClosing());</span>
+<span class="pc bpc" id="L61" title="1 of 2 branches missed.">        Verify.verify(!isClosed());</span>
+<span class="fc" id="L62">    }</span>
 
     /**
      * Factory method.
@@ -71,9 +68,9 @@ public final class Cascade
      */
     public static Cascade newCascade ()
     {
-<span class="fc" id="L74">        final Dispatcher disp = Dispatcher.newDispatcher();</span>
-<span class="fc" id="L75">        final Cascade cas = new Cascade(disp);</span>
-<span class="fc" id="L76">        return cas;</span>
+<span class="fc" id="L71">        final Dispatcher disp = Dispatcher.newDispatcher();</span>
+<span class="fc" id="L72">        final Cascade cas = new Cascade(disp);</span>
+<span class="fc" id="L73">        return cas;</span>
     }
 
     /**
@@ -83,7 +80,7 @@ public final class Cascade
      */
     public UUID uuid ()
     {
-<span class="fc" id="L86">        return uuid;</span>
+<span class="fc" id="L83">        return uuid;</span>
     }
 
     /**
@@ -94,8 +91,8 @@ public final class Cascade
      */
     public Cascade named (final String name)
     {
-<span class="nc" id="L97">        this.name.set(Objects.requireNonNull(name, &quot;name&quot;));</span>
-<span class="nc" id="L98">        return this;</span>
+<span class="nc" id="L94">        this.name.set(Objects.requireNonNull(name, &quot;name&quot;));</span>
+<span class="nc" id="L95">        return this;</span>
     }
 
     /**
@@ -109,7 +106,7 @@ public final class Cascade
      */
     public String name ()
     {
-<span class="nc" id="L112">        return name.get();</span>
+<span class="nc" id="L109">        return name.get();</span>
     }
 
     /**
@@ -119,20 +116,7 @@ public final class Cascade
      */
     public CascadeStage newStage ()
     {
-<span class="nc" id="L122">        return newStage(Executors.newFixedThreadPool(1)); // TODO</span>
-    }
-
-    /**
-     * Adds a new stage powered by a pool of non-daemon worker threads.
-     *
-     * @param count is the number of threads in the pool.
-     * @return the given stage.
-     */
-    public CascadeStage newStage (final int count)
-    {
-<span class="nc" id="L133">        final ThreadFactory factory = new ThreadFactoryBuilder().setDaemon(false).build();</span>
-<span class="nc" id="L134">        final CascadeExecutor executor = PooledExecutor.create(factory, count);</span>
-<span class="nc" id="L135">        return newStage(executor);</span>
+<span class="nc" id="L119">        return newStage(Executors.newFixedThreadPool(1));</span>
     }
 
     /**
@@ -148,7 +132,7 @@ public final class Cascade
      */
     public CascadeStage newStage (final ExecutorService service)
     {
-<span class="nc" id="L151">        return newStage(new ServiceExecutor(service));</span>
+<span class="nc" id="L135">        return newStage(new ServiceExecutor(service));</span>
     }
 
     /**
@@ -159,45 +143,40 @@ public final class Cascade
      */
     public synchronized CascadeStage newStage (final CascadeExecutor executor)
     {
-<span class="pc bpc" id="L162" title="1 of 2 branches missed.">        if (isClosing())</span>
-        {
-<span class="nc" id="L164">            throw new IllegalStateException(&quot;Already Closing!&quot;);</span>
-        }
-
         /**
          * Prevent new stages from being created as we close the existing ones.
          */
-<span class="fc" id="L170">        synchronized (lock)</span>
+<span class="fc" id="L149">        synchronized (lock)</span>
         {
-<span class="fc" id="L172">            final CascadeStage stage = new CascadeStage(this, dispatcher, executor, s -&gt; removeStage(s));</span>
+<span class="pc" id="L151">            final CascadeStage stage = new CascadeStage(this, dispatcher, executor, s -&gt; removeStage(s));</span>
 
-<span class="pc bpc" id="L174" title="1 of 2 branches missed.">            if (stage.isClosing())</span>
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">            if (stage.isClosing())</span>
             {
-<span class="nc" id="L176">                throw new IllegalArgumentException(&quot;The stage is already closing!&quot;);</span>
+<span class="nc" id="L155">                throw new IllegalArgumentException(&quot;The stage is already closing!&quot;);</span>
             }
-<span class="pc bpc" id="L178" title="1 of 2 branches missed.">            else if (stage.isClosed())</span>
+<span class="pc bpc" id="L157" title="1 of 2 branches missed.">            else if (stage.isClosed())</span>
             {
-<span class="nc" id="L180">                throw new IllegalArgumentException(&quot;The stage is already closed!&quot;);</span>
+<span class="nc" id="L159">                throw new IllegalArgumentException(&quot;The stage is already closed!&quot;);</span>
             }
-<span class="pc bpc" id="L182" title="1 of 2 branches missed.">            else if (this.equals(stage.cascade()) == false)</span>
+<span class="pc bpc" id="L161" title="1 of 2 branches missed.">            else if (this.equals(stage.cascade()) == false)</span>
             {
-<span class="nc" id="L184">                throw new IllegalArgumentException(&quot;The stage has a different cascade!&quot;);</span>
+<span class="nc" id="L163">                throw new IllegalArgumentException(&quot;The stage has a different cascade!&quot;);</span>
             }
-<span class="pc bpc" id="L186" title="1 of 2 branches missed.">            else if (stages.contains(stage))</span>
+<span class="pc bpc" id="L165" title="1 of 2 branches missed.">            else if (stages.contains(stage))</span>
             {
-<span class="nc" id="L188">                throw new IllegalStateException(&quot;The cascade already contains the given stage!&quot;);</span>
+<span class="nc" id="L167">                throw new IllegalStateException(&quot;The cascade already contains the given stage!&quot;);</span>
             }
-<span class="pc bpc" id="L190" title="1 of 2 branches missed.">            else if (close.get() == false)</span>
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">            else if (close.get() == false)</span>
             {
-<span class="fc" id="L192">                stages.add(stage);</span>
+<span class="fc" id="L171">                stages.add(stage);</span>
             }
             else
             {
-<span class="nc" id="L196">                throw new IllegalStateException(&quot;The stage is already closing!&quot;);</span>
+<span class="nc" id="L175">                throw new IllegalStateException(&quot;The stage is already closing!&quot;);</span>
             }
 
-<span class="fc" id="L199">            return stage;</span>
-<span class="nc" id="L200">        }</span>
+<span class="fc" id="L178">            return stage;</span>
+<span class="nc" id="L179">        }</span>
     }
 
     /**
@@ -207,7 +186,7 @@ public final class Cascade
      */
     public Set&lt;CascadeStage&gt; stages ()
     {
-<span class="fc" id="L210">        return ImmutableSet.copyOf(stages);</span>
+<span class="fc" id="L189">        return ImmutableSet.copyOf(stages);</span>
     }
 
     /**
@@ -217,7 +196,7 @@ public final class Cascade
      */
     public Map&lt;CascadeToken, CascadeChannel&gt; channels ()
     {
-<span class="nc" id="L220">        return dispatcher.channels();</span>
+<span class="nc" id="L199">        return dispatcher.channels();</span>
     }
 
     /**
@@ -227,7 +206,7 @@ public final class Cascade
      */
     public boolean isActive ()
     {
-<span class="pc bpc" id="L230" title="1 of 2 branches missed.">        return state.get() == ACTIVE;</span>
+<span class="pc bpc" id="L209" title="1 of 2 branches missed.">        return state.get() == ACTIVE;</span>
     }
 
     /**
@@ -237,7 +216,7 @@ public final class Cascade
      */
     public boolean isClosing ()
     {
-<span class="fc bfc" id="L240" title="All 2 branches covered.">        return state.get() == CLOSING;</span>
+<span class="pc bpc" id="L219" title="1 of 2 branches missed.">        return state.get() == CLOSING;</span>
     }
 
     /**
@@ -247,7 +226,7 @@ public final class Cascade
      */
     public boolean isClosed ()
     {
-<span class="pc bpc" id="L250" title="1 of 2 branches missed.">        return state.get() == CLOSED;</span>
+<span class="pc bpc" id="L229" title="1 of 2 branches missed.">        return state.get() == CLOSED;</span>
     }
 
     /**
@@ -265,20 +244,20 @@ public final class Cascade
         /**
          * Prevent new stages from being created as we close the existing ones.
          */
-<span class="fc" id="L268">        synchronized (lock)</span>
+<span class="nc" id="L247">        synchronized (lock)</span>
         {
-<span class="pc bpc" id="L270" title="1 of 2 branches missed.">            if (close.compareAndSet(false, true))</span>
+<span class="nc bnc" id="L249" title="All 2 branches missed.">            if (close.compareAndSet(false, true))</span>
             {
-<span class="fc" id="L272">                state.set(CLOSING);</span>
+<span class="nc" id="L251">                state.set(CLOSING);</span>
 
-<span class="fc bfc" id="L274" title="All 2 branches covered.">                for (CascadeStage stage : stages)</span>
+<span class="nc bnc" id="L253" title="All 2 branches missed.">                for (CascadeStage stage : stages)</span>
                 {
-<span class="fc" id="L276">                    stage.close();</span>
-<span class="fc" id="L277">                }</span>
+<span class="nc" id="L255">                    stage.close();</span>
+<span class="nc" id="L256">                }</span>
             }
-<span class="pc" id="L279">        }</span>
+<span class="nc" id="L258">        }</span>
 
-<span class="fc" id="L281">        return this;</span>
+<span class="nc" id="L260">        return this;</span>
     }
 
     /**
@@ -297,8 +276,8 @@ public final class Cascade
     public Cascade awaitClose (final Duration timeout)
             throws InterruptedException
     {
-<span class="fc" id="L300">        awaitCloseLatch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);</span>
-<span class="fc" id="L301">        return this;</span>
+<span class="nc" id="L279">        awaitCloseLatch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);</span>
+<span class="nc" id="L280">        return this;</span>
     }
 
     /**
@@ -309,7 +288,7 @@ public final class Cascade
      */
     public Optional&lt;CascadeChannel&gt; channelOf (final CascadeToken event)
     {
-<span class="nc" id="L312">        return dispatcher.lookup(event);</span>
+<span class="fc" id="L291">        return dispatcher.lookup(event);</span>
     }
 
     /**
@@ -327,25 +306,25 @@ public final class Cascade
     public Cascade send (final CascadeToken event,
                          final CascadeStack stack)
     {
-<span class="nc" id="L330">        final Optional&lt;CascadeChannel&gt; channel = channelOf(event);</span>
+<span class="nc" id="L309">        final Optional&lt;CascadeChannel&gt; channel = channelOf(event);</span>
 
-<span class="nc bnc" id="L332" title="All 2 branches missed.">        if (channel.isPresent())</span>
+<span class="nc bnc" id="L311" title="All 2 branches missed.">        if (channel.isPresent())</span>
         {
-<span class="nc" id="L334">            channel.get().send(stack);</span>
+<span class="nc" id="L313">            channel.get().send(stack);</span>
         }
 
-<span class="nc" id="L337">        return this;</span>
+<span class="nc" id="L316">        return this;</span>
     }
 
     private synchronized void removeStage (final CascadeStage stage)
     {
-<span class="fc" id="L342">        stages.remove(stage);</span>
+<span class="nc" id="L321">        stages.remove(stage);</span>
 
-<span class="pc bpc" id="L344" title="2 of 4 branches missed.">        if (stages.isEmpty() &amp;&amp; isClosing())</span>
+<span class="nc bnc" id="L323" title="All 4 branches missed.">        if (stages.isEmpty() &amp;&amp; isClosing())</span>
         {
-<span class="fc" id="L346">            state.set(CLOSED);</span>
-<span class="fc" id="L347">            awaitCloseLatch.countDown();</span>
+<span class="nc" id="L325">            state.set(CLOSED);</span>
+<span class="nc" id="L326">            awaitCloseLatch.countDown();</span>
         }
-<span class="fc" id="L349">    }</span>
+<span class="nc" id="L328">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

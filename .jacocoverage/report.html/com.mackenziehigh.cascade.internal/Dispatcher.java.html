@@ -54,8 +54,8 @@ public final class Dispatcher
 
     private Bucket resolveBucketFor (final CascadeToken event)
     {
-<span class="nc" id="L57">        final int idx = (int) LongMath.mod(event.hash1(), buckets.length());</span>
-<span class="nc" id="L58">        return buckets.get(idx);</span>
+<span class="fc" id="L57">        final int idx = (int) LongMath.mod(event.hash1(), buckets.length());</span>
+<span class="fc" id="L58">        return buckets.get(idx);</span>
     }
 
     /**
@@ -73,32 +73,32 @@ public final class Dispatcher
     public Dispatcher subscribe (final CascadeToken event,
                                  final CascadeActor actor)
     {
-<span class="nc" id="L76">        final Bucket bucket = resolveBucketFor(event);</span>
+<span class="fc" id="L76">        final Bucket bucket = resolveBucketFor(event);</span>
 
-<span class="nc" id="L78">        synchronized (bucket)</span>
+<span class="fc" id="L78">        synchronized (bucket)</span>
         {
-<span class="nc bnc" id="L80" title="All 2 branches missed.">            if (bucket.channels.containsKey(event) == false)</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">            if (bucket.channels.containsKey(event) == false)</span>
             {
-<span class="nc" id="L82">                bucket.channels.put(event, new Channel(bucket, event));</span>
+<span class="fc" id="L82">                bucket.channels.put(event, new Channel(bucket, event));</span>
             }
 
-<span class="nc" id="L85">            final Channel channel = bucket.channels.get(event);</span>
+<span class="fc" id="L85">            final Channel channel = bucket.channels.get(event);</span>
 
-<span class="nc bnc" id="L87" title="All 2 branches missed.">            if (channel.subscribers.get().contains(actor))</span>
+<span class="fc bfc" id="L87" title="All 2 branches covered.">            if (channel.subscribers.get().contains(actor))</span>
             {
-<span class="nc" id="L89">                return this;</span>
+<span class="fc" id="L89">                return this;</span>
             }
 
             final ImmutableList&lt;CascadeActor&gt; modified = ImmutableList
-<span class="nc" id="L93">                    .&lt;CascadeActor&gt;builder()</span>
-<span class="nc" id="L94">                    .addAll(channel.subscribers.get())</span>
-<span class="nc" id="L95">                    .add(actor)</span>
-<span class="nc" id="L96">                    .build();</span>
+<span class="fc" id="L93">                    .&lt;CascadeActor&gt;builder()</span>
+<span class="fc" id="L94">                    .addAll(channel.subscribers.get())</span>
+<span class="fc" id="L95">                    .add(actor)</span>
+<span class="fc" id="L96">                    .build();</span>
 
-<span class="nc" id="L98">            channel.subscribers.set(modified);</span>
-<span class="nc" id="L99">        }</span>
+<span class="fc" id="L98">            channel.subscribers.set(modified);</span>
+<span class="pc" id="L99">        }</span>
 
-<span class="nc" id="L101">        return this;</span>
+<span class="fc" id="L101">        return this;</span>
     }
 
     /**
@@ -116,39 +116,39 @@ public final class Dispatcher
     public Dispatcher unsubscribe (final CascadeToken event,
                                    final CascadeActor actor)
     {
-<span class="nc" id="L119">        final Bucket bucket = resolveBucketFor(event);</span>
+<span class="fc" id="L119">        final Bucket bucket = resolveBucketFor(event);</span>
 
-<span class="nc" id="L121">        synchronized (bucket)</span>
+<span class="fc" id="L121">        synchronized (bucket)</span>
         {
-<span class="nc" id="L123">            final Channel channel = bucket.channels.get(event);</span>
+<span class="fc" id="L123">            final Channel channel = bucket.channels.get(event);</span>
 
-<span class="nc bnc" id="L125" title="All 2 branches missed.">            if (channel == null)</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">            if (channel == null)</span>
             {
-<span class="nc" id="L127">                return this;</span>
+<span class="fc" id="L127">                return this;</span>
             }
 
-<span class="nc bnc" id="L130" title="All 2 branches missed.">            if (channel.subscribers.get().contains(actor) == false)</span>
+<span class="pc bpc" id="L130" title="1 of 2 branches missed.">            if (channel.subscribers.get().contains(actor) == false)</span>
             {
 <span class="nc" id="L132">                return this;</span>
             }
 
-<span class="nc" id="L135">            final List&lt;CascadeActor&gt; modified = channel.subscribers</span>
-<span class="nc" id="L136">                    .get()</span>
-<span class="nc" id="L137">                    .stream()</span>
-<span class="nc bnc" id="L138" title="All 2 branches missed.">                    .filter(x -&gt; !x.equals(actor))</span>
-<span class="nc" id="L139">                    .collect(Collectors.toList());</span>
+<span class="fc" id="L135">            final List&lt;CascadeActor&gt; modified = channel.subscribers</span>
+<span class="fc" id="L136">                    .get()</span>
+<span class="fc" id="L137">                    .stream()</span>
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">                    .filter(x -&gt; !x.equals(actor))</span>
+<span class="fc" id="L139">                    .collect(Collectors.toList());</span>
 
-<span class="nc bnc" id="L141" title="All 2 branches missed.">            if (modified.isEmpty())</span>
+<span class="pc bpc" id="L141" title="1 of 2 branches missed.">            if (modified.isEmpty())</span>
             {
-<span class="nc" id="L143">                bucket.channels.remove(event);</span>
+<span class="fc" id="L143">                bucket.channels.remove(event);</span>
             }
             else
             {
 <span class="nc" id="L147">                channel.subscribers.set(ImmutableList.copyOf(modified));</span>
             }
-<span class="nc" id="L149">        }</span>
+<span class="pc" id="L149">        }</span>
 
-<span class="nc" id="L151">        return this;</span>
+<span class="fc" id="L151">        return this;</span>
     }
 
     /**
@@ -159,12 +159,12 @@ public final class Dispatcher
      */
     public Optional&lt;CascadeChannel&gt; lookup (final CascadeToken event)
     {
-<span class="nc" id="L162">        final Bucket bucket = resolveBucketFor(event);</span>
-<span class="nc" id="L163">        final Channel channel = bucket.channels.get(event);</span>
+<span class="fc" id="L162">        final Bucket bucket = resolveBucketFor(event);</span>
+<span class="fc" id="L163">        final Channel channel = bucket.channels.get(event);</span>
 
-<span class="nc bnc" id="L165" title="All 2 branches missed.">        if (channel != null)</span>
+<span class="pc bpc" id="L165" title="1 of 2 branches missed.">        if (channel != null)</span>
         {
-<span class="nc" id="L167">            return channel.self;</span>
+<span class="fc" id="L167">            return channel.self;</span>
         }
         else
         {
@@ -208,16 +208,16 @@ public final class Dispatcher
 
         private final CascadeToken event;
 
-<span class="nc" id="L211">        public final AtomicReference&lt;ImmutableList&lt;CascadeActor&gt;&gt; subscribers = new AtomicReference&lt;&gt;(ImmutableList.of());</span>
+<span class="fc" id="L211">        public final AtomicReference&lt;ImmutableList&lt;CascadeActor&gt;&gt; subscribers = new AtomicReference&lt;&gt;(ImmutableList.of());</span>
 
-<span class="nc" id="L213">        public final Optional&lt;CascadeChannel&gt; self = Optional.of(this);</span>
+<span class="fc" id="L213">        public final Optional&lt;CascadeChannel&gt; self = Optional.of(this);</span>
 
         public Channel (final Bucket bucket,
                         final CascadeToken event)
-<span class="nc" id="L217">        {</span>
-<span class="nc" id="L218">            this.bucket = Objects.requireNonNull(bucket, &quot;bucket&quot;);</span>
-<span class="nc" id="L219">            this.event = Objects.requireNonNull(event, &quot;event&quot;);</span>
-<span class="nc" id="L220">        }</span>
+<span class="fc" id="L217">        {</span>
+<span class="fc" id="L218">            this.bucket = Objects.requireNonNull(bucket, &quot;bucket&quot;);</span>
+<span class="fc" id="L219">            this.event = Objects.requireNonNull(event, &quot;event&quot;);</span>
+<span class="fc" id="L220">        }</span>
 
         @Override
         public CascadeToken event ()
@@ -256,17 +256,17 @@ public final class Dispatcher
         @Override
         public CascadeChannel send (final CascadeStack stack)
         {
-<span class="nc" id="L259">            final List&lt;CascadeActor&gt; actors = subscribers.get();</span>
+<span class="fc" id="L259">            final List&lt;CascadeActor&gt; actors = subscribers.get();</span>
 
             /**
              * Do *not* use a for-each loop here in order to avoid an Iterator allocation.
              */
-<span class="nc bnc" id="L264" title="All 2 branches missed.">            for (int i = 0; i &lt; actors.size(); i++)</span>
+<span class="fc bfc" id="L264" title="All 2 branches covered.">            for (int i = 0; i &lt; actors.size(); i++)</span>
             {
-<span class="nc" id="L266">                actors.get(i).tell(event, stack);</span>
+<span class="fc" id="L266">                actors.get(i).tell(event, stack);</span>
             }
 
-<span class="nc" id="L269">            return this;</span>
+<span class="fc" id="L269">            return this;</span>
         }
 
         /**

@@ -58,7 +58,7 @@ public final class BoundedInflowQueue
 
     private final AtomicLong overflowCount = new AtomicLong();
 
-    private final AtomicLong offeredCount = new AtomicLong();
+    private final AtomicLong acceptedCount = new AtomicLong();
 
     private final AtomicLong droppedCount = new AtomicLong();
 
@@ -90,11 +90,12 @@ public final class BoundedInflowQueue
     /**
      * Getter (Thread Safe).
      *
-     * @return the number of times someone tried to insert a message.
+     * @return the number of times someone offered a message,
+     * which was not immediately dropped.
      */
-    public long offered ()
+    public long accepted ()
     {
-        return offeredCount.get();
+        return acceptedCount.get();
     }
 
     /**
@@ -108,7 +109,7 @@ public final class BoundedInflowQueue
     }
 
     /**
-     * Getter.
+     * Getter (Thread-Safe).
      *
      * @return the number of messages that have been inserted and then removed (not dropped).
      */
@@ -126,8 +127,6 @@ public final class BoundedInflowQueue
     {
         Preconditions.checkNotNull(event, "event");
         Preconditions.checkNotNull(stack, "stack");
-
-        offeredCount.incrementAndGet();
 
         tokenSink.set(null);
         operandSink.set(null);
@@ -168,12 +167,16 @@ public final class BoundedInflowQueue
 
         final boolean delivered = delegate.offer(event, stack);
 
-        if (delivered == false)
+        if (delivered)
+        {
+            acceptedCount.incrementAndGet();
+        }
+        else
         {
             droppedCount.incrementAndGet();
         }
 
-        final long size = (offeredCount.get() - droppedCount.get()) - removedCount.get();
+        final long size = (acceptedCount.get() - droppedCount.get()) - removedCount.get();
         Verify.verify(size() == size);
 
         return delivered;

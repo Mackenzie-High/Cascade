@@ -72,15 +72,15 @@ public final class CascadeStack
      */
     private CascadeStack (final CascadeStack below,
                           final Object value)
-<span class="nc" id="L75">    {</span>
-<span class="nc" id="L76">        this.below = below;</span>
-<span class="nc" id="L77">        this.size = below.size + 1;</span>
-<span class="nc" id="L78">        this.valueLong = 0;</span>
-<span class="nc" id="L79">        this.valueObject = Objects.requireNonNull(value, &quot;value&quot;);</span>
-<span class="nc" id="L80">        this.type = value.getClass();</span>
-<span class="nc" id="L81">        this.hash = (int) (3181 * value.hashCode()) + (3331 * below.hash);</span>
-<span class="nc" id="L82">        this.primitive = false;</span>
-<span class="nc" id="L83">    }</span>
+<span class="fc" id="L75">    {</span>
+<span class="fc" id="L76">        this.below = below;</span>
+<span class="fc" id="L77">        this.size = below.size + 1;</span>
+<span class="fc" id="L78">        this.valueLong = 0;</span>
+<span class="fc" id="L79">        this.valueObject = Objects.requireNonNull(value, &quot;value&quot;);</span>
+<span class="fc" id="L80">        this.type = value.getClass();</span>
+<span class="fc" id="L81">        this.hash = (int) (3181 * value.hashCode()) + (3331 * below.hash);</span>
+<span class="fc" id="L82">        this.primitive = false;</span>
+<span class="fc" id="L83">    }</span>
 
     /**
      * Factory Method.
@@ -121,13 +121,13 @@ public final class CascadeStack
      */
     public CascadeStack pushObject (final Object value)
     {
-<span class="nc bnc" id="L124" title="All 2 branches missed.">        if (value == null)</span>
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">        if (value == null)</span>
         {
 <span class="nc" id="L126">            throw new NullPointerException(&quot;Refusing to push null onto the stack!&quot;);</span>
         }
         else
         {
-<span class="nc" id="L130">            return new CascadeStack(this, value);</span>
+<span class="fc" id="L130">            return new CascadeStack(this, value);</span>
         }
     }
 

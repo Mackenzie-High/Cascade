@@ -1,14 +1,14 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.CascadeExecutor;
 import com.mackenziehigh.cascade.CascadeStage;
-import java.time.Duration;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  *
@@ -16,6 +16,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class ServiceExecutor
         implements CascadeExecutor
 {
+    private final AtomicBoolean closed = new AtomicBoolean();
+
     private final ExecutorService service;
 
     private final Set<CascadeStage> stages = Sets.newCopyOnWriteArraySet();
@@ -29,44 +31,50 @@ public final class ServiceExecutor
      * {@inheritDoc}
      */
     @Override
-    public void onStageOpened (final CascadeStage stage)
+    public synchronized void onStageOpened (final CascadeStage stage)
     {
         Preconditions.checkNotNull(stage, "stage");
-        stages.add(stage);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void onStageClosed (final CascadeStage stage)
-    {
-        Preconditions.checkNotNull(stage, "stage");
-        stages.remove(stage);
-
-        if (stages.isEmpty())
+        if (closed.get() == false)
         {
-            service.shutdown();
+            stages.add(stage);
         }
     }
 
-    public final AtomicInteger runs = new AtomicInteger();
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public synchronized void onStageClosed (final CascadeStage stage)
+    {
+        Preconditions.checkNotNull(stage, "stage");
+        if (closed.get() == false)
+        {
+            Verify.verify(stage.actors().isEmpty());
 
-    public final AtomicInteger tasks = new AtomicInteger();
+            stages.remove(stage);
+
+            if (stages.isEmpty())
+            {
+                closed.set(true);
+                service.shutdown();
+            }
+        }
+    }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void onTask (final CascadeStage stage)
+    public synchronized void onTask (final CascadeStage stage)
     {
-        final Runnable task = () ->
+        if (closed.get() == false)
         {
-            runs.incrementAndGet();
-            stage.crank(Duration.ofHours(1));
-        };
-        tasks.incrementAndGet();
-        service.submit(task);
+            final Runnable task = () ->
+            {
+                stage.crank();
+            };
+            service.submit(task);
+        }
     }
 
 }

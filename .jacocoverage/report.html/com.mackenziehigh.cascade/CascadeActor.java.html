@@ -19,6 +19,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -89,9 +90,9 @@ public final class CascadeActor
          */
         public default CascadeActor buildAndStart ()
         {
-<span class="nc" id="L92">            final CascadeActor actor = build();</span>
-<span class="nc" id="L93">            actor.start();</span>
-<span class="nc" id="L94">            return actor;</span>
+<span class="nc" id="L93">            final CascadeActor actor = build();</span>
+<span class="nc" id="L94">            actor.start();</span>
+<span class="nc" id="L95">            return actor;</span>
         }
     }
 
@@ -105,51 +106,55 @@ public final class CascadeActor
 
     private static final int CLOSED = 4;
 
-<span class="fc" id="L108">    private final CascadeActor SELF = this;</span>
+<span class="fc" id="L109">    private final CascadeActor SELF = this;</span>
 
     /**
      * This UUID uniquely identifies this actor.
      */
-<span class="fc" id="L113">    private final UUID uuid = UUID.randomUUID();</span>
+<span class="fc" id="L114">    private final UUID uuid = UUID.randomUUID();</span>
 
     /**
      * This is the name of this actor, which may change over time.
      */
-<span class="fc" id="L118">    private volatile String name = uuid.toString();</span>
+<span class="fc" id="L119">    private volatile String name = uuid.toString();</span>
 
-<span class="fc" id="L120">    private final AtomicInteger state = new AtomicInteger(UNSTARTED);</span>
+<span class="fc" id="L121">    private final AtomicInteger state = new AtomicInteger(UNSTARTED);</span>
 
     private final CascadeStage stage;
 
     private final Dispatcher dispatcher;
 
-<span class="fc" id="L126">    private final CopyOnWriteArraySet&lt;CascadeToken&gt; subscriptions = new CopyOnWriteArraySet&lt;&gt;();</span>
+<span class="fc" id="L127">    private final CopyOnWriteArraySet&lt;CascadeToken&gt; subscriptions = new CopyOnWriteArraySet&lt;&gt;();</span>
+
+<span class="fc" id="L129">    private final AtomicLong consumedMessageCount = new AtomicLong();</span>
+
+<span class="fc" id="L131">    private final AtomicLong unhandledExceptionCount = new AtomicLong();</span>
 
     /**
      * True, if the script is executing.
      */
-<span class="fc" id="L131">    private final AtomicBoolean acting = new AtomicBoolean(false);</span>
+<span class="fc" id="L136">    private final AtomicBoolean acting = new AtomicBoolean(false);</span>
 
     /**
      * Used to implement awaitStart().
      */
-<span class="fc" id="L136">    private final CountDownLatch awaitStartLatch = new CountDownLatch(1);</span>
+<span class="fc" id="L141">    private final CountDownLatch awaitStartLatch = new CountDownLatch(1);</span>
 
     /**
      * Used to implement awaitClose().
      */
-<span class="fc" id="L141">    private final CountDownLatch awaitCloseLatch = new CountDownLatch(1);</span>
+<span class="fc" id="L146">    private final CountDownLatch awaitCloseLatch = new CountDownLatch(1);</span>
 
     /**
      * The script will be passed this context in order to provide
      * the script with access to this actor and send messages.
      */
-<span class="fc" id="L147">    private final CascadeContext context = () -&gt; SELF; // TODO: This is unclear.</span>
+<span class="fc" id="L152">    private final CascadeContext context = () -&gt; SELF; // TODO: This is unclear.</span>
 
     /**
      * This script defines how this actor behaves.
      */
-<span class="fc" id="L152">    private final CascadeScript script = new CascadeScript();</span>
+<span class="fc" id="L157">    private final CascadeScript script = new CascadeScript(context, unhandledExceptionCount);</span>
 
     /**
      * This inflow-queue physically stores the incoming event-messages.
@@ -185,9 +190,9 @@ public final class CascadeActor
      */
     private final SynchronizedInflowQueue syncInflowQueue;
 
-<span class="fc" id="L188">    private final AtomicReference&lt;CascadeToken&gt; event = new AtomicReference&lt;&gt;();</span>
+<span class="fc" id="L193">    private final AtomicReference&lt;CascadeToken&gt; event = new AtomicReference&lt;&gt;();</span>
 
-<span class="fc" id="L190">    private final AtomicReference&lt;CascadeStack&gt; stack = new AtomicReference&lt;&gt;();</span>
+<span class="fc" id="L195">    private final AtomicReference&lt;CascadeStack&gt; stack = new AtomicReference&lt;&gt;();</span>
 
     /**
      * This is a callback function that will cause this actor to
@@ -207,17 +212,17 @@ public final class CascadeActor
                   final Dispatcher dispatcher,
                   final Runnable scheduler,
                   final Consumer&lt;CascadeActor&gt; undertaker)
-<span class="fc" id="L210">    {</span>
-<span class="fc" id="L211">        this.stage = Objects.requireNonNull(stage, &quot;stage&quot;);</span>
-<span class="fc" id="L212">        this.dispatcher = Objects.requireNonNull(dispatcher, &quot;dispatcher&quot;);</span>
-<span class="fc" id="L213">        this.scheduler = Objects.requireNonNull(scheduler, &quot;scheduler&quot;);</span>
-<span class="fc" id="L214">        this.undertaker = Objects.requireNonNull(undertaker, &quot;undertaker&quot;);</span>
-<span class="fc" id="L215">        this.storageInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);</span>
-<span class="fc" id="L216">        this.boundedInflowQueue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);</span>
-<span class="fc" id="L217">        this.swappableInflowQueue = new SwappableInflowQueue(boundedInflowQueue);</span>
-<span class="pc" id="L218">        this.schedulerInflowQueue = new NotificationInflowQueue(swappableInflowQueue, q -&gt; onQueueAdd(q));</span>
-<span class="fc" id="L219">        this.syncInflowQueue = new SynchronizedInflowQueue(schedulerInflowQueue);</span>
-<span class="fc" id="L220">    }</span>
+<span class="fc" id="L215">    {</span>
+<span class="fc" id="L216">        this.stage = Objects.requireNonNull(stage, &quot;stage&quot;);</span>
+<span class="fc" id="L217">        this.dispatcher = Objects.requireNonNull(dispatcher, &quot;dispatcher&quot;);</span>
+<span class="fc" id="L218">        this.scheduler = Objects.requireNonNull(scheduler, &quot;scheduler&quot;);</span>
+<span class="fc" id="L219">        this.undertaker = Objects.requireNonNull(undertaker, &quot;undertaker&quot;);</span>
+<span class="fc" id="L220">        this.storageInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);</span>
+<span class="fc" id="L221">        this.boundedInflowQueue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);</span>
+<span class="fc" id="L222">        this.swappableInflowQueue = new SwappableInflowQueue(boundedInflowQueue);</span>
+<span class="fc" id="L223">        this.schedulerInflowQueue = new NotificationInflowQueue(swappableInflowQueue, q -&gt; onQueueAdd(q));</span>
+<span class="fc" id="L224">        this.syncInflowQueue = new SynchronizedInflowQueue(schedulerInflowQueue);</span>
+<span class="fc" id="L225">    }</span>
 
     /**
      * Setter.
@@ -227,8 +232,8 @@ public final class CascadeActor
      */
     public CascadeActor named (final String name)
     {
-<span class="nc" id="L230">        this.name = Objects.requireNonNull(name, &quot;name&quot;);</span>
-<span class="nc" id="L231">        return this;</span>
+<span class="nc" id="L235">        this.name = Objects.requireNonNull(name, &quot;name&quot;);</span>
+<span class="nc" id="L236">        return this;</span>
     }
 
     /**
@@ -242,7 +247,7 @@ public final class CascadeActor
      */
     public String name ()
     {
-<span class="fc" id="L245">        return name;</span>
+<span class="fc" id="L250">        return name;</span>
     }
 
     /**
@@ -252,7 +257,7 @@ public final class CascadeActor
      */
     public UUID uuid ()
     {
-<span class="fc" id="L255">        return uuid;</span>
+<span class="fc" id="L260">        return uuid;</span>
     }
 
     /**
@@ -262,7 +267,7 @@ public final class CascadeActor
      */
     public Cascade cascade ()
     {
-<span class="fc" id="L265">        return stage().cascade();</span>
+<span class="fc" id="L270">        return stage().cascade();</span>
     }
 
     /**
@@ -272,7 +277,7 @@ public final class CascadeActor
      */
     public CascadeStage stage ()
     {
-<span class="fc" id="L275">        return stage;</span>
+<span class="fc" id="L280">        return stage;</span>
     }
 
     /**
@@ -282,7 +287,7 @@ public final class CascadeActor
      */
     public CascadeScript script ()
     {
-<span class="fc" id="L285">        return script;</span>
+<span class="fc" id="L290">        return script;</span>
     }
 
     /**
@@ -301,10 +306,10 @@ public final class CascadeActor
      */
     public CascadeActor useArrayInflowQueue (final int capacity)
     {
-<span class="nc" id="L304">        final BoundedInflowQueue.OverflowPolicy policy = boundedInflowQueue.policy();</span>
-<span class="nc" id="L305">        final InflowQueue newQueue = new ArrayInflowQueue(capacity);</span>
-<span class="nc" id="L306">        replaceQueue(policy, newQueue);</span>
-<span class="nc" id="L307">        return this;</span>
+<span class="nc" id="L309">        final BoundedInflowQueue.OverflowPolicy policy = boundedInflowQueue.policy();</span>
+<span class="nc" id="L310">        final InflowQueue newQueue = new ArrayInflowQueue(capacity);</span>
+<span class="nc" id="L311">        replaceQueue(policy, newQueue);</span>
+<span class="nc" id="L312">        return this;</span>
     }
 
     /**
@@ -314,7 +319,7 @@ public final class CascadeActor
      */
     public boolean hasArrayInflowQueue ()
     {
-<span class="fc" id="L317">        return storageInflowQueue instanceof ArrayInflowQueue;</span>
+<span class="fc" id="L322">        return storageInflowQueue instanceof ArrayInflowQueue;</span>
     }
 
     /**
@@ -333,10 +338,10 @@ public final class CascadeActor
      */
     public CascadeActor useLinkedInflowQueue (final int capacity)
     {
-<span class="nc" id="L336">        final BoundedInflowQueue.OverflowPolicy policy = boundedInflowQueue.policy();</span>
-<span class="nc" id="L337">        final InflowQueue newQueue = new LinkedInflowQueue(capacity);</span>
-<span class="nc" id="L338">        replaceQueue(policy, newQueue);</span>
-<span class="nc" id="L339">        return this;</span>
+<span class="nc" id="L341">        final BoundedInflowQueue.OverflowPolicy policy = boundedInflowQueue.policy();</span>
+<span class="nc" id="L342">        final InflowQueue newQueue = new LinkedInflowQueue(capacity);</span>
+<span class="nc" id="L343">        replaceQueue(policy, newQueue);</span>
+<span class="nc" id="L344">        return this;</span>
     }
 
     /**
@@ -346,7 +351,7 @@ public final class CascadeActor
      */
     public boolean hasLinkedInflowQueue ()
     {
-<span class="fc" id="L349">        return storageInflowQueue instanceof LinkedInflowQueue;</span>
+<span class="fc" id="L354">        return storageInflowQueue instanceof LinkedInflowQueue;</span>
     }
 
     /**
@@ -363,8 +368,8 @@ public final class CascadeActor
      */
     public CascadeActor useOverflowPolicyDropAll ()
     {
-<span class="nc" id="L366">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_ALL, storageInflowQueue);</span>
-<span class="nc" id="L367">        return this;</span>
+<span class="nc" id="L371">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_ALL, storageInflowQueue);</span>
+<span class="nc" id="L372">        return this;</span>
     }
 
     /**
@@ -374,7 +379,7 @@ public final class CascadeActor
      */
     public boolean isOverflowPolicyDropAll ()
     {
-<span class="pc bpc" id="L377" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_ALL;</span>
+<span class="pc bpc" id="L382" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_ALL;</span>
     }
 
     /**
@@ -391,8 +396,8 @@ public final class CascadeActor
      */
     public CascadeActor useOverflowPolicyDropPending ()
     {
-<span class="nc" id="L394">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_PENDING, storageInflowQueue);</span>
-<span class="nc" id="L395">        return this;</span>
+<span class="nc" id="L399">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_PENDING, storageInflowQueue);</span>
+<span class="nc" id="L400">        return this;</span>
     }
 
     /**
@@ -402,7 +407,7 @@ public final class CascadeActor
      */
     public boolean isOverflowPolicyDropPending ()
     {
-<span class="pc bpc" id="L405" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_PENDING;</span>
+<span class="pc bpc" id="L410" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_PENDING;</span>
     }
 
     /**
@@ -420,8 +425,8 @@ public final class CascadeActor
      */
     public CascadeActor useOverflowPolicyDropOldest ()
     {
-<span class="nc" id="L423">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_OLDEST, storageInflowQueue);</span>
-<span class="nc" id="L424">        return this;</span>
+<span class="nc" id="L428">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_OLDEST, storageInflowQueue);</span>
+<span class="nc" id="L429">        return this;</span>
     }
 
     /**
@@ -431,7 +436,7 @@ public final class CascadeActor
      */
     public boolean isOverflowPolicyDropOldest ()
     {
-<span class="pc bpc" id="L434" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_OLDEST;</span>
+<span class="pc bpc" id="L439" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_OLDEST;</span>
     }
 
     /**
@@ -449,8 +454,8 @@ public final class CascadeActor
      */
     public CascadeActor useOverflowPolicyDropNewest ()
     {
-<span class="nc" id="L452">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_NEWEST, storageInflowQueue);</span>
-<span class="nc" id="L453">        return this;</span>
+<span class="nc" id="L457">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_NEWEST, storageInflowQueue);</span>
+<span class="nc" id="L458">        return this;</span>
     }
 
     /**
@@ -460,7 +465,7 @@ public final class CascadeActor
      */
     public boolean isOverflowPolicyDropNewest ()
     {
-<span class="pc bpc" id="L463" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_NEWEST;</span>
+<span class="pc bpc" id="L468" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_NEWEST;</span>
     }
 
     /**
@@ -478,8 +483,8 @@ public final class CascadeActor
      */
     public CascadeActor useOverflowPolicyDropIncoming ()
     {
-<span class="nc" id="L481">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);</span>
-<span class="nc" id="L482">        return this;</span>
+<span class="nc" id="L486">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);</span>
+<span class="nc" id="L487">        return this;</span>
     }
 
     /**
@@ -489,7 +494,7 @@ public final class CascadeActor
      */
     public boolean isOverflowPolicyDropIncoming ()
     {
-<span class="pc bpc" id="L492" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_INCOMING;</span>
+<span class="pc bpc" id="L497" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_INCOMING;</span>
     }
 
     /**
@@ -500,9 +505,9 @@ public final class CascadeActor
      */
     public CascadeActor subscribe (final CascadeToken event)
     {
-<span class="nc" id="L503">        subscriptions.add(event);</span>
-<span class="nc" id="L504">        dispatcher.subscribe(event, this);</span>
-<span class="nc" id="L505">        return this;</span>
+<span class="fc" id="L508">        subscriptions.add(event);</span>
+<span class="fc" id="L509">        dispatcher.subscribe(event, this);</span>
+<span class="fc" id="L510">        return this;</span>
     }
 
     /**
@@ -518,9 +523,9 @@ public final class CascadeActor
      */
     public CascadeActor unsubscribe (final CascadeToken event)
     {
-<span class="nc" id="L521">        dispatcher.unsubscribe(event, this);</span>
-<span class="nc" id="L522">        subscriptions.remove(event);</span>
-<span class="nc" id="L523">        return this;</span>
+<span class="fc" id="L526">        dispatcher.unsubscribe(event, this);</span>
+<span class="fc" id="L527">        subscriptions.remove(event);</span>
+<span class="fc" id="L528">        return this;</span>
     }
 
     /**
@@ -530,7 +535,7 @@ public final class CascadeActor
      */
     public Set&lt;CascadeToken&gt; subscriptions ()
     {
-<span class="nc" id="L533">        return ImmutableSet.copyOf(subscriptions);</span>
+<span class="fc" id="L538">        return ImmutableSet.copyOf(subscriptions);</span>
     }
 
     /**
@@ -540,7 +545,7 @@ public final class CascadeActor
      */
     public boolean isStarting ()
     {
-<span class="pc bpc" id="L543" title="1 of 2 branches missed.">        return state.get() == STARTING;</span>
+<span class="fc bfc" id="L548" title="All 2 branches covered.">        return state.get() == STARTING;</span>
     }
 
     /**
@@ -550,7 +555,7 @@ public final class CascadeActor
      */
     public boolean isStarted ()
     {
-<span class="fc bfc" id="L553" title="All 2 branches covered.">        return state.get() &gt; STARTING;</span>
+<span class="pc bpc" id="L558" title="1 of 2 branches missed.">        return state.get() &gt; STARTING;</span>
     }
 
     /**
@@ -560,7 +565,7 @@ public final class CascadeActor
      */
     public boolean isActing ()
     {
-<span class="fc" id="L563">        return acting.get();</span>
+<span class="fc" id="L568">        return acting.get();</span>
     }
 
     /**
@@ -570,7 +575,7 @@ public final class CascadeActor
      */
     public boolean isActive ()
     {
-<span class="pc bpc" id="L573" title="1 of 2 branches missed.">        return state.get() == ACTIVE;</span>
+<span class="pc bpc" id="L578" title="1 of 2 branches missed.">        return state.get() == ACTIVE;</span>
     }
 
     /**
@@ -580,7 +585,7 @@ public final class CascadeActor
      */
     public boolean isClosing ()
     {
-<span class="fc bfc" id="L583" title="All 2 branches covered.">        return state.get() == CLOSING;</span>
+<span class="pc bpc" id="L588" title="1 of 2 branches missed.">        return state.get() == CLOSING;</span>
     }
 
     /**
@@ -590,7 +595,7 @@ public final class CascadeActor
      */
     public boolean isClosed ()
     {
-<span class="fc bfc" id="L593" title="All 2 branches covered.">        return state.get() == CLOSED;</span>
+<span class="pc bpc" id="L598" title="1 of 2 branches missed.">        return state.get() == CLOSED;</span>
     }
 
     /**
@@ -600,7 +605,7 @@ public final class CascadeActor
      */
     public int backlogSize ()
     {
-<span class="fc" id="L603">        return syncInflowQueue.size();</span>
+<span class="fc" id="L608">        return syncInflowQueue.size();</span>
     }
 
     /**
@@ -610,7 +615,7 @@ public final class CascadeActor
      */
     public int backlogCapacity ()
     {
-<span class="fc" id="L613">        return syncInflowQueue.capacity();</span>
+<span class="fc" id="L618">        return syncInflowQueue.capacity();</span>
     }
 
     /**
@@ -621,7 +626,7 @@ public final class CascadeActor
      */
     public long acceptedMessages ()
     {
-<span class="fc" id="L624">        return 0;</span>
+<span class="fc" id="L629">        return boundedInflowQueue.accepted(); // Thread-Safe</span>
     }
 
     /**
@@ -632,7 +637,7 @@ public final class CascadeActor
      */
     public long droppedMessages ()
     {
-<span class="fc" id="L635">        return 0;</span>
+<span class="fc" id="L640">        return boundedInflowQueue.dropped(); // Thread-Safe</span>
     }
 
     /**
@@ -643,7 +648,7 @@ public final class CascadeActor
      */
     public long consumedMessages ()
     {
-<span class="fc" id="L646">        return 0;</span>
+<span class="fc" id="L651">        return consumedMessageCount.get();</span>
     }
 
     /**
@@ -654,7 +659,7 @@ public final class CascadeActor
      */
     public long unhandledExceptions ()
     {
-<span class="fc" id="L657">        return 0;</span>
+<span class="fc" id="L662">        return unhandledExceptionCount.get();</span>
     }
 
     /**
@@ -665,7 +670,7 @@ public final class CascadeActor
      */
     public CascadeContext context ()
     {
-<span class="fc" id="L668">        return context;</span>
+<span class="fc" id="L673">        return context;</span>
     }
 
     /**
@@ -684,10 +689,10 @@ public final class CascadeActor
     public CascadeActor tell (final CascadeToken event,
                               final CascadeStack stack)
     {
-<span class="nc" id="L687">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
-<span class="nc" id="L688">        Preconditions.checkNotNull(stack, &quot;stack&quot;);</span>
-<span class="nc" id="L689">        syncInflowQueue.offer(event, stack);</span>
-<span class="nc" id="L690">        return this;</span>
+<span class="fc" id="L692">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
+<span class="fc" id="L693">        Preconditions.checkNotNull(stack, &quot;stack&quot;);</span>
+<span class="fc" id="L694">        syncInflowQueue.offer(event, stack);</span>
+<span class="fc" id="L695">        return this;</span>
     }
 
     /**
@@ -697,9 +702,11 @@ public final class CascadeActor
      */
     public CascadeActor start ()
     {
-<span class="nc" id="L700">        state.set(STARTING);</span>
-<span class="nc" id="L701">        scheduler.run();</span>
-<span class="nc" id="L702">        return this;</span>
+<span class="pc bpc" id="L705" title="1 of 2 branches missed.">        if (state.compareAndSet(UNSTARTED, STARTING))</span>
+        {
+<span class="fc" id="L707">            scheduler.run();</span>
+        }
+<span class="fc" id="L709">        return this;</span>
     }
 
     /**
@@ -724,39 +731,39 @@ public final class CascadeActor
      */
     public CascadeActor perform ()
     {
-<span class="fc" id="L727">        synchronized (this)</span>
+<span class="fc" id="L734">        synchronized (this)</span>
         {
             try
             {
-<span class="fc" id="L731">                setupIfNeeded();</span>
+<span class="fc" id="L738">                setupIfNeeded();</span>
             }
-<span class="nc" id="L733">            catch (Throwable ex)</span>
+<span class="nc" id="L740">            catch (Throwable ex)</span>
             {
                 //reportUnhandledException(ex);
-<span class="nc" id="L736">                close();</span>
-<span class="nc" id="L737">                return this;</span>
-<span class="fc" id="L738">            }</span>
+<span class="nc" id="L743">                close();</span>
+<span class="nc" id="L744">                return this;</span>
+<span class="fc" id="L745">            }</span>
 
             try
             {
-<span class="fc" id="L742">                processMessageIfNeeded();</span>
+<span class="fc" id="L749">                processMessageIfNeeded();</span>
             }
-<span class="nc" id="L744">            catch (Throwable ex)</span>
+<span class="nc" id="L751">            catch (Throwable ex)</span>
             {
                 //reportUnhandledException(ex);
-<span class="fc" id="L747">            }</span>
+<span class="fc" id="L754">            }</span>
 
             try
             {
-<span class="fc" id="L751">                shutdownIfNeeded();</span>
+<span class="fc" id="L758">                shutdownIfNeeded();</span>
             }
-<span class="nc" id="L753">            catch (Throwable ex)</span>
+<span class="nc" id="L760">            catch (Throwable ex)</span>
             {
                 //reportUnhandledException(ex);
-<span class="fc" id="L756">            }</span>
-<span class="pc" id="L757">        }</span>
+<span class="fc" id="L763">            }</span>
+<span class="pc" id="L764">        }</span>
 
-<span class="fc" id="L759">        return this;</span>
+<span class="fc" id="L766">        return this;</span>
     }
 
     /**
@@ -772,9 +779,12 @@ public final class CascadeActor
      */
     public CascadeActor close ()
     {
-<span class="fc" id="L775">        state.set(CLOSING);</span>
-<span class="fc" id="L776">        scheduler.run();</span>
-<span class="fc" id="L777">        return this;</span>
+        // TODO: other states?
+<span class="nc bnc" id="L783" title="All 4 branches missed.">        if (state.compareAndSet(ACTIVE, CLOSING) || state.compareAndSet(UNSTARTED, CLOSING))</span>
+        {
+<span class="nc" id="L785">            scheduler.run();</span>
+        }
+<span class="nc" id="L787">        return this;</span>
     }
 
     /**
@@ -791,9 +801,9 @@ public final class CascadeActor
     public CascadeActor awaitStart (final Duration timeout)
             throws InterruptedException
     {
-<span class="nc" id="L794">        final long nanos = timeout.toNanos();</span>
-<span class="nc" id="L795">        awaitStartLatch.await(nanos, TimeUnit.NANOSECONDS);</span>
-<span class="nc" id="L796">        return this; // TODO: boolean instead?</span>
+<span class="nc" id="L804">        final long nanos = timeout.toNanos();</span>
+<span class="nc" id="L805">        awaitStartLatch.await(nanos, TimeUnit.NANOSECONDS);</span>
+<span class="nc" id="L806">        return this; // TODO: boolean instead?</span>
     }
 
     /**
@@ -810,56 +820,57 @@ public final class CascadeActor
     public CascadeActor awaitClose (final Duration timeout)
             throws InterruptedException
     {
-<span class="nc" id="L813">        awaitCloseLatch.await(timeout.getNano(), TimeUnit.NANOSECONDS);</span>
-<span class="nc" id="L814">        return this; // TODO: boolean instead?</span>
+<span class="nc" id="L823">        awaitCloseLatch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);</span>
+<span class="nc" id="L824">        return this; // TODO: boolean instead?</span>
     }
 
     private void setupIfNeeded ()
             throws Throwable
     {
-<span class="pc bpc" id="L820" title="1 of 2 branches missed.">        if (isStarting())</span>
+<span class="fc bfc" id="L830" title="All 2 branches covered.">        if (isStarting())</span>
         {
             try
             {
-<span class="nc" id="L824">                script.onSetup(context);</span>
+<span class="fc" id="L834">                script.onSetup(context);</span>
             }
             finally
             {
-<span class="nc" id="L828">                state.set(ACTIVE);</span>
-<span class="nc" id="L829">                awaitStartLatch.countDown();</span>
-<span class="nc" id="L830">            }</span>
+<span class="pc" id="L838">                state.set(ACTIVE);</span>
+<span class="pc" id="L839">                awaitStartLatch.countDown();</span>
+<span class="fc" id="L840">            }</span>
         }
-<span class="fc" id="L832">    }</span>
+<span class="fc" id="L842">    }</span>
 
     private void processMessageIfNeeded ()
             throws Throwable
     {
-<span class="fc" id="L837">        event.set(null);</span>
-<span class="fc" id="L838">        stack.set(null);</span>
-<span class="fc" id="L839">        syncInflowQueue.removeOldest(event, stack);</span>
-<span class="pc bpc" id="L840" title="1 of 2 branches missed.">        final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)</span>
-<span class="pc bpc" id="L841" title="1 of 2 branches missed.">        if (delivered)</span>
+<span class="fc" id="L847">        event.set(null);</span>
+<span class="fc" id="L848">        stack.set(null);</span>
+<span class="fc" id="L849">        syncInflowQueue.removeOldest(event, stack);</span>
+<span class="fc bfc" id="L850" title="All 2 branches covered.">        final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)</span>
+<span class="fc bfc" id="L851" title="All 2 branches covered.">        if (delivered)</span>
         {
-<span class="nc" id="L843">            script.onMessage(context(), event.get(), stack.get());</span>
+<span class="fc" id="L853">            consumedMessageCount.incrementAndGet();</span>
+<span class="fc" id="L854">            script.onMessage(context(), event.get(), stack.get());</span>
         }
-<span class="fc" id="L845">    }</span>
+<span class="fc" id="L856">    }</span>
 
     private void shutdownIfNeeded ()
             throws Throwable
     {
-<span class="pc bpc" id="L850" title="1 of 2 branches missed.">        if (isClosing())</span>
+<span class="pc bpc" id="L861" title="1 of 2 branches missed.">        if (isClosing())</span>
         {
             try
             {
-<span class="fc" id="L854">                script().onClose(context);</span>
+<span class="nc" id="L865">                script().onClose(context);</span>
             }
             finally
             {
-<span class="pc" id="L858">                state.set(CLOSED);</span>
-<span class="pc" id="L859">                undertaker.accept(this);</span>
-<span class="fc" id="L860">            }</span>
+<span class="nc" id="L869">                state.set(CLOSED);</span>
+<span class="nc" id="L870">                undertaker.accept(this);</span>
+<span class="nc" id="L871">            }</span>
         }
-<span class="fc" id="L862">    }</span>
+<span class="fc" id="L873">    }</span>
 
     /**
      * This method will be executed whenever an event-message is received,
@@ -870,24 +881,24 @@ public final class CascadeActor
     private void onQueueAdd (final InflowQueue queue)
     {
 
-<span class="nc" id="L873">        scheduler.run();</span>
-<span class="nc" id="L874">    }</span>
+<span class="fc" id="L884">        scheduler.run();</span>
+<span class="fc" id="L885">    }</span>
 
     private void replaceQueue (final BoundedInflowQueue.OverflowPolicy policy,
                                final InflowQueue newStorageQueue)
     {
-<span class="nc" id="L879">        final Runnable action = () -&gt;</span>
+<span class="nc" id="L890">        final Runnable action = () -&gt;</span>
         {
-<span class="nc" id="L881">            storageInflowQueue = newStorageQueue;</span>
-<span class="nc" id="L882">            boundedInflowQueue = new BoundedInflowQueue(policy, newStorageQueue);</span>
-<span class="nc" id="L883">            swappableInflowQueue.replaceDelegate(boundedInflowQueue);</span>
-<span class="nc" id="L884">        };</span>
+<span class="nc" id="L892">            storageInflowQueue = newStorageQueue;</span>
+<span class="nc" id="L893">            boundedInflowQueue = new BoundedInflowQueue(policy, newStorageQueue);</span>
+<span class="nc" id="L894">            swappableInflowQueue.replaceDelegate(boundedInflowQueue);</span>
+<span class="nc" id="L895">        };</span>
 
         /**
          * The replacement must be synchronized with regard to other queue operations.
          */
-<span class="nc" id="L889">        syncInflowQueue.sync(action);</span>
-<span class="nc" id="L890">    }</span>
+<span class="nc" id="L900">        syncInflowQueue.sync(action);</span>
+<span class="nc" id="L901">    }</span>
 
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>
