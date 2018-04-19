@@ -6,26 +6,26 @@ package com.mackenziehigh.cascade;
 public interface CascadeExecutor
 {
     /**
-     * The stage that is powered by this executor will
-     * invoke this method when the stage is first created.
+     * The actor that is powered by this executor will
+     * invoke this method when the actor is first created.
      *
-     * @param stage will be powered, going forward, by this executor.
+     * @param actor will be powered, going forward, by this executor.
      */
-    public void onStageOpened (CascadeStage stage);
+    public void onActorOpened (CascadeActor actor);
 
     /**
-     * The stage that is powered by this executor will
-     * invoke this method when the stage is closed.
+     * The actor that is powered by this executor will
+     * invoke this method when the actor is closed.
      *
-     * @param stage will no longer be powered by this executor.
+     * @param actor will no longer be powered by this executor.
      */
-    public void onStageClosed (CascadeStage stage);
+    public void onActorClosed (CascadeActor actor);
 
     /**
-     * This method will be invoked whenever a stage needs power applied.
-     * The executor is then responsible for providing power to the stage.
+     * This method will be invoked whenever a actor needs power applied.
+     * The executor is then responsible for providing power to the actor.
      *
-     * @param stage needs powered by this executor.
+     * @param actor needs powered by this executor.
      */
-    public void onTask (CascadeStage stage);
+    public void onTask (CascadeActor actor);
 }

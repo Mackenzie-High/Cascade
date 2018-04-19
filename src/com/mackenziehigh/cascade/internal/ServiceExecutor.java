@@ -1,10 +1,9 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Verify;
 import com.google.common.collect.Sets;
+import com.mackenziehigh.cascade.CascadeActor;
 import com.mackenziehigh.cascade.CascadeExecutor;
-import com.mackenziehigh.cascade.CascadeStage;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -20,7 +19,7 @@ public final class ServiceExecutor
 
     private final ExecutorService service;
 
-    private final Set<CascadeStage> stages = Sets.newCopyOnWriteArraySet();
+    private final Set<CascadeActor> actors = Sets.newCopyOnWriteArraySet();
 
     public ServiceExecutor (final ExecutorService service)
     {
@@ -31,12 +30,12 @@ public final class ServiceExecutor
      * {@inheritDoc}
      */
     @Override
-    public synchronized void onStageOpened (final CascadeStage stage)
+    public synchronized void onActorOpened (final CascadeActor actor)
     {
-        Preconditions.checkNotNull(stage, "stage");
+        Preconditions.checkNotNull(actor, "actor");
         if (closed.get() == false)
         {
-            stages.add(stage);
+            actors.add(actor);
         }
     }
 
@@ -44,16 +43,14 @@ public final class ServiceExecutor
      * {@inheritDoc}
      */
     @Override
-    public synchronized void onStageClosed (final CascadeStage stage)
+    public synchronized void onActorClosed (final CascadeActor actor)
     {
-        Preconditions.checkNotNull(stage, "stage");
+        Preconditions.checkNotNull(actor, "actor");
         if (closed.get() == false)
         {
-            Verify.verify(stage.actors().isEmpty());
+            actors.remove(actor);
 
-            stages.remove(stage);
-
-            if (stages.isEmpty())
+            if (actors.isEmpty())
             {
                 closed.set(true);
                 service.shutdown();
@@ -65,13 +62,13 @@ public final class ServiceExecutor
      * {@inheritDoc}
      */
     @Override
-    public synchronized void onTask (final CascadeStage stage)
+    public synchronized void onTask (final CascadeActor actor)
     {
         if (closed.get() == false)
         {
             final Runnable task = () ->
             {
-                stage.crank();
+                actor.crank();
             };
             service.submit(task);
         }

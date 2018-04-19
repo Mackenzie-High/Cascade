@@ -194,11 +194,9 @@ public final class CascadeActor
 
     private final AtomicReference<CascadeStack> stack = new AtomicReference<>();
 
-    /**
-     * This is a callback function that will cause this actor to
-     * be scheduled for execution by the enclosing stage's executor.
-     */
-    private final Runnable scheduler;
+    private final CascadeExecutor executor;
+
+    private final AtomicLong pendingTasks = new AtomicLong();
 
     private final Consumer<CascadeActor> undertaker;
 
@@ -210,12 +208,12 @@ public final class CascadeActor
      */
     CascadeActor (final CascadeStage stage,
                   final Dispatcher dispatcher,
-                  final Runnable scheduler,
+                  final CascadeExecutor executor,
                   final Consumer<CascadeActor> undertaker)
     {
         this.stage = Objects.requireNonNull(stage, "stage");
         this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
-        this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
+        this.executor = Objects.requireNonNull(executor, "executor");
         this.undertaker = Objects.requireNonNull(undertaker, "undertaker");
         this.storageInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);
         this.boundedInflowQueue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);
@@ -704,7 +702,8 @@ public final class CascadeActor
     {
         if (state.compareAndSet(UNSTARTED, STARTING))
         {
-            scheduler.run();
+            executor.onActorOpened(this);
+            schedule();
         }
         return this;
     }
@@ -729,37 +728,62 @@ public final class CascadeActor
      *
      * @return this.
      */
-    public CascadeActor perform ()
+    public CascadeActor crank ()
     {
-        synchronized (this)
+        synchronized (pendingTasks)
         {
-            try
+            if (pendingTasks.get() == 0)
             {
-                setupIfNeeded();
-            }
-            catch (Throwable ex)
-            {
-                //reportUnhandledException(ex);
-                close();
                 return this;
             }
+            else
+            {
+                pendingTasks.decrementAndGet();
+            }
+        }
 
-            try
+        try
+        {
+            synchronized (this)
             {
-                processMessageIfNeeded();
-            }
-            catch (Throwable ex)
-            {
-                //reportUnhandledException(ex);
-            }
+                try
+                {
+                    setupIfNeeded();
+                }
+                catch (Throwable ex)
+                {
+                    //reportUnhandledException(ex);
+                    close();
+                    return this;
+                }
 
-            try
-            {
-                shutdownIfNeeded();
+                try
+                {
+                    processMessageIfNeeded();
+                }
+                catch (Throwable ex)
+                {
+                    //reportUnhandledException(ex);
+                }
+
+                try
+                {
+                    shutdownIfNeeded();
+                }
+                catch (Throwable ex)
+                {
+                    //reportUnhandledException(ex);
+                }
             }
-            catch (Throwable ex)
+        }
+        finally
+        {
+            synchronized (pendingTasks)
             {
-                //reportUnhandledException(ex);
+                if (pendingTasks.get() > 0)
+                {
+                    executor.onTask(this);
+                }
             }
         }
 
@@ -782,7 +806,7 @@ public final class CascadeActor
         // TODO: other states?
         if (state.compareAndSet(ACTIVE, CLOSING) || state.compareAndSet(UNSTARTED, CLOSING))
         {
-            scheduler.run();
+            executor.onActorClosed(this);
         }
         return this;
     }
@@ -880,8 +904,20 @@ public final class CascadeActor
      */
     private void onQueueAdd (final InflowQueue queue)
     {
+        schedule();
+    }
 
-        scheduler.run();
+    private void schedule ()
+    {
+        synchronized (pendingTasks)
+        {
+            final long count = pendingTasks.getAndIncrement();
+
+            if (count == 0)
+            {
+                executor.onTask(this);
+            }
+        }
     }
 
     private void replaceQueue (final BoundedInflowQueue.OverflowPolicy policy,

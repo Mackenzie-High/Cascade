@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.internal.Dispatcher;
-import com.mackenziehigh.cascade.internal.Scheduler;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Set;
@@ -39,8 +38,6 @@ public final class CascadeStage
 
     private final CountDownLatch stageAwaitCloseLatch = new CountDownLatch(1);
 
-    public final Scheduler<CascadeActor> scheduler = new Scheduler<>(() -> executor().onTask(this));
-
     private final Dispatcher dispatcher;
 
     private final Consumer<CascadeStage> undertaker;
@@ -54,59 +51,10 @@ public final class CascadeStage
         this.executor = Objects.requireNonNull(executor, "executor");
         this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
         this.undertaker = Objects.requireNonNull(undertaker, "undertaker");
-        executor.onStageOpened(this);
 
     }
 
     public final AtomicInteger cranks = new AtomicInteger();
-
-    /**
-     * Repeatedly invoke this method in order to supply power to the stage,
-     * which in-turn supplies power to the actors contained herein.
-     *
-     * <p>
-     * This method will only perform one unit-of-work at a time.
-     * For example, a single unit-of-work would be when an actor
-     * processes a single incoming message. Or, when an actor is
-     * setup or closed.
-     * </p>
-     *
-     */
-    public void crank ()
-    {
-        /**
-         * Try to obtain a task from the round-robin scheduler.
-         */
-        try
-        {
-            final Scheduler.Process<CascadeActor> task = scheduler.poll();
-
-            if (task == null)
-            {
-                return; // No Work Performed
-            }
-
-            /**
-             * Execute the actor.
-             */
-            try (Scheduler.Process<CascadeActor> proc = task)
-            {
-                final CascadeActor actor = proc.userObject().get();
-                actor.perform();
-            }
-            catch (Throwable ex)
-            {
-                /**
-                 * This should never happen due to the error-handling philosophy of the actor itself.
-                 */
-                ex.printStackTrace(System.err);
-            }
-        }
-        catch (Throwable ex)
-        {
-            // Pass
-        }
-    }
 
     /**
      * Getter.
@@ -186,37 +134,14 @@ public final class CascadeStage
             throw new IllegalStateException("Already Closing!");
         }
 
-        final Scheduler.Process<CascadeActor> task = scheduler.newProcess();
-
-        /**
-         * The actor will invoke this method whenever it needs to be executed.
-         * This callback will be invoked when the actor is started,
-         * enqueues an event-message, or begins being closed.
-         */
-        final Runnable callback = () ->
-        {
-            /**
-             * Schedule the actor for execution using the round-robin scheduler.
-             * In effect, this just adds the actor to a queue or pending tasks for the executor.
-             */
-            task.schedule();
-
-            /**
-             * Inform the executor that it needs to provide power to this stage,
-             * which in-turn will cause the actor to be executed when the power is applied.
-             */
-            executor.onTask(this);
-        };
-
         /**
          * This is the new actor itself, which will invoke the callback.
          */
         final CascadeActor actor = new CascadeActor(this,
                                                     dispatcher,
-                                                    callback,
+                                                    executor,
                                                     x -> removeActor(x));
         actors.add(actor);
-        task.userObject().set(actor);
         return actor;
     }
 
@@ -327,7 +252,6 @@ public final class CascadeStage
         if (actors.isEmpty() && isClosing())
         {
             state.set(CLOSED);
-            executor.onStageClosed(this);
             undertaker.accept(this);
             stageAwaitCloseLatch.countDown();
         }
