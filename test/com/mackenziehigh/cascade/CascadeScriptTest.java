@@ -54,7 +54,7 @@ public final class CascadeScriptTest
 
     private final OnCloseFunction functionO = (ctx) -> action('O');
 
-    private final CascadeExecutor executor = new ServiceExecutor(Executors.newFixedThreadPool(5));
+    private final CascadePowerSource executor = new ServiceExecutor(Executors.newFixedThreadPool(5));
 
     private final Cascade cascade = Cascade.newCascade();
 

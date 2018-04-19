@@ -56,6 +56,8 @@ public final class CascadeToken
 
     private final int hashCode;
 
+    private final long idx;
+
     private CascadeToken (final CascadeToken parent,
                           final String suffix)
     {
@@ -67,6 +69,7 @@ public final class CascadeToken
         this.hashString = Hashing.sha256().hashString(name, Charset.forName("ASCII")).toString();
         final byte[] hashBytes = Hashing.sha256().hashString(name, Charset.forName("ASCII")).asBytes();
         this.hashInt = new BigInteger(hashBytes);
+        this.idx = hashInt.mod(BigInteger.valueOf(256L * 256L * 256L * 256L)).longValue();
         Verify.verify(hashBytes.length == 256 / 8); // 256 bits to bytes
         this.hash4 = Longs.fromByteArray(Arrays.copyOfRange(hashBytes, 24, 32));
         this.hash3 = Longs.fromByteArray(Arrays.copyOfRange(hashBytes, 16, 24));
@@ -169,6 +172,16 @@ public final class CascadeToken
     public String hashString ()
     {
         return hashString;
+    }
+
+    /**
+     * Getter.
+     *
+     * @return the hash-code modulo (2 ** 64).
+     */
+    public long idx ()
+    {
+        return idx;
     }
 
     /**

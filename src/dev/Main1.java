@@ -28,7 +28,7 @@ public class Main1
         actor1.script().appendToOnMessage(token("out"), Main1::action1);
         actor1.start();
 
-        actor1.awaitStart(Duration.ofSeconds(1));
+        actor1.await(CascadeActor.ActorLifeCycle.ACTIVE, Duration.ofSeconds(1));
 
         Verify.verify(cas.channelOf(token("out")).isPresent());
         cas.send(token("out"), CascadeStack.newStack().pushObject("Mercury"));

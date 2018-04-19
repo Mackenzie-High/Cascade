@@ -32,7 +32,7 @@ public final class CascadeStage
 
     private final Set<CascadeActor> actors = Sets.newConcurrentHashSet();
 
-    private final CascadeExecutor executor;
+    private final CascadePowerSource executor;
 
     private final AtomicInteger state = new AtomicInteger();
 
@@ -44,7 +44,7 @@ public final class CascadeStage
 
     CascadeStage (final Cascade cascade,
                   final Dispatcher dispatcher,
-                  final CascadeExecutor executor,
+                  final CascadePowerSource executor,
                   final Consumer<CascadeStage> undertaker)
     {
         this.cascade = Objects.requireNonNull(cascade, "cascade");
@@ -61,7 +61,7 @@ public final class CascadeStage
      *
      * @return the executor that powers this stage.
      */
-    public CascadeExecutor executor ()
+    public CascadePowerSource executor ()
     {
         return executor;
     }

@@ -38,7 +38,7 @@ public class Main2
         actor2.script().appendToOnException((ctx, ex) -> ex.printStackTrace(System.err));
         actor2.start();
 
-        actor1.awaitStart(Duration.ofSeconds(1));
+        actor1.await(CascadeActor.ActorLifeCycle.ACTIVE, Duration.ofSeconds(1));
 
         cas.send(X, CascadeStack.newStack().pushInt(0));
 
@@ -51,7 +51,7 @@ public class Main2
                                  final CascadeToken evt,
                                  final CascadeStack msg)
     {
-        if (counter.incrementAndGet() % 1 == 0)
+        if (counter.incrementAndGet() % 100_000 == 0)
         {
             System.out.println("X = " + counter);
         }

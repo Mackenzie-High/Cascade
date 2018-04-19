@@ -54,7 +54,7 @@ public final class Dispatcher
 
     private Bucket resolveBucketFor (final CascadeToken event)
     {
-        final int idx = (int) LongMath.mod(event.hash1(), buckets.length());
+        final int idx = (int) LongMath.mod(event.idx(), buckets.length());
         return buckets.get(idx);
     }
 

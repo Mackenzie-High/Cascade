@@ -15,7 +15,7 @@ import org.junit.Test;
  */
 public final class CascadeActorTest
 {
-    private final CascadeExecutor executor = new ServiceExecutor(Executors.newFixedThreadPool(5));
+    private final CascadePowerSource executor = new ServiceExecutor(Executors.newFixedThreadPool(5));
 
     private final Cascade cascade = Cascade.newCascade();
 
@@ -34,13 +34,6 @@ public final class CascadeActorTest
         assertEquals(actor, actor.context().actor());
         assertEquals(actor.script(), actor.context().script());
 
-        assertFalse(actor.isStarting());
-        assertFalse(actor.isStarted());
-        assertFalse(actor.isActive());
-        assertFalse(actor.isActing());
-        assertFalse(actor.isClosing());
-        assertFalse(actor.isClosed());
-
         assertFalse(actor.isOverflowPolicyDropAll());
         assertFalse(actor.isOverflowPolicyDropNewest());
         assertFalse(actor.isOverflowPolicyDropOldest());
@@ -50,19 +43,19 @@ public final class CascadeActorTest
         assertFalse(actor.hasArrayInflowQueue());
         assertTrue(actor.hasLinkedInflowQueue());
 
-        assertEquals(Integer.MAX_VALUE, actor.backlogCapacity());
-        assertEquals(0, actor.backlogSize());
-        assertEquals(0, actor.acceptedMessages());
-        assertEquals(0, actor.consumedMessages());
-        assertEquals(0, actor.droppedMessages());
-        assertEquals(0, actor.unhandledExceptions());
+        assertEquals(Integer.MAX_VALUE, actor.metrics().getBacklogCapacity());
+        assertEquals(0, actor.metrics().getBacklogSize());
+        assertEquals(0, actor.metrics().getAcceptedMessageCount());
+        assertEquals(0, actor.metrics().getConsumedMessageCount());
+        assertEquals(0, actor.metrics().getDroppedMessageCount());
+        assertEquals(0, actor.metrics().getUnhandledExceptionCount());
 
         assertTrue(actor.script().setupScript().isEmpty());
         assertTrue(actor.script().messageScript().isEmpty());
         assertTrue(actor.script().exceptionScript().isEmpty());
         assertTrue(actor.script().closeScript().isEmpty());
 
-        assertEquals(actor.uuid().toString(), actor.name());
+        assertEquals(actor.uuid().toString(), actor.getName());
     }
 
     @After
@@ -74,7 +67,7 @@ public final class CascadeActorTest
 
         actor.start(); // TODO
 
-        // TODO: Bug here. Reenable to find it. Had to turn off to test other stuff first. 
+        // TODO: Bug here. Reenable to find it. Had to turn off to test other stuff first.
 //        cascade.close().awaitClose(Duration.ofDays(1));
 //
 //        assertFalse(cascade.stages().contains(stage));
@@ -159,8 +152,8 @@ public final class CascadeActorTest
         final CascadeStack stack = list.poll(1, TimeUnit.DAYS);
 
         assertEquals(k, stack.size());
-        assertEquals(1, backend.acceptedMessages());
-        assertEquals(1, backend.consumedMessages());
+        assertEquals(1, backend.metrics().getAcceptedMessageCount());
+        assertEquals(1, backend.metrics().getConsumedMessageCount());
     }
 
     /**
