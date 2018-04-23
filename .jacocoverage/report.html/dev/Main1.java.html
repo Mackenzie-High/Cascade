@@ -28,7 +28,7 @@ import java.util.concurrent.Executors;
 <span class="nc" id="L28">        actor1.script().appendToOnMessage(token(&quot;out&quot;), Main1::action1);</span>
 <span class="nc" id="L29">        actor1.start();</span>
 
-<span class="nc" id="L31">        actor1.awaitStart(Duration.ofSeconds(1));</span>
+<span class="nc" id="L31">        actor1.await(CascadeActor.ActorLifeCycle.ACTIVE, Duration.ofSeconds(1));</span>
 
 <span class="nc" id="L33">        Verify.verify(cas.channelOf(token(&quot;out&quot;)).isPresent());</span>
 <span class="nc" id="L34">        cas.send(token(&quot;out&quot;), CascadeStack.newStack().pushObject(&quot;Mercury&quot;));</span>

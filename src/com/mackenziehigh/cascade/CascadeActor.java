@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * Actors receive, process, and send event-messages.
+ * Actors send, receive, and process event-messages.
  *
  * <p>
  * Actors are responsible for executing the onSetup(), onMessage(),
@@ -127,33 +127,9 @@ public final class CascadeActor
         DEAD
     }
 
-    public enum ActorChangeTypes
-    {
-        EGG,
-        STARTING,
-        ACTIVE,
-        CLOSING,
-        DEAD,
-        SUBSCRIBE,
-        UNSUBSCRIBE,
-        QUEUE_CHANGED,
-        POWER_CHANGED,
-        NAME_CHANGED,
-        UNHANDLED_EXCEPTION;
-
-        private final CascadeToken token;
-
-        private ActorChangeTypes ()
-        {
-            token = CascadeToken.token(name());
-        }
-
-        public CascadeToken asToken ()
-        {
-            return token;
-        }
-    }
-
+    /**
+     * Performance metrics related to this actor.
+     */
     public final class ActorMetrics
     {
         private ActorMetrics ()
@@ -188,7 +164,7 @@ public final class CascadeActor
          */
         public long getOfferedMessageCount ()
         {
-            return 0; // TODO
+            return boundedInflowQueue.offered();
         }
 
         /**
@@ -258,20 +234,38 @@ public final class CascadeActor
      */
     private volatile String name = uuid.toString();
 
-    private final AtomicReference<ActorLifeCycle> phase = new AtomicReference<>();
+    /**
+     * This is the life-cycle phase that this actor is currently in.
+     */
+    private final AtomicReference<ActorLifeCycle> phase = new AtomicReference<>(ActorLifeCycle.EGG);
 
+    /**
+     * This stage contains this actor.
+     */
     private final CascadeStage stage;
 
+    /**
+     * This object routes messages to-and-from this actor.
+     */
     private final Dispatcher dispatcher;
 
+    /**
+     * These identify the event-channels that this actor is currently subscribed-to.
+     */
     private final CopyOnWriteArraySet<CascadeToken> subscriptions = new CopyOnWriteArraySet<>();
 
+    /**
+     * This is how many messages have been processed by this actor thus far.
+     */
     private final AtomicLong consumedMessageCount = new AtomicLong();
 
+    /**
+     * This is how many unhandled-exceptions were thrown thus far.
+     */
     private final AtomicLong unhandledExceptionCount = new AtomicLong();
 
     /**
-     * True, if the script is executing.
+     * True, if the script is executing at this very moment.
      */
     private final AtomicBoolean acting = new AtomicBoolean(false);
 
@@ -325,21 +319,44 @@ public final class CascadeActor
      */
     private final SynchronizedInflowQueue syncInflowQueue;
 
-    private final AtomicReference<CascadeToken> event = new AtomicReference<>();
+    /**
+     * This object provides the power to this actor, as needed.
+     */
+    private volatile CascadePowerSource executor;
 
-    private final AtomicReference<CascadeStack> stack = new AtomicReference<>();
-
-    private final CascadePowerSource executor;
-
-    private final AtomicReference<?> pocket = new AtomicReference<>();
-
+    /**
+     * This is how many tasks are pending for this actor to perform,
+     * which may include startup tasks, shutdown tasks, or pending messages.
+     */
     private final AtomicLong pendingTasks = new AtomicLong();
 
+    /**
+     * The executor is free to use this object to store actor-specific data,
+     * for its own personal benefit, such as scheduling.
+     */
+    private final AtomicReference<?> pocket = new AtomicReference<>();
+
+    /**
+     * When invoked, this consumer will remove this actor from the enclosing stage.
+     */
     private final Consumer<CascadeActor> undertaker;
 
+    /**
+     * These are the performance metrics pertaining to this actor.
+     */
     private final ActorMetrics metrics = new ActorMetrics();
 
-    private final CascadeToken statusEvent = CascadeToken.random();
+    /**
+     * This is needed to dequeue messages from the inflow-queue.
+     * Caching the AtomicReference avoids the need to allocate it each time.
+     */
+    private final AtomicReference<CascadeToken> event = new AtomicReference<>();
+
+    /**
+     * This is needed to dequeue messages from the inflow-queue.
+     * Caching the AtomicReference avoids the need to allocate it each time.
+     */
+    private final AtomicReference<CascadeStack> stack = new AtomicReference<>();
 
     /**
      * Sole Constructor.
@@ -359,32 +376,68 @@ public final class CascadeActor
         this.storageInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);
         this.boundedInflowQueue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);
         this.swappableInflowQueue = new SwappableInflowQueue(boundedInflowQueue);
-        this.schedulerInflowQueue = new NotificationInflowQueue(swappableInflowQueue, q -> onQueueAdd(q));
+        this.schedulerInflowQueue = new NotificationInflowQueue(swappableInflowQueue, q -> updatePendingTasks(false, false, true));
         this.syncInflowQueue = new SynchronizedInflowQueue(schedulerInflowQueue);
 
-        for (int i = 1; i < ActorLifeCycle.values().length; i++)
+        for (int i = 0; i < awaitLatches.length; i++)
         {
-            awaitLatches[i - 1] = new CountDownLatch(1);
+            awaitLatches[i] = new CountDownLatch(1);
         }
-
-        sendChangeEvent(ActorChangeTypes.EGG);
     }
 
     /**
-     * Setter.
+     * Retrieve the unique identifier of this actor.
      *
-     * @param name will henceforth be the name of this actor.
-     * @return this.
+     * @return a UUID that uniquely identifies this actor in time and space.
      */
-    public CascadeActor setName (final String name)
+    public UUID uuid ()
     {
-        this.name = Objects.requireNonNull(name, "name");
-        sendChangeEvent(ActorChangeTypes.NAME_CHANGED);
-        return this;
+        return uuid;
     }
 
     /**
-     * Getter.
+     * Retrieve the cascade that contains this actor indirectly.
+     *
+     * @return the enclosing cascade.
+     */
+    public Cascade cascade ()
+    {
+        return stage().cascade();
+    }
+
+    /**
+     * Retrieve the stage that contains this actor.
+     *
+     * @return the enclosing stage.
+     */
+    public CascadeStage stage ()
+    {
+        return stage;
+    }
+
+    /**
+     * Retrieve the script that defines how this actor behaves.
+     *
+     * @return the script that will be executed whenever messages are received.
+     */
+    public CascadeScript script ()
+    {
+        return script;
+    }
+
+    /**
+     * Retrieve the context that this actor will pass to the script.
+     *
+     * @return the context that is passed to the script()
+     * whenever messages are processed by this actor.
+     */
+    public CascadeContext context ()
+    {
+        return context;
+    }
+
+    /**
+     * Retrieve the performance metrics regarding this actor.
      *
      * @return useful metrics regarding this actor.
      */
@@ -394,7 +447,20 @@ public final class CascadeActor
     }
 
     /**
-     * Getter.
+     * Changes the name of this actor.
+     *
+     * @param name will henceforth be the name of this actor.
+     * @return this.
+     */
+    public CascadeActor setName (final String name)
+    {
+        requireEgg();
+        this.name = Objects.requireNonNull(name, "name");
+        return this;
+    }
+
+    /**
+     * Retrieve the name of this actor.
      *
      * <p>
      * By default, the name of this actor is the string representation of the actor's UUID.
@@ -408,70 +474,16 @@ public final class CascadeActor
     }
 
     /**
-     * Getter.
-     *
-     * @return a UUID that uniquely identifies this actor in time and space.
-     */
-    public UUID uuid ()
-    {
-        return uuid;
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the identifier of the event-channel that receives status messages.
-     */
-    public CascadeToken statusEvent ()
-    {
-        return statusEvent;
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the enclosing cascade.
-     */
-    public Cascade cascade ()
-    {
-        return stage().cascade();
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the enclosing stage.
-     */
-    public CascadeStage stage ()
-    {
-        return stage;
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the script that will be executed whenever messages are received.
-     */
-    public CascadeScript script ()
-    {
-        return script;
-    }
-
-    /**
      * Replace the underlying power-source that powers this actor.
      *
-     * <p>
-     * This is an invasive operation that requires internal synchronization.
-     * Therefore, this method will block, if the actor is currently acting.
-     * </p>
-     *
-     * @param value will power this actor going forward.
+     * @param executor will power this actor going forward.
      * @return this.
      */
-    public CascadeActor setPowerSource (final CascadePowerSource value)
+    public CascadeActor setPowerSource (final CascadePowerSource executor)
     {
-        sendChangeEvent(ActorChangeTypes.POWER_CHANGED);
-        return this; // TODO
+        requireEgg();
+        this.executor = Objects.requireNonNull(executor, "executor");
+        return this;
     }
 
     /**
@@ -500,6 +512,7 @@ public final class CascadeActor
      */
     public CascadeActor setArrayInflowQueue (final int capacity)
     {
+        requireEgg();
         final BoundedInflowQueue.OverflowPolicy policy = boundedInflowQueue.policy();
         final InflowQueue newQueue = new ArrayInflowQueue(capacity);
         replaceQueue(policy, newQueue);
@@ -532,6 +545,7 @@ public final class CascadeActor
      */
     public CascadeActor setLinkedInflowQueue (final int capacity)
     {
+        requireEgg();
         final BoundedInflowQueue.OverflowPolicy policy = boundedInflowQueue.policy();
         final InflowQueue newQueue = new LinkedInflowQueue(capacity);
         replaceQueue(policy, newQueue);
@@ -562,6 +576,7 @@ public final class CascadeActor
      */
     public CascadeActor setOverflowPolicyDropAll ()
     {
+        requireEgg();
         replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_ALL, storageInflowQueue);
         return this;
     }
@@ -590,6 +605,7 @@ public final class CascadeActor
      */
     public CascadeActor setOverflowPolicyDropPending ()
     {
+        requireEgg();
         replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_PENDING, storageInflowQueue);
         return this;
     }
@@ -619,6 +635,7 @@ public final class CascadeActor
      */
     public CascadeActor setOverflowPolicyDropOldest ()
     {
+        requireEgg();
         replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_OLDEST, storageInflowQueue);
         return this;
     }
@@ -648,6 +665,7 @@ public final class CascadeActor
      */
     public CascadeActor setOverflowPolicyDropNewest ()
     {
+        requireEgg();
         replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_NEWEST, storageInflowQueue);
         return this;
     }
@@ -677,6 +695,7 @@ public final class CascadeActor
      */
     public CascadeActor setOverflowPolicyDropIncoming ()
     {
+        requireEgg();
         replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);
         return this;
     }
@@ -694,14 +713,31 @@ public final class CascadeActor
     /**
      * This method causes this actor to begin receiving messages for the given event.
      *
+     * <p>
+     * This method is a no-op, if this actor is already closing.
+     * </p>
+     *
      * @param event identifies the event to listen for.
      * @return this.
      */
     public CascadeActor subscribe (final CascadeToken event)
     {
-        subscriptions.add(event);
-        dispatcher.subscribe(event, this);
-        sendChangeEvent(ActorChangeTypes.SUBSCRIBE);
+        /**
+         * Synchronized to prevent concurrent unsubscriptions.
+         *
+         * When the actor dies, it will automatically unsubscribe from all subscriptions.
+         * We must synchronize to prevent new subscriptions from occurring at the same time;
+         * otherwise, a race-condition would exist that could cause a memory-leak.
+         */
+        synchronized (dispatcher)
+        {
+            if (phase.get().ordinal() < ActorLifeCycle.CLOSING.ordinal())
+            {
+                subscriptions.add(event);
+                dispatcher.subscribe(event, this);
+            }
+        }
+
         return this;
     }
 
@@ -718,9 +754,14 @@ public final class CascadeActor
      */
     public CascadeActor unsubscribe (final CascadeToken event)
     {
-        dispatcher.unsubscribe(event, this);
-        subscriptions.remove(event);
-        sendChangeEvent(ActorChangeTypes.UNSUBSCRIBE);
+        /**
+         * Synchronized to prevent concurrent subscriptions.
+         */
+        synchronized (dispatcher)
+        {
+            dispatcher.unsubscribe(event, this);
+            subscriptions.remove(event);
+        }
         return this;
     }
 
@@ -791,17 +832,6 @@ public final class CascadeActor
     }
 
     /**
-     * Getter.
-     *
-     * @return the context that is passed to the script()
-     * whenever messages are processed by this actor.
-     */
-    public CascadeContext context ()
-    {
-        return context;
-    }
-
-    /**
      * Sends an event-message directly to this actor.
      *
      * <p>
@@ -824,73 +854,17 @@ public final class CascadeActor
     }
 
     /**
-     * Henceforth, all messages that are sent to this actor,
-     * including dropped messages, will be forwarded to
-     * the event-channel identified by the given event.
-     *
-     * <p>
-     * This method may be invoked repeatedly in order
-     * to specify multiple independent recipients.
-     * </p>
-     *
-     * @param event identifies an event-channel.
-     * @return this.
-     */
-    public CascadeActor forwardTo (final CascadeToken event)
-    {
-        forwardConsumedTo(event);
-        forwardDroppedTo(event);
-        return this;
-    }
-
-    /**
-     * Henceforth, all messages that are dropped by this actor,
-     * will be forwarded to the identified event-channel.
-     *
-     * <p>
-     * This method may be invoked repeatedly in order
-     * to specify multiple independent recipients.
-     * </p>
-     *
-     * @param event identifies an event-channel.
-     * @return this.
-     */
-    public CascadeActor forwardDroppedTo (final CascadeToken event)
-    {
-        return this; // TODO
-    }
-
-    /**
-     * Henceforth, all messages that are consumed by this actor,
-     * will be forwarded to the identified event-channel.
-     *
-     * <p>
-     * This method may be invoked repeatedly in order
-     * to specify multiple independent recipients.
-     * </p>
-     *
-     * @param event identifies an event-channel.
-     * @return this.
-     */
-    public CascadeActor forwardConsumedTo (final CascadeToken event)
-    {
-        return this; // TODO
-    }
-
-    /**
      * Schedule this actor for startup.
+     *
+     * <p>
+     * This method is a no-op, if start() or close() were already called.
+     * </p>
      *
      * @return this.
      */
     public CascadeActor start ()
     {
-        if (phase.compareAndSet(ActorLifeCycle.EGG, ActorLifeCycle.STARTING))
-        {
-            phaseTransition(ActorLifeCycle.STARTING, ActorChangeTypes.STARTING);
-            awaitLatches[ActorLifeCycle.STARTING.ordinal() - 1].countDown();
-            executor.addActor(this, pocket);
-            schedule();
-        }
+        phaseTransitionIf(ActorLifeCycle.EGG, ActorLifeCycle.STARTING);
         return this;
     }
 
@@ -916,61 +890,34 @@ public final class CascadeActor
      */
     public CascadeActor crank ()
     {
-        synchronized (pendingTasks)
+        try
         {
-            if (pendingTasks.get() == 0)
+            final long taskCount = updatePendingTasks(true, false, false);
+
+            if (taskCount == 0)
             {
                 return this;
             }
-            else
-            {
-                pendingTasks.decrementAndGet();
-            }
-        }
 
-        try
-        {
             synchronized (SELF)
             {
-                try
-                {
-                    setupIfNeeded();
-                }
-                catch (Throwable ex)
-                {
-                    //reportUnhandledException(ex);
-                    close();
-                    return this;
-                }
-
-                try
-                {
-                    processMessageIfNeeded();
-                }
-                catch (Throwable ex)
-                {
-                    //reportUnhandledException(ex);
-                }
-
-                try
-                {
-                    shutdownIfNeeded();
-                }
-                catch (Throwable ex)
-                {
-                    //reportUnhandledException(ex);
-                }
+                setupIfNeeded();
+                processMessageIfNeeded();
+                shutdownIfNeeded();
             }
+        }
+        catch (Throwable ex)
+        {
+            /**
+             * This should never actually happen.
+             * If it does, something is seriously wrong.
+             */
+            unhandledExceptionCount.incrementAndGet();
+            ex.printStackTrace(System.err);
         }
         finally
         {
-            synchronized (pendingTasks)
-            {
-                if (pendingTasks.get() > 0)
-                {
-                    executor.submit(this, pocket);
-                }
-            }
+            updatePendingTasks(false, true, false);
         }
 
         return this;
@@ -989,20 +936,20 @@ public final class CascadeActor
      */
     public CascadeActor close ()
     {
-        boolean changed = false;
-        changed |= phase.compareAndSet(ActorLifeCycle.EGG, ActorLifeCycle.CLOSING);
-        changed |= phase.compareAndSet(ActorLifeCycle.STARTING, ActorLifeCycle.CLOSING);
-        changed |= phase.compareAndSet(ActorLifeCycle.ACTIVE, ActorLifeCycle.CLOSING);
-        if (changed)
-        {
-            phaseTransition(ActorLifeCycle.CLOSING, ActorChangeTypes.CLOSING);
+        /**
+         * Stop accepting new messages.
+         * If new messages are sent, drop them immediately.
+         */
+        boundedInflowQueue.disable();
 
-            synchronized (pendingTasks)
-            {
-                pendingTasks.set(0);
-                executor.removeActor(this, pocket);
-            }
-        }
+        /**
+         * Perform zero-or-one phase-transition.
+         * Notice that the call order prevents more than one transition.
+         */
+        phaseTransitionIf(ActorLifeCycle.ACTIVE, ActorLifeCycle.CLOSING);
+        phaseTransitionIf(ActorLifeCycle.STARTING, ActorLifeCycle.CLOSING);
+        phaseTransitionIf(ActorLifeCycle.EGG, ActorLifeCycle.CLOSING);
+
         return this;
     }
 
@@ -1028,7 +975,7 @@ public final class CascadeActor
         }
         else
         {
-            return awaitLatches[goal.ordinal() + 1].await(timeout.toNanos(), TimeUnit.NANOSECONDS);
+            return awaitLatches[goal.ordinal() - 1].await(timeout.toNanos(), TimeUnit.NANOSECONDS);
         }
     }
 
@@ -1043,7 +990,7 @@ public final class CascadeActor
             }
             finally
             {
-                phaseTransition(ActorLifeCycle.ACTIVE, ActorChangeTypes.ACTIVE);
+                phaseTransitionIf(ActorLifeCycle.STARTING, ActorLifeCycle.ACTIVE);
             }
         }
     }
@@ -1051,21 +998,30 @@ public final class CascadeActor
     private void processMessageIfNeeded ()
             throws Throwable
     {
-        event.set(null);
-        stack.set(null);
-        syncInflowQueue.removeOldest(event, stack);
-        final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)
-        if (delivered)
+        if (phase.get() == ActorLifeCycle.ACTIVE)
         {
-            consumedMessageCount.incrementAndGet();
-            script.onMessage(context(), event.get(), stack.get());
+            event.set(null);
+            stack.set(null);
+            syncInflowQueue.removeOldest(event, stack);
+            final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)
+            if (delivered)
+            {
+                consumedMessageCount.incrementAndGet();
+                script.onMessage(context(), event.get(), stack.get());
+            }
         }
     }
 
     private void shutdownIfNeeded ()
             throws Throwable
     {
-        if (phase.get() == ActorLifeCycle.CLOSING)
+        /**
+         * If the actor is in the process of closing,
+         * then continue processing messages,
+         * until the queue is empty, which will occur,
+         * because the queue is no longer accepting new messages.
+         */
+        if (phase.get() == ActorLifeCycle.CLOSING && syncInflowQueue.isEmpty())
         {
             try
             {
@@ -1073,82 +1029,121 @@ public final class CascadeActor
             }
             finally
             {
-                phaseTransition(ActorLifeCycle.DEAD, ActorChangeTypes.DEAD);
+                /**
+                 * Unsubscribe this actor from all event-channels that it is subscribed-to;
+                 * otherwise, a memory-leak would occur, since the dispatcher would still
+                 * have references to the actor, even though the actor is dead!
+                 * Synchronized to prevent concurrent subscriptions.
+                 */
+                synchronized (dispatcher)
+                {
+                    subscriptions.stream().forEach(s -> unsubscribe(s));
+                }
+
+                /**
+                 * Remove this actor from the stage.
+                 */
                 undertaker.accept(this);
+
+                /**
+                 * This actor is now totally dead.
+                 */
+                phaseTransitionIf(ActorLifeCycle.CLOSING, ActorLifeCycle.DEAD);
             }
         }
     }
 
     /**
-     * This method will be executed whenever an event-message is received,
-     * even if the message is ultimately dropped by this actor.
+     * Update the counter that tracks the number of needed cranks
+     * and notify the power-source as necessary.
      *
-     * @param queue just received the new message.
+     * @param pre is true, if the call-site is the start of crank().
+     * @param post is true, if the call-site is the end of crank().
+     * @param add is true, if the call-site is a phase-transition
+     * or due to receiving an event-message.
+     * @return the number of pending cranks, if needed at the call-site.
      */
-    private void onQueueAdd (final InflowQueue queue)
+    private long updatePendingTasks (final boolean pre,
+                                     final boolean post,
+                                     final boolean add)
     {
-        schedule();
-    }
-
-    private void schedule ()
-    {
+        /**
+         * Synchronize on the counter itself, rather than (this),
+         * because we do *not* want to block, if the actor is executing.
+         * Otherwise, we could not enqueue messages while executing, etc!
+         */
         synchronized (pendingTasks)
         {
-            final long count = pendingTasks.getAndIncrement();
-
-            if (count == 0)
+            if (add && pendingTasks.get() == 0)
             {
+                pendingTasks.incrementAndGet();
                 executor.submit(this, pocket);
             }
+            else if (add)
+            {
+                pendingTasks.incrementAndGet();
+            }
+            else if (pre)
+            {
+                return pendingTasks.get();
+            }
+            else if (post && pendingTasks.get() > 1)
+            {
+                pendingTasks.decrementAndGet();
+                executor.submit(this, pocket);
+            }
+            else if (post && pendingTasks.get() <= 1)
+            {
+                pendingTasks.set(0);
+            }
+            else
+            {
+                Verify.verify(false, "bug!");
+            }
         }
+
+        return -1;
     }
 
     private void replaceQueue (final BoundedInflowQueue.OverflowPolicy policy,
                                final InflowQueue newStorageQueue)
     {
-        final Runnable action = () ->
-        {
-            synchronized (SELF) // TODO: Is this really safe? Nested sync?
-            {
-                storageInflowQueue = newStorageQueue;
-                boundedInflowQueue = new BoundedInflowQueue(policy, newStorageQueue);
-                swappableInflowQueue.replaceDelegate(boundedInflowQueue);
-            }
-        };
-
-        /**
-         * The replacement must be synchronized with regard to other queue operations.
-         */
-        syncInflowQueue.sync(action);
-
-        sendChangeEvent(ActorChangeTypes.QUEUE_CHANGED);
+        requireEgg();
+        storageInflowQueue = newStorageQueue;
+        boundedInflowQueue = new BoundedInflowQueue(policy, newStorageQueue);
+        swappableInflowQueue.replaceDelegate(boundedInflowQueue);
     }
 
-    private void phaseTransition (final ActorLifeCycle next,
-                                  final ActorChangeTypes changeType)
+    private boolean phaseTransitionIf (final ActorLifeCycle expected,
+                                       final ActorLifeCycle next)
     {
         Verify.verify(next.ordinal() > 0);
         Verify.verify(ActorLifeCycle.values().length == 5, "Regression Bug!");
-        phase.set(next);
-        awaitLatches[next.ordinal() - 1].countDown();
 
-        /**
-         * All of the latches for the preceding phases must already be unblocked.
-         */
-        Verify.verify(IntStream.rangeClosed(0, next.ordinal() - 1).allMatch(i -> awaitLatches[i].getCount() == 0));
+        if (phase.compareAndSet(expected, next))
+        {
+            awaitLatches[next.ordinal() - 1].countDown();
 
-        sendChangeEvent(changeType);
+            /**
+             * All of the latches for the preceding phases must already be unblocked.
+             */
+            Verify.verify(IntStream.rangeClosed(0, next.ordinal() - 1).allMatch(i -> awaitLatches[i].getCount() == 0));
+
+            /**
+             * Tell the executor to turn the crank.
+             */
+            updatePendingTasks(false, false, true);
+
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
-    private void sendChangeEvent (final ActorChangeTypes changeType)
+    private void requireEgg ()
     {
-        // TODO: Send on stage statusEvent as well. Send on cascade statusEvent too???
-
-        final CascadeStack msg = CascadeStack
-                .newStack()
-                .pushObject(changeType.asToken())
-                .pushObject(this);
-
-        cascade().send(statusEvent(), msg);
+        Preconditions.checkState(phase.get() == ActorLifeCycle.EGG, "Already Hatched!");
     }
 }

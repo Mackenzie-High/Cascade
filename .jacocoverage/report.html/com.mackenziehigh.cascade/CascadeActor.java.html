@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CascadeActor.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade</a> &gt; <span class="el_source">CascadeActor.java</span></div><h1>CascadeActor.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
 import com.google.common.collect.ImmutableSet;
 import com.mackenziehigh.cascade.internal.ArrayInflowQueue;
 import com.mackenziehigh.cascade.internal.BoundedInflowQueue;
@@ -12,19 +13,21 @@ import com.mackenziehigh.cascade.internal.SwappableInflowQueue;
 import com.mackenziehigh.cascade.internal.SynchronizedInflowQueue;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
- * Actors receive, process, and send event-messages.
+ * Actors send, receive, and process event-messages.
  *
  * &lt;p&gt;
  * Actors are responsible for executing the onSetup(), onMessage(),
@@ -90,71 +93,197 @@ public final class CascadeActor
          */
         public default CascadeActor buildAndStart ()
         {
-<span class="nc" id="L93">            final CascadeActor actor = build();</span>
-<span class="nc" id="L94">            actor.start();</span>
-<span class="nc" id="L95">            return actor;</span>
+<span class="nc" id="L96">            final CascadeActor actor = build();</span>
+<span class="nc" id="L97">            actor.start();</span>
+<span class="nc" id="L98">            return actor;</span>
         }
     }
 
-    private static final int UNSTARTED = 0;
+    /**
+     * The life-cycle phases of an actor in chronological order.
+     */
+<span class="pc" id="L105">    public enum ActorLifeCycle</span>
+    {
+        /**
+         * The actor has been created, but start() has not yet been called.
+         */
+<span class="fc" id="L110">        EGG,</span>
 
-    private static final int STARTING = 1;
+        /**
+         * start() was just called, but the setup script has not yet finished.
+         */
+<span class="fc" id="L115">        STARTING,</span>
+        /**
+         * Setup is complete and the actor is ready to process messages.
+         */
+<span class="fc" id="L119">        ACTIVE,</span>
+        /**
+         * close() was just called, but the close script has not yet finished.
+         */
+<span class="fc" id="L123">        CLOSING,</span>
+        /**
+         * The close script has completed after the call to close().
+         */
+<span class="fc" id="L127">        DEAD</span>
+    }
 
-    private static final int ACTIVE = 2;
+    /**
+     * Performance metrics related to this actor.
+     */
+    public final class ActorMetrics
+    {
+        private ActorMetrics ()
+<span class="fc" id="L136">        {</span>
+            // Pass
+<span class="fc" id="L138">        }</span>
 
-    private static final int CLOSING = 3;
+        /**
+         * Getter.
+         *
+         * @return the current number of messages enqueued in the inflow queue.
+         */
+        public int getBacklogSize ()
+        {
+<span class="fc" id="L147">            return syncInflowQueue.size();</span>
+        }
 
-    private static final int CLOSED = 4;
+        /**
+         * Getter.
+         *
+         * @return the current capacity of the inflow queue.
+         */
+        public int getBacklogCapacity ()
+        {
+<span class="fc" id="L157">            return syncInflowQueue.capacity();</span>
+        }
 
-<span class="fc" id="L109">    private final CascadeActor SELF = this;</span>
+        /**
+         * Getter.
+         *
+         * @return the total number of messages sent to this actor.
+         */
+        public long getOfferedMessageCount ()
+        {
+<span class="fc" id="L167">            return boundedInflowQueue.offered();</span>
+        }
+
+        /**
+         * Getter.
+         *
+         * @return the total number of messages sent to this actor, thus far,
+         * that were enqueued without being immediately dropped.
+         */
+        public long getAcceptedMessageCount ()
+        {
+<span class="fc" id="L178">            return boundedInflowQueue.accepted(); // Thread-Safe</span>
+        }
+
+        /**
+         * Getter.
+         *
+         * @return the total number of messages that this actor
+         * has dropped upon receiving them, thus far.
+         */
+        public long getDroppedMessageCount ()
+        {
+<span class="fc" id="L189">            return boundedInflowQueue.dropped(); // Thread-Safe</span>
+        }
+
+        /**
+         * Getter.
+         *
+         * @return the total number of messages that this actor
+         * has actually processed using the script(), thus far.
+         */
+        public long getConsumedMessageCount ()
+        {
+<span class="fc" id="L200">            return consumedMessageCount.get();</span>
+        }
+
+        /**
+         * Getter.
+         *
+         * @return the number of unhandled exceptions that
+         * have been thrown by the script(), thus far.
+         */
+        public long getUnhandledExceptionCount ()
+        {
+<span class="fc" id="L211">            return unhandledExceptionCount.get();</span>
+        }
+
+        /**
+         * Getter.
+         *
+         * @return the last unhandled exception, if any.
+         */
+        public Optional&lt;Throwable&gt; getLastUnhandledException ()
+        {
+<span class="nc" id="L221">            return Optional.empty(); // TODO</span>
+        }
+    }
+
+<span class="fc" id="L225">    private final CascadeActor SELF = this;</span>
 
     /**
      * This UUID uniquely identifies this actor.
      */
-<span class="fc" id="L114">    private final UUID uuid = UUID.randomUUID();</span>
+<span class="fc" id="L230">    private final UUID uuid = UUID.randomUUID();</span>
 
     /**
      * This is the name of this actor, which may change over time.
      */
-<span class="fc" id="L119">    private volatile String name = uuid.toString();</span>
+<span class="fc" id="L235">    private volatile String name = uuid.toString();</span>
 
-<span class="fc" id="L121">    private final AtomicInteger state = new AtomicInteger(UNSTARTED);</span>
+    /**
+     * This is the life-cycle phase that this actor is currently in.
+     */
+<span class="fc" id="L240">    private final AtomicReference&lt;ActorLifeCycle&gt; phase = new AtomicReference&lt;&gt;(ActorLifeCycle.EGG);</span>
 
+    /**
+     * This stage contains this actor.
+     */
     private final CascadeStage stage;
 
+    /**
+     * This object routes messages to-and-from this actor.
+     */
     private final Dispatcher dispatcher;
 
-<span class="fc" id="L127">    private final CopyOnWriteArraySet&lt;CascadeToken&gt; subscriptions = new CopyOnWriteArraySet&lt;&gt;();</span>
-
-<span class="fc" id="L129">    private final AtomicLong consumedMessageCount = new AtomicLong();</span>
-
-<span class="fc" id="L131">    private final AtomicLong unhandledExceptionCount = new AtomicLong();</span>
+    /**
+     * These identify the event-channels that this actor is currently subscribed-to.
+     */
+<span class="fc" id="L255">    private final CopyOnWriteArraySet&lt;CascadeToken&gt; subscriptions = new CopyOnWriteArraySet&lt;&gt;();</span>
 
     /**
-     * True, if the script is executing.
+     * This is how many messages have been processed by this actor thus far.
      */
-<span class="fc" id="L136">    private final AtomicBoolean acting = new AtomicBoolean(false);</span>
+<span class="fc" id="L260">    private final AtomicLong consumedMessageCount = new AtomicLong();</span>
 
     /**
-     * Used to implement awaitStart().
+     * This is how many unhandled-exceptions were thrown thus far.
      */
-<span class="fc" id="L141">    private final CountDownLatch awaitStartLatch = new CountDownLatch(1);</span>
+<span class="fc" id="L265">    private final AtomicLong unhandledExceptionCount = new AtomicLong();</span>
 
     /**
-     * Used to implement awaitClose().
+     * True, if the script is executing at this very moment.
      */
-<span class="fc" id="L146">    private final CountDownLatch awaitCloseLatch = new CountDownLatch(1);</span>
+<span class="fc" id="L270">    private final AtomicBoolean acting = new AtomicBoolean(false);</span>
+
+    /**
+     * Used to implement await(). No latch is needed for the first phase.
+     */
+<span class="fc" id="L275">    private final CountDownLatch[] awaitLatches = new CountDownLatch[ActorLifeCycle.values().length - 1];</span>
 
     /**
      * The script will be passed this context in order to provide
      * the script with access to this actor and send messages.
      */
-<span class="fc" id="L152">    private final CascadeContext context = () -&gt; SELF; // TODO: This is unclear.</span>
+<span class="fc" id="L281">    private final CascadeContext context = () -&gt; SELF; // TODO: This is unclear.</span>
 
     /**
      * This script defines how this actor behaves.
      */
-<span class="fc" id="L157">    private final CascadeScript script = new CascadeScript(context, unhandledExceptionCount);</span>
+<span class="fc" id="L286">    private final CascadeScript script = new CascadeScript(context, unhandledExceptionCount);</span>
 
     /**
      * This inflow-queue physically stores the incoming event-messages.
@@ -190,17 +319,44 @@ public final class CascadeActor
      */
     private final SynchronizedInflowQueue syncInflowQueue;
 
-<span class="fc" id="L193">    private final AtomicReference&lt;CascadeToken&gt; event = new AtomicReference&lt;&gt;();</span>
-
-<span class="fc" id="L195">    private final AtomicReference&lt;CascadeStack&gt; stack = new AtomicReference&lt;&gt;();</span>
+    /**
+     * This object provides the power to this actor, as needed.
+     */
+    private volatile CascadePowerSource executor;
 
     /**
-     * This is a callback function that will cause this actor to
-     * be scheduled for execution by the enclosing stage's executor.
+     * This is how many tasks are pending for this actor to perform,
+     * which may include startup tasks, shutdown tasks, or pending messages.
      */
-    private final Runnable scheduler;
+<span class="fc" id="L331">    private final AtomicLong pendingTasks = new AtomicLong();</span>
 
+    /**
+     * The executor is free to use this object to store actor-specific data,
+     * for its own personal benefit, such as scheduling.
+     */
+<span class="fc" id="L337">    private final AtomicReference&lt;?&gt; pocket = new AtomicReference&lt;&gt;();</span>
+
+    /**
+     * When invoked, this consumer will remove this actor from the enclosing stage.
+     */
     private final Consumer&lt;CascadeActor&gt; undertaker;
+
+    /**
+     * These are the performance metrics pertaining to this actor.
+     */
+<span class="fc" id="L347">    private final ActorMetrics metrics = new ActorMetrics();</span>
+
+    /**
+     * This is needed to dequeue messages from the inflow-queue.
+     * Caching the AtomicReference avoids the need to allocate it each time.
+     */
+<span class="fc" id="L353">    private final AtomicReference&lt;CascadeToken&gt; event = new AtomicReference&lt;&gt;();</span>
+
+    /**
+     * This is needed to dequeue messages from the inflow-queue.
+     * Caching the AtomicReference avoids the need to allocate it each time.
+     */
+<span class="fc" id="L359">    private final AtomicReference&lt;CascadeStack&gt; stack = new AtomicReference&lt;&gt;();</span>
 
     /**
      * Sole Constructor.
@@ -210,34 +366,101 @@ public final class CascadeActor
      */
     CascadeActor (final CascadeStage stage,
                   final Dispatcher dispatcher,
-                  final Runnable scheduler,
+                  final CascadePowerSource executor,
                   final Consumer&lt;CascadeActor&gt; undertaker)
-<span class="fc" id="L215">    {</span>
-<span class="fc" id="L216">        this.stage = Objects.requireNonNull(stage, &quot;stage&quot;);</span>
-<span class="fc" id="L217">        this.dispatcher = Objects.requireNonNull(dispatcher, &quot;dispatcher&quot;);</span>
-<span class="fc" id="L218">        this.scheduler = Objects.requireNonNull(scheduler, &quot;scheduler&quot;);</span>
-<span class="fc" id="L219">        this.undertaker = Objects.requireNonNull(undertaker, &quot;undertaker&quot;);</span>
-<span class="fc" id="L220">        this.storageInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);</span>
-<span class="fc" id="L221">        this.boundedInflowQueue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);</span>
-<span class="fc" id="L222">        this.swappableInflowQueue = new SwappableInflowQueue(boundedInflowQueue);</span>
-<span class="fc" id="L223">        this.schedulerInflowQueue = new NotificationInflowQueue(swappableInflowQueue, q -&gt; onQueueAdd(q));</span>
-<span class="fc" id="L224">        this.syncInflowQueue = new SynchronizedInflowQueue(schedulerInflowQueue);</span>
-<span class="fc" id="L225">    }</span>
+<span class="fc" id="L371">    {</span>
+<span class="fc" id="L372">        this.stage = Objects.requireNonNull(stage, &quot;stage&quot;);</span>
+<span class="fc" id="L373">        this.dispatcher = Objects.requireNonNull(dispatcher, &quot;dispatcher&quot;);</span>
+<span class="fc" id="L374">        this.executor = Objects.requireNonNull(executor, &quot;executor&quot;);</span>
+<span class="fc" id="L375">        this.undertaker = Objects.requireNonNull(undertaker, &quot;undertaker&quot;);</span>
+<span class="fc" id="L376">        this.storageInflowQueue = new LinkedInflowQueue(Integer.MAX_VALUE);</span>
+<span class="fc" id="L377">        this.boundedInflowQueue = new BoundedInflowQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);</span>
+<span class="fc" id="L378">        this.swappableInflowQueue = new SwappableInflowQueue(boundedInflowQueue);</span>
+<span class="fc" id="L379">        this.schedulerInflowQueue = new NotificationInflowQueue(swappableInflowQueue, q -&gt; updatePendingTasks(false, false, true));</span>
+<span class="fc" id="L380">        this.syncInflowQueue = new SynchronizedInflowQueue(schedulerInflowQueue);</span>
+
+<span class="fc bfc" id="L382" title="All 2 branches covered.">        for (int i = 0; i &lt; awaitLatches.length; i++)</span>
+        {
+<span class="fc" id="L384">            awaitLatches[i] = new CountDownLatch(1);</span>
+        }
+<span class="fc" id="L386">    }</span>
 
     /**
-     * Setter.
+     * Retrieve the unique identifier of this actor.
+     *
+     * @return a UUID that uniquely identifies this actor in time and space.
+     */
+    public UUID uuid ()
+    {
+<span class="fc" id="L395">        return uuid;</span>
+    }
+
+    /**
+     * Retrieve the cascade that contains this actor indirectly.
+     *
+     * @return the enclosing cascade.
+     */
+    public Cascade cascade ()
+    {
+<span class="fc" id="L405">        return stage().cascade();</span>
+    }
+
+    /**
+     * Retrieve the stage that contains this actor.
+     *
+     * @return the enclosing stage.
+     */
+    public CascadeStage stage ()
+    {
+<span class="fc" id="L415">        return stage;</span>
+    }
+
+    /**
+     * Retrieve the script that defines how this actor behaves.
+     *
+     * @return the script that will be executed whenever messages are received.
+     */
+    public CascadeScript script ()
+    {
+<span class="fc" id="L425">        return script;</span>
+    }
+
+    /**
+     * Retrieve the context that this actor will pass to the script.
+     *
+     * @return the context that is passed to the script()
+     * whenever messages are processed by this actor.
+     */
+    public CascadeContext context ()
+    {
+<span class="fc" id="L436">        return context;</span>
+    }
+
+    /**
+     * Retrieve the performance metrics regarding this actor.
+     *
+     * @return useful metrics regarding this actor.
+     */
+    public ActorMetrics metrics ()
+    {
+<span class="fc" id="L446">        return metrics;</span>
+    }
+
+    /**
+     * Changes the name of this actor.
      *
      * @param name will henceforth be the name of this actor.
      * @return this.
      */
-    public CascadeActor named (final String name)
+    public CascadeActor setName (final String name)
     {
-<span class="nc" id="L235">        this.name = Objects.requireNonNull(name, &quot;name&quot;);</span>
-<span class="nc" id="L236">        return this;</span>
+<span class="nc" id="L457">        requireEgg();</span>
+<span class="nc" id="L458">        this.name = Objects.requireNonNull(name, &quot;name&quot;);</span>
+<span class="nc" id="L459">        return this;</span>
     }
 
     /**
-     * Getter.
+     * Retrieve the name of this actor.
      *
      * &lt;p&gt;
      * By default, the name of this actor is the string representation of the actor's UUID.
@@ -245,49 +468,32 @@ public final class CascadeActor
      *
      * @return the current name of this actor.
      */
-    public String name ()
+    public String getName ()
     {
-<span class="fc" id="L250">        return name;</span>
+<span class="fc" id="L473">        return name;</span>
     }
 
     /**
-     * Getter.
+     * Replace the underlying power-source that powers this actor.
      *
-     * @return a UUID that uniquely identifies this actor in time and space.
+     * @param executor will power this actor going forward.
+     * @return this.
      */
-    public UUID uuid ()
+    public CascadeActor setPowerSource (final CascadePowerSource executor)
     {
-<span class="fc" id="L260">        return uuid;</span>
+<span class="fc" id="L484">        requireEgg();</span>
+<span class="fc" id="L485">        this.executor = Objects.requireNonNull(executor, &quot;executor&quot;);</span>
+<span class="fc" id="L486">        return this;</span>
     }
 
     /**
-     * Getter.
+     * Retrieve the underlying power-source.
      *
-     * @return the enclosing cascade.
+     * @return the current underlying power-source immediately.
      */
-    public Cascade cascade ()
+    public CascadePowerSource getPowerSource ()
     {
-<span class="fc" id="L270">        return stage().cascade();</span>
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the enclosing stage.
-     */
-    public CascadeStage stage ()
-    {
-<span class="fc" id="L280">        return stage;</span>
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the script that will be executed whenever messages are received.
-     */
-    public CascadeScript script ()
-    {
-<span class="fc" id="L290">        return script;</span>
+<span class="fc" id="L496">        return executor;</span>
     }
 
     /**
@@ -304,12 +510,13 @@ public final class CascadeActor
      * @param capacity will be the backlogCapacity() of the queue.
      * @return this.
      */
-    public CascadeActor useArrayInflowQueue (final int capacity)
+    public CascadeActor setArrayInflowQueue (final int capacity)
     {
-<span class="nc" id="L309">        final BoundedInflowQueue.OverflowPolicy policy = boundedInflowQueue.policy();</span>
-<span class="nc" id="L310">        final InflowQueue newQueue = new ArrayInflowQueue(capacity);</span>
-<span class="nc" id="L311">        replaceQueue(policy, newQueue);</span>
-<span class="nc" id="L312">        return this;</span>
+<span class="fc" id="L515">        requireEgg();</span>
+<span class="fc" id="L516">        final BoundedInflowQueue.OverflowPolicy policy = boundedInflowQueue.policy();</span>
+<span class="fc" id="L517">        final InflowQueue newQueue = new ArrayInflowQueue(capacity);</span>
+<span class="fc" id="L518">        replaceQueue(policy, newQueue);</span>
+<span class="fc" id="L519">        return this;</span>
     }
 
     /**
@@ -319,7 +526,7 @@ public final class CascadeActor
      */
     public boolean hasArrayInflowQueue ()
     {
-<span class="fc" id="L322">        return storageInflowQueue instanceof ArrayInflowQueue;</span>
+<span class="fc" id="L529">        return storageInflowQueue instanceof ArrayInflowQueue;</span>
     }
 
     /**
@@ -336,12 +543,13 @@ public final class CascadeActor
      * @param capacity will be the backlogCapacity() of the queue.
      * @return this.
      */
-    public CascadeActor useLinkedInflowQueue (final int capacity)
+    public CascadeActor setLinkedInflowQueue (final int capacity)
     {
-<span class="nc" id="L341">        final BoundedInflowQueue.OverflowPolicy policy = boundedInflowQueue.policy();</span>
-<span class="nc" id="L342">        final InflowQueue newQueue = new LinkedInflowQueue(capacity);</span>
-<span class="nc" id="L343">        replaceQueue(policy, newQueue);</span>
-<span class="nc" id="L344">        return this;</span>
+<span class="nc" id="L548">        requireEgg();</span>
+<span class="nc" id="L549">        final BoundedInflowQueue.OverflowPolicy policy = boundedInflowQueue.policy();</span>
+<span class="nc" id="L550">        final InflowQueue newQueue = new LinkedInflowQueue(capacity);</span>
+<span class="nc" id="L551">        replaceQueue(policy, newQueue);</span>
+<span class="nc" id="L552">        return this;</span>
     }
 
     /**
@@ -351,7 +559,7 @@ public final class CascadeActor
      */
     public boolean hasLinkedInflowQueue ()
     {
-<span class="fc" id="L354">        return storageInflowQueue instanceof LinkedInflowQueue;</span>
+<span class="fc" id="L562">        return storageInflowQueue instanceof LinkedInflowQueue;</span>
     }
 
     /**
@@ -366,10 +574,11 @@ public final class CascadeActor
      *
      * @return this.
      */
-    public CascadeActor useOverflowPolicyDropAll ()
+    public CascadeActor setOverflowPolicyDropAll ()
     {
-<span class="nc" id="L371">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_ALL, storageInflowQueue);</span>
-<span class="nc" id="L372">        return this;</span>
+<span class="fc" id="L579">        requireEgg();</span>
+<span class="fc" id="L580">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_ALL, storageInflowQueue);</span>
+<span class="fc" id="L581">        return this;</span>
     }
 
     /**
@@ -379,7 +588,7 @@ public final class CascadeActor
      */
     public boolean isOverflowPolicyDropAll ()
     {
-<span class="pc bpc" id="L382" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_ALL;</span>
+<span class="fc bfc" id="L591" title="All 2 branches covered.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_ALL;</span>
     }
 
     /**
@@ -394,10 +603,11 @@ public final class CascadeActor
      *
      * @return this.
      */
-    public CascadeActor useOverflowPolicyDropPending ()
+    public CascadeActor setOverflowPolicyDropPending ()
     {
-<span class="nc" id="L399">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_PENDING, storageInflowQueue);</span>
-<span class="nc" id="L400">        return this;</span>
+<span class="fc" id="L608">        requireEgg();</span>
+<span class="fc" id="L609">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_PENDING, storageInflowQueue);</span>
+<span class="fc" id="L610">        return this;</span>
     }
 
     /**
@@ -407,7 +617,7 @@ public final class CascadeActor
      */
     public boolean isOverflowPolicyDropPending ()
     {
-<span class="pc bpc" id="L410" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_PENDING;</span>
+<span class="fc bfc" id="L620" title="All 2 branches covered.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_PENDING;</span>
     }
 
     /**
@@ -423,10 +633,11 @@ public final class CascadeActor
      *
      * @return this.
      */
-    public CascadeActor useOverflowPolicyDropOldest ()
+    public CascadeActor setOverflowPolicyDropOldest ()
     {
-<span class="nc" id="L428">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_OLDEST, storageInflowQueue);</span>
-<span class="nc" id="L429">        return this;</span>
+<span class="fc" id="L638">        requireEgg();</span>
+<span class="fc" id="L639">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_OLDEST, storageInflowQueue);</span>
+<span class="fc" id="L640">        return this;</span>
     }
 
     /**
@@ -436,7 +647,7 @@ public final class CascadeActor
      */
     public boolean isOverflowPolicyDropOldest ()
     {
-<span class="pc bpc" id="L439" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_OLDEST;</span>
+<span class="fc bfc" id="L650" title="All 2 branches covered.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_OLDEST;</span>
     }
 
     /**
@@ -452,10 +663,11 @@ public final class CascadeActor
      *
      * @return this.
      */
-    public CascadeActor useOverflowPolicyDropNewest ()
+    public CascadeActor setOverflowPolicyDropNewest ()
     {
-<span class="nc" id="L457">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_NEWEST, storageInflowQueue);</span>
-<span class="nc" id="L458">        return this;</span>
+<span class="fc" id="L668">        requireEgg();</span>
+<span class="fc" id="L669">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_NEWEST, storageInflowQueue);</span>
+<span class="fc" id="L670">        return this;</span>
     }
 
     /**
@@ -465,7 +677,7 @@ public final class CascadeActor
      */
     public boolean isOverflowPolicyDropNewest ()
     {
-<span class="pc bpc" id="L468" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_NEWEST;</span>
+<span class="fc bfc" id="L680" title="All 2 branches covered.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_NEWEST;</span>
     }
 
     /**
@@ -481,10 +693,11 @@ public final class CascadeActor
      *
      * @return this.
      */
-    public CascadeActor useOverflowPolicyDropIncoming ()
+    public CascadeActor setOverflowPolicyDropIncoming ()
     {
-<span class="nc" id="L486">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);</span>
-<span class="nc" id="L487">        return this;</span>
+<span class="fc" id="L698">        requireEgg();</span>
+<span class="fc" id="L699">        replaceQueue(BoundedInflowQueue.OverflowPolicy.DROP_INCOMING, storageInflowQueue);</span>
+<span class="fc" id="L700">        return this;</span>
     }
 
     /**
@@ -494,20 +707,38 @@ public final class CascadeActor
      */
     public boolean isOverflowPolicyDropIncoming ()
     {
-<span class="pc bpc" id="L497" title="1 of 2 branches missed.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_INCOMING;</span>
+<span class="fc bfc" id="L710" title="All 2 branches covered.">        return boundedInflowQueue.policy() == BoundedInflowQueue.OverflowPolicy.DROP_INCOMING;</span>
     }
 
     /**
      * This method causes this actor to begin receiving messages for the given event.
+     *
+     * &lt;p&gt;
+     * This method is a no-op, if this actor is already closing.
+     * &lt;/p&gt;
      *
      * @param event identifies the event to listen for.
      * @return this.
      */
     public CascadeActor subscribe (final CascadeToken event)
     {
-<span class="fc" id="L508">        subscriptions.add(event);</span>
-<span class="fc" id="L509">        dispatcher.subscribe(event, this);</span>
-<span class="fc" id="L510">        return this;</span>
+        /**
+         * Synchronized to prevent concurrent unsubscriptions.
+         *
+         * When the actor dies, it will automatically unsubscribe from all subscriptions.
+         * We must synchronize to prevent new subscriptions from occurring at the same time;
+         * otherwise, a race-condition would exist that could cause a memory-leak.
+         */
+<span class="fc" id="L732">        synchronized (dispatcher)</span>
+        {
+<span class="pc bpc" id="L734" title="1 of 2 branches missed.">            if (phase.get().ordinal() &lt; ActorLifeCycle.CLOSING.ordinal())</span>
+            {
+<span class="fc" id="L736">                subscriptions.add(event);</span>
+<span class="fc" id="L737">                dispatcher.subscribe(event, this);</span>
+            }
+<span class="pc" id="L739">        }</span>
+
+<span class="fc" id="L741">        return this;</span>
     }
 
     /**
@@ -523,9 +754,15 @@ public final class CascadeActor
      */
     public CascadeActor unsubscribe (final CascadeToken event)
     {
-<span class="fc" id="L526">        dispatcher.unsubscribe(event, this);</span>
-<span class="fc" id="L527">        subscriptions.remove(event);</span>
-<span class="fc" id="L528">        return this;</span>
+        /**
+         * Synchronized to prevent concurrent subscriptions.
+         */
+<span class="fc" id="L760">        synchronized (dispatcher)</span>
+        {
+<span class="fc" id="L762">            dispatcher.unsubscribe(event, this);</span>
+<span class="fc" id="L763">            subscriptions.remove(event);</span>
+<span class="pc" id="L764">        }</span>
+<span class="fc" id="L765">        return this;</span>
     }
 
     /**
@@ -535,27 +772,33 @@ public final class CascadeActor
      */
     public Set&lt;CascadeToken&gt; subscriptions ()
     {
-<span class="fc" id="L538">        return ImmutableSet.copyOf(subscriptions);</span>
+<span class="nc" id="L775">        return ImmutableSet.copyOf(subscriptions);</span>
     }
 
     /**
      * Getter.
      *
-     * @return true, if and only if, startup is in-progress.
+     * @return the event-channels that this actor is currently subscribed-to.
      */
-    public boolean isStarting ()
+    public Set&lt;CascadeChannel&gt; inputs ()
     {
-<span class="fc bfc" id="L548" title="All 2 branches covered.">        return state.get() == STARTING;</span>
+<span class="nc" id="L785">        final Set&lt;CascadeChannel&gt; set = subscriptions</span>
+<span class="nc" id="L786">                .stream()</span>
+<span class="nc" id="L787">                .map(evt -&gt; cascade().channelOf(evt).orElse(null))</span>
+<span class="nc bnc" id="L788" title="All 2 branches missed.">                .filter(x -&gt; x != null)</span>
+<span class="nc" id="L789">                .collect(Collectors.toSet());</span>
+
+<span class="nc" id="L791">        return ImmutableSet.copyOf(set);</span>
     }
 
     /**
      * Getter.
      *
-     * @return true, if and only if, startup has completed.
+     * @return the life-cycle-phase that this actor is in.
      */
-    public boolean isStarted ()
+    public ActorLifeCycle getLifeCyclePhase ()
     {
-<span class="pc bpc" id="L558" title="1 of 2 branches missed.">        return state.get() &gt; STARTING;</span>
+<span class="fc" id="L801">        return phase.get();</span>
     }
 
     /**
@@ -565,112 +808,27 @@ public final class CascadeActor
      */
     public boolean isActing ()
     {
-<span class="fc" id="L568">        return acting.get();</span>
+<span class="nc" id="L811">        return acting.get();</span>
     }
 
     /**
-     * Getter.
+     * True, if the life-cycle-phase is neither EGG nor DEAD.
      *
-     * @return true, if and only if, this actor is not unstarted, closed, or closing.
+     * @return true, iff this actor is still alive.
      */
-    public boolean isActive ()
+    public boolean isAlive ()
     {
-<span class="pc bpc" id="L578" title="1 of 2 branches missed.">        return state.get() == ACTIVE;</span>
+<span class="nc bnc" id="L821" title="All 4 branches missed.">        return getLifeCyclePhase() != ActorLifeCycle.EGG &amp;&amp; getLifeCyclePhase() != ActorLifeCycle.DEAD;</span>
     }
 
     /**
-     * Getter.
+     * True, if this actor has already lived and then died.
      *
-     * @return true, if and only if, this actor is leaving the stage.
+     * @return true, if this actor is now dead.
      */
-    public boolean isClosing ()
+    public boolean isDead ()
     {
-<span class="pc bpc" id="L588" title="1 of 2 branches missed.">        return state.get() == CLOSING;</span>
-    }
-
-    /**
-     * Getter.
-     *
-     * @return true, if and only if, this actor has left the stage.
-     */
-    public boolean isClosed ()
-    {
-<span class="pc bpc" id="L598" title="1 of 2 branches missed.">        return state.get() == CLOSED;</span>
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the current number of messages enqueued in the inflow queue.
-     */
-    public int backlogSize ()
-    {
-<span class="fc" id="L608">        return syncInflowQueue.size();</span>
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the current capacity of the inflow queue.
-     */
-    public int backlogCapacity ()
-    {
-<span class="fc" id="L618">        return syncInflowQueue.capacity();</span>
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the total number of messages sent to this actor, thus far,
-     * that were enqueued without being immediately dropped.
-     */
-    public long acceptedMessages ()
-    {
-<span class="fc" id="L629">        return boundedInflowQueue.accepted(); // Thread-Safe</span>
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the total number of messages that this actor
-     * has dropped upon receiving them, thus far.
-     */
-    public long droppedMessages ()
-    {
-<span class="fc" id="L640">        return boundedInflowQueue.dropped(); // Thread-Safe</span>
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the total number of messages that this actor
-     * has actually processed using the script(), thus far.
-     */
-    public long consumedMessages ()
-    {
-<span class="fc" id="L651">        return consumedMessageCount.get();</span>
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the number of unhandled exceptions that
-     * have been thrown by the script(), thus far.
-     */
-    public long unhandledExceptions ()
-    {
-<span class="fc" id="L662">        return unhandledExceptionCount.get();</span>
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the context that is passed to the script()
-     * whenever messages are processed by this actor.
-     */
-    public CascadeContext context ()
-    {
-<span class="fc" id="L673">        return context;</span>
+<span class="fc bfc" id="L831" title="All 2 branches covered.">        return getLifeCyclePhase() == ActorLifeCycle.DEAD;</span>
     }
 
     /**
@@ -689,24 +847,25 @@ public final class CascadeActor
     public CascadeActor tell (final CascadeToken event,
                               final CascadeStack stack)
     {
-<span class="fc" id="L692">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
-<span class="fc" id="L693">        Preconditions.checkNotNull(stack, &quot;stack&quot;);</span>
-<span class="fc" id="L694">        syncInflowQueue.offer(event, stack);</span>
-<span class="fc" id="L695">        return this;</span>
+<span class="fc" id="L850">        Preconditions.checkNotNull(event, &quot;event&quot;);</span>
+<span class="fc" id="L851">        Preconditions.checkNotNull(stack, &quot;stack&quot;);</span>
+<span class="fc" id="L852">        syncInflowQueue.offer(event, stack);</span>
+<span class="fc" id="L853">        return this;</span>
     }
 
     /**
      * Schedule this actor for startup.
      *
+     * &lt;p&gt;
+     * This method is a no-op, if start() or close() were already called.
+     * &lt;/p&gt;
+     *
      * @return this.
      */
     public CascadeActor start ()
     {
-<span class="pc bpc" id="L705" title="1 of 2 branches missed.">        if (state.compareAndSet(UNSTARTED, STARTING))</span>
-        {
-<span class="fc" id="L707">            scheduler.run();</span>
-        }
-<span class="fc" id="L709">        return this;</span>
+<span class="fc" id="L867">        phaseTransitionIf(ActorLifeCycle.EGG, ActorLifeCycle.STARTING);</span>
+<span class="fc" id="L868">        return this;</span>
     }
 
     /**
@@ -729,41 +888,39 @@ public final class CascadeActor
      *
      * @return this.
      */
-    public CascadeActor perform ()
+    public CascadeActor crank ()
     {
-<span class="fc" id="L734">        synchronized (this)</span>
+        try
         {
-            try
-            {
-<span class="fc" id="L738">                setupIfNeeded();</span>
-            }
-<span class="nc" id="L740">            catch (Throwable ex)</span>
-            {
-                //reportUnhandledException(ex);
-<span class="nc" id="L743">                close();</span>
-<span class="nc" id="L744">                return this;</span>
-<span class="fc" id="L745">            }</span>
+<span class="fc" id="L895">            final long taskCount = updatePendingTasks(true, false, false);</span>
 
-            try
+<span class="fc bfc" id="L897" title="All 2 branches covered.">            if (taskCount == 0)</span>
             {
-<span class="fc" id="L749">                processMessageIfNeeded();</span>
+<span class="fc" id="L899">                return this;</span>
             }
-<span class="nc" id="L751">            catch (Throwable ex)</span>
-            {
-                //reportUnhandledException(ex);
-<span class="fc" id="L754">            }</span>
 
-            try
+<span class="fc" id="L902">            synchronized (SELF)</span>
             {
-<span class="fc" id="L758">                shutdownIfNeeded();</span>
-            }
-<span class="nc" id="L760">            catch (Throwable ex)</span>
-            {
-                //reportUnhandledException(ex);
-<span class="fc" id="L763">            }</span>
-<span class="pc" id="L764">        }</span>
+<span class="fc" id="L904">                setupIfNeeded();</span>
+<span class="fc" id="L905">                processMessageIfNeeded();</span>
+<span class="fc" id="L906">                shutdownIfNeeded();</span>
+<span class="pc" id="L907">            }</span>
+        }
+<span class="nc" id="L909">        catch (Throwable ex)</span>
+        {
+            /**
+             * This should never actually happen.
+             * If it does, something is seriously wrong.
+             */
+<span class="nc" id="L915">            unhandledExceptionCount.incrementAndGet();</span>
+<span class="nc" id="L916">            ex.printStackTrace(System.err);</span>
+        }
+        finally
+        {
+<span class="pc" id="L920">            updatePendingTasks(false, true, false);</span>
+<span class="pc" id="L921">        }</span>
 
-<span class="fc" id="L766">        return this;</span>
+<span class="fc" id="L923">        return this;</span>
     }
 
     /**
@@ -779,12 +936,21 @@ public final class CascadeActor
      */
     public CascadeActor close ()
     {
-        // TODO: other states?
-<span class="nc bnc" id="L783" title="All 4 branches missed.">        if (state.compareAndSet(ACTIVE, CLOSING) || state.compareAndSet(UNSTARTED, CLOSING))</span>
-        {
-<span class="nc" id="L785">            scheduler.run();</span>
-        }
-<span class="nc" id="L787">        return this;</span>
+        /**
+         * Stop accepting new messages.
+         * If new messages are sent, drop them immediately.
+         */
+<span class="fc" id="L943">        boundedInflowQueue.disable();</span>
+
+        /**
+         * Perform zero-or-one phase-transition.
+         * Notice that the call order prevents more than one transition.
+         */
+<span class="fc" id="L949">        phaseTransitionIf(ActorLifeCycle.ACTIVE, ActorLifeCycle.CLOSING);</span>
+<span class="fc" id="L950">        phaseTransitionIf(ActorLifeCycle.STARTING, ActorLifeCycle.CLOSING);</span>
+<span class="fc" id="L951">        phaseTransitionIf(ActorLifeCycle.EGG, ActorLifeCycle.CLOSING);</span>
+
+<span class="fc" id="L953">        return this;</span>
     }
 
     /**
@@ -794,111 +960,191 @@ public final class CascadeActor
      * If this actor already started, then this method is a no-op.
      * &lt;/p&gt;
      *
+     * @param goal is the life-cycle-phase that the thread will wait for the actor to reach.
      * @param timeout is the maximum amount of time to wait.
-     * @return this.
+     * @return true, if the goal was reached.
      * @throws java.lang.InterruptedException
      */
-    public CascadeActor awaitStart (final Duration timeout)
+    public boolean await (final ActorLifeCycle goal,
+                          final Duration timeout)
             throws InterruptedException
     {
-<span class="nc" id="L804">        final long nanos = timeout.toNanos();</span>
-<span class="nc" id="L805">        awaitStartLatch.await(nanos, TimeUnit.NANOSECONDS);</span>
-<span class="nc" id="L806">        return this; // TODO: boolean instead?</span>
-    }
-
-    /**
-     * This method blocks, until this actor dies.
-     *
-     * &lt;p&gt;
-     * If this actor already closed, then this method is a no-op.
-     * &lt;/p&gt;
-     *
-     * @param timeout is the maximum amount of time to wait.
-     * @return this.
-     * @throws java.lang.InterruptedException
-     */
-    public CascadeActor awaitClose (final Duration timeout)
-            throws InterruptedException
-    {
-<span class="nc" id="L823">        awaitCloseLatch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);</span>
-<span class="nc" id="L824">        return this; // TODO: boolean instead?</span>
+<span class="nc bnc" id="L972" title="All 2 branches missed.">        if (goal == ActorLifeCycle.EGG)</span>
+        {
+<span class="nc" id="L974">            return true;</span>
+        }
+        else
+        {
+<span class="nc" id="L978">            return awaitLatches[goal.ordinal() - 1].await(timeout.toNanos(), TimeUnit.NANOSECONDS);</span>
+        }
     }
 
     private void setupIfNeeded ()
             throws Throwable
     {
-<span class="fc bfc" id="L830" title="All 2 branches covered.">        if (isStarting())</span>
+<span class="fc bfc" id="L985" title="All 2 branches covered.">        if (phase.get() == ActorLifeCycle.STARTING)</span>
         {
             try
             {
-<span class="fc" id="L834">                script.onSetup(context);</span>
+<span class="fc" id="L989">                script.onSetup(context);</span>
             }
             finally
             {
-<span class="pc" id="L838">                state.set(ACTIVE);</span>
-<span class="pc" id="L839">                awaitStartLatch.countDown();</span>
-<span class="fc" id="L840">            }</span>
+<span class="pc" id="L993">                phaseTransitionIf(ActorLifeCycle.STARTING, ActorLifeCycle.ACTIVE);</span>
+<span class="fc" id="L994">            }</span>
         }
-<span class="fc" id="L842">    }</span>
+<span class="fc" id="L996">    }</span>
 
     private void processMessageIfNeeded ()
             throws Throwable
     {
-<span class="fc" id="L847">        event.set(null);</span>
-<span class="fc" id="L848">        stack.set(null);</span>
-<span class="fc" id="L849">        syncInflowQueue.removeOldest(event, stack);</span>
-<span class="fc bfc" id="L850" title="All 2 branches covered.">        final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)</span>
-<span class="fc bfc" id="L851" title="All 2 branches covered.">        if (delivered)</span>
+<span class="fc bfc" id="L1001" title="All 2 branches covered.">        if (phase.get() == ActorLifeCycle.ACTIVE)</span>
         {
-<span class="fc" id="L853">            consumedMessageCount.incrementAndGet();</span>
-<span class="fc" id="L854">            script.onMessage(context(), event.get(), stack.get());</span>
+<span class="fc" id="L1003">            event.set(null);</span>
+<span class="fc" id="L1004">            stack.set(null);</span>
+<span class="fc" id="L1005">            syncInflowQueue.removeOldest(event, stack);</span>
+<span class="fc bfc" id="L1006" title="All 2 branches covered.">            final boolean delivered = event.get() != null; // Not Always True (Overflow Effects)</span>
+<span class="fc bfc" id="L1007" title="All 2 branches covered.">            if (delivered)</span>
+            {
+<span class="fc" id="L1009">                consumedMessageCount.incrementAndGet();</span>
+<span class="fc" id="L1010">                script.onMessage(context(), event.get(), stack.get());</span>
+            }
         }
-<span class="fc" id="L856">    }</span>
+<span class="fc" id="L1013">    }</span>
 
     private void shutdownIfNeeded ()
             throws Throwable
     {
-<span class="pc bpc" id="L861" title="1 of 2 branches missed.">        if (isClosing())</span>
+        /**
+         * If the actor is in the process of closing,
+         * then continue processing messages,
+         * until the queue is empty, which will occur,
+         * because the queue is no longer accepting new messages.
+         */
+<span class="pc bpc" id="L1024" title="1 of 4 branches missed.">        if (phase.get() == ActorLifeCycle.CLOSING &amp;&amp; syncInflowQueue.isEmpty())</span>
         {
             try
             {
-<span class="nc" id="L865">                script().onClose(context);</span>
+<span class="fc" id="L1028">                script().onClose(context);</span>
             }
             finally
             {
-<span class="nc" id="L869">                state.set(CLOSED);</span>
-<span class="nc" id="L870">                undertaker.accept(this);</span>
-<span class="nc" id="L871">            }</span>
+                /**
+                 * Unsubscribe this actor from all event-channels that it is subscribed-to;
+                 * otherwise, a memory-leak would occur, since the dispatcher would still
+                 * have references to the actor, even though the actor is dead!
+                 * Synchronized to prevent concurrent subscriptions.
+                 */
+<span class="pc" id="L1038">                synchronized (dispatcher)</span>
+                {
+<span class="pc" id="L1040">                    subscriptions.stream().forEach(s -&gt; unsubscribe(s));</span>
+<span class="pc" id="L1041">                }</span>
+
+                /**
+                 * Remove this actor from the stage.
+                 */
+<span class="pc" id="L1046">                undertaker.accept(this);</span>
+
+                /**
+                 * This actor is now totally dead.
+                 */
+<span class="pc" id="L1051">                phaseTransitionIf(ActorLifeCycle.CLOSING, ActorLifeCycle.DEAD);</span>
+<span class="fc" id="L1052">            }</span>
         }
-<span class="fc" id="L873">    }</span>
+<span class="fc" id="L1054">    }</span>
 
     /**
-     * This method will be executed whenever an event-message is received,
-     * even if the message is ultimately dropped by this actor.
+     * Update the counter that tracks the number of needed cranks
+     * and notify the power-source as necessary.
      *
-     * @param queue just received the new message.
+     * @param pre is true, if the call-site is the start of crank().
+     * @param post is true, if the call-site is the end of crank().
+     * @param add is true, if the call-site is a phase-transition
+     * or due to receiving an event-message.
+     * @return the number of pending cranks, if needed at the call-site.
      */
-    private void onQueueAdd (final InflowQueue queue)
+    private long updatePendingTasks (final boolean pre,
+                                     final boolean post,
+                                     final boolean add)
     {
+        /**
+         * Synchronize on the counter itself, rather than (this),
+         * because we do *not* want to block, if the actor is executing.
+         * Otherwise, we could not enqueue messages while executing, etc!
+         */
+<span class="fc" id="L1075">        synchronized (pendingTasks)</span>
+        {
+<span class="fc bfc" id="L1077" title="All 4 branches covered.">            if (add &amp;&amp; pendingTasks.get() == 0)</span>
+            {
+<span class="fc" id="L1079">                pendingTasks.incrementAndGet();</span>
+<span class="fc" id="L1080">                executor.submit(this, pocket);</span>
+            }
+<span class="fc bfc" id="L1082" title="All 2 branches covered.">            else if (add)</span>
+            {
+<span class="fc" id="L1084">                pendingTasks.incrementAndGet();</span>
+            }
+<span class="fc bfc" id="L1086" title="All 2 branches covered.">            else if (pre)</span>
+            {
+<span class="fc" id="L1088">                return pendingTasks.get();</span>
+            }
+<span class="pc bpc" id="L1090" title="1 of 4 branches missed.">            else if (post &amp;&amp; pendingTasks.get() &gt; 1)</span>
+            {
+<span class="fc" id="L1092">                pendingTasks.decrementAndGet();</span>
+<span class="fc" id="L1093">                executor.submit(this, pocket);</span>
+            }
+<span class="pc bpc" id="L1095" title="2 of 4 branches missed.">            else if (post &amp;&amp; pendingTasks.get() &lt;= 1)</span>
+            {
+<span class="fc" id="L1097">                pendingTasks.set(0);</span>
+            }
+            else
+            {
+<span class="nc" id="L1101">                Verify.verify(false, &quot;bug!&quot;);</span>
+            }
+<span class="pc" id="L1103">        }</span>
 
-<span class="fc" id="L884">        scheduler.run();</span>
-<span class="fc" id="L885">    }</span>
+<span class="fc" id="L1105">        return -1;</span>
+    }
 
     private void replaceQueue (final BoundedInflowQueue.OverflowPolicy policy,
                                final InflowQueue newStorageQueue)
     {
-<span class="nc" id="L890">        final Runnable action = () -&gt;</span>
+<span class="fc" id="L1111">        requireEgg();</span>
+<span class="fc" id="L1112">        storageInflowQueue = newStorageQueue;</span>
+<span class="fc" id="L1113">        boundedInflowQueue = new BoundedInflowQueue(policy, newStorageQueue);</span>
+<span class="fc" id="L1114">        swappableInflowQueue.replaceDelegate(boundedInflowQueue);</span>
+<span class="fc" id="L1115">    }</span>
+
+    private boolean phaseTransitionIf (final ActorLifeCycle expected,
+                                       final ActorLifeCycle next)
+    {
+<span class="pc bpc" id="L1120" title="1 of 2 branches missed.">        Verify.verify(next.ordinal() &gt; 0);</span>
+<span class="pc bpc" id="L1121" title="1 of 2 branches missed.">        Verify.verify(ActorLifeCycle.values().length == 5, &quot;Regression Bug!&quot;);</span>
+
+<span class="fc bfc" id="L1123" title="All 2 branches covered.">        if (phase.compareAndSet(expected, next))</span>
         {
-<span class="nc" id="L892">            storageInflowQueue = newStorageQueue;</span>
-<span class="nc" id="L893">            boundedInflowQueue = new BoundedInflowQueue(policy, newStorageQueue);</span>
-<span class="nc" id="L894">            swappableInflowQueue.replaceDelegate(boundedInflowQueue);</span>
-<span class="nc" id="L895">        };</span>
+<span class="fc" id="L1125">            awaitLatches[next.ordinal() - 1].countDown();</span>
 
-        /**
-         * The replacement must be synchronized with regard to other queue operations.
-         */
-<span class="nc" id="L900">        syncInflowQueue.sync(action);</span>
-<span class="nc" id="L901">    }</span>
+            /**
+             * All of the latches for the preceding phases must already be unblocked.
+             */
+<span class="pc bpc" id="L1130" title="1 of 2 branches missed.">            Verify.verify(IntStream.rangeClosed(0, next.ordinal() - 1).allMatch(i -&gt; awaitLatches[i].getCount() == 0));</span>
 
+            /**
+             * Tell the executor to turn the crank.
+             */
+<span class="fc" id="L1135">            updatePendingTasks(false, false, true);</span>
+
+<span class="fc" id="L1137">            return true;</span>
+        }
+        else
+        {
+<span class="fc" id="L1141">            return false;</span>
+        }
+    }
+
+    private void requireEgg ()
+    {
+<span class="pc bpc" id="L1147" title="1 of 2 branches missed.">        Preconditions.checkState(phase.get() == ActorLifeCycle.EGG, &quot;Already Hatched!&quot;);</span>
+<span class="fc" id="L1148">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

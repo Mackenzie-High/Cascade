@@ -104,21 +104,19 @@ public final class CascadeScript
         {
             try
             {
-<span class="fc" id="L107">                subscribe(ctx);</span>
+<span class="fc" id="L107">                final List&lt;OnSetupFunction&gt; array = setupFunctions;</span>
 
-<span class="fc" id="L109">                final List&lt;OnSetupFunction&gt; array = setupFunctions;</span>
-
-<span class="fc bfc" id="L111" title="All 2 branches covered.">                for (int i = 0; i &lt; array.size(); i++)</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">                for (int i = 0; i &lt; array.size(); i++)</span>
                 {
-<span class="fc" id="L113">                    array.get(i).accept(ctx);</span>
+<span class="fc" id="L111">                    array.get(i).accept(ctx);</span>
                 }
             }
-<span class="fc" id="L116">            catch (Throwable ex)</span>
+<span class="fc" id="L114">            catch (Throwable ex)</span>
             {
-<span class="fc" id="L118">                onUnhandledException(ctx, ex);</span>
-<span class="fc" id="L119">            }</span>
-<span class="pc" id="L120">        }</span>
-<span class="fc" id="L121">    }</span>
+<span class="fc" id="L116">                onUnhandledException(ctx, ex);</span>
+<span class="fc" id="L117">            }</span>
+<span class="pc" id="L118">        }</span>
+<span class="fc" id="L119">    }</span>
 
     /**
      * This event-handler will be executed whenever the enclosing actor
@@ -134,23 +132,23 @@ public final class CascadeScript
                            final CascadeStack stack)
             throws Throwable
     {
-<span class="fc" id="L137">        synchronized (eventHandlerLock)</span>
+<span class="fc" id="L135">        synchronized (eventHandlerLock)</span>
         {
             try
             {
-<span class="fc" id="L141">                final List&lt;OnMessageFunction&gt; array = messageFunctions.getOrDefault(event, Collections.EMPTY_LIST);</span>
+<span class="fc" id="L139">                final List&lt;OnMessageFunction&gt; array = messageFunctions.getOrDefault(event, Collections.EMPTY_LIST);</span>
 
-<span class="fc bfc" id="L143" title="All 2 branches covered.">                for (int i = 0; i &lt; array.size(); i++)</span>
+<span class="fc bfc" id="L141" title="All 2 branches covered.">                for (int i = 0; i &lt; array.size(); i++)</span>
                 {
-<span class="fc" id="L145">                    array.get(i).accept(ctx, event, stack);</span>
+<span class="fc" id="L143">                    array.get(i).accept(ctx, event, stack);</span>
                 }
             }
-<span class="fc" id="L148">            catch (Throwable ex)</span>
+<span class="fc" id="L146">            catch (Throwable ex)</span>
             {
-<span class="fc" id="L150">                onUnhandledException(ctx, ex);</span>
-<span class="fc" id="L151">            }</span>
-<span class="pc" id="L152">        }</span>
-<span class="fc" id="L153">    }</span>
+<span class="fc" id="L148">                onUnhandledException(ctx, ex);</span>
+<span class="fc" id="L149">            }</span>
+<span class="pc" id="L150">        }</span>
+<span class="fc" id="L151">    }</span>
 
     /**
      * This event-handler will be executed whenever the enclosing
@@ -170,16 +168,16 @@ public final class CascadeScript
                               final Throwable cause)
             throws Throwable
     {
-<span class="fc" id="L173">        synchronized (eventHandlerLock)</span>
+<span class="fc" id="L171">        synchronized (eventHandlerLock)</span>
         {
-<span class="fc" id="L175">            final List&lt;OnExceptionFunction&gt; array = exceptionFunctions;</span>
+<span class="fc" id="L173">            final List&lt;OnExceptionFunction&gt; array = exceptionFunctions;</span>
 
-<span class="fc bfc" id="L177" title="All 2 branches covered.">            for (int i = 0; i &lt; array.size(); i++)</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">            for (int i = 0; i &lt; array.size(); i++)</span>
             {
-<span class="fc" id="L179">                array.get(i).accept(ctx, cause);</span>
+<span class="fc" id="L177">                array.get(i).accept(ctx, cause);</span>
             }
-<span class="fc" id="L181">        }</span>
-<span class="fc" id="L182">    }</span>
+<span class="fc" id="L179">        }</span>
+<span class="fc" id="L180">    }</span>
 
     /**
      * This event-handler will be executed when the enclosing actor is closed.
@@ -190,34 +188,34 @@ public final class CascadeScript
     public void onClose (final CascadeContext ctx)
             throws Throwable
     {
-<span class="fc" id="L193">        synchronized (eventHandlerLock)</span>
+<span class="fc" id="L191">        synchronized (eventHandlerLock)</span>
         {
             try
             {
-<span class="fc" id="L197">                final List&lt;OnCloseFunction&gt; array = closeFunctions;</span>
+<span class="fc" id="L195">                final List&lt;OnCloseFunction&gt; array = closeFunctions;</span>
 
-<span class="fc bfc" id="L199" title="All 2 branches covered.">                for (int i = 0; i &lt; array.size(); i++)</span>
+<span class="fc bfc" id="L197" title="All 2 branches covered.">                for (int i = 0; i &lt; array.size(); i++)</span>
                 {
-<span class="fc" id="L201">                    array.get(i).accept(ctx);</span>
+<span class="fc" id="L199">                    array.get(i).accept(ctx);</span>
                 }
             }
-<span class="fc" id="L204">            catch (Throwable ex1)</span>
+<span class="fc" id="L202">            catch (Throwable ex1)</span>
             {
-<span class="fc" id="L206">                onUnhandledException(ctx, ex1);</span>
+<span class="fc" id="L204">                onUnhandledException(ctx, ex1);</span>
             }
             finally
             {
-<span class="nc" id="L210">                try</span>
+<span class="nc" id="L208">                try</span>
                 {
-<span class="pc" id="L212">                    unsubscribe(ctx);</span>
+<span class="pc" id="L210">                    unsubscribe(ctx);</span>
                 }
-<span class="nc" id="L214">                catch (Throwable ex2)</span>
+<span class="nc" id="L212">                catch (Throwable ex2)</span>
                 {
-<span class="nc" id="L216">                    onUnhandledException(ctx, ex2);</span>
-<span class="pc" id="L217">                }</span>
-<span class="nc" id="L218">            }</span>
-<span class="pc" id="L219">        }</span>
-<span class="fc" id="L220">    }</span>
+<span class="nc" id="L214">                    onUnhandledException(ctx, ex2);</span>
+<span class="pc" id="L215">                }</span>
+<span class="nc" id="L216">            }</span>
+<span class="pc" id="L217">        }</span>
+<span class="fc" id="L218">    }</span>
 
     /**
      * Prepend the given function onto the list of actions
@@ -228,15 +226,15 @@ public final class CascadeScript
      */
     public CascadeScript prependToOnSetup (final OnSetupFunction functor)
     {
-<span class="fc" id="L231">        synchronized (dataStructureLock)</span>
+<span class="fc" id="L229">        synchronized (dataStructureLock)</span>
         {
-<span class="fc" id="L233">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
-<span class="fc" id="L234">            final ImmutableList.Builder&lt;OnSetupFunction&gt; builder = ImmutableList.builder();</span>
-<span class="fc" id="L235">            builder.add(functor);</span>
-<span class="fc" id="L236">            builder.addAll(setupFunctions);</span>
-<span class="fc" id="L237">            setupFunctions = builder.build();</span>
-<span class="fc" id="L238">            return this;</span>
-<span class="nc" id="L239">        }</span>
+<span class="fc" id="L231">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
+<span class="fc" id="L232">            final ImmutableList.Builder&lt;OnSetupFunction&gt; builder = ImmutableList.builder();</span>
+<span class="fc" id="L233">            builder.add(functor);</span>
+<span class="fc" id="L234">            builder.addAll(setupFunctions);</span>
+<span class="fc" id="L235">            setupFunctions = builder.build();</span>
+<span class="pc" id="L236">        }</span>
+<span class="fc" id="L237">        return this;</span>
     }
 
     /**
@@ -248,15 +246,15 @@ public final class CascadeScript
      */
     public CascadeScript appendToOnSetup (final OnSetupFunction functor)
     {
-<span class="fc" id="L251">        synchronized (dataStructureLock)</span>
+<span class="fc" id="L249">        synchronized (dataStructureLock)</span>
         {
-<span class="fc" id="L253">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
-<span class="fc" id="L254">            final ImmutableList.Builder&lt;OnSetupFunction&gt; builder = ImmutableList.builder();</span>
-<span class="fc" id="L255">            builder.addAll(setupFunctions);</span>
-<span class="fc" id="L256">            builder.add(functor);</span>
-<span class="fc" id="L257">            setupFunctions = builder.build();</span>
-<span class="fc" id="L258">            return this;</span>
-<span class="nc" id="L259">        }</span>
+<span class="fc" id="L251">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
+<span class="fc" id="L252">            final ImmutableList.Builder&lt;OnSetupFunction&gt; builder = ImmutableList.builder();</span>
+<span class="fc" id="L253">            builder.addAll(setupFunctions);</span>
+<span class="fc" id="L254">            builder.add(functor);</span>
+<span class="fc" id="L255">            setupFunctions = builder.build();</span>
+<span class="pc" id="L256">        }</span>
+<span class="fc" id="L257">        return this;</span>
     }
 
     /**
@@ -267,14 +265,14 @@ public final class CascadeScript
      */
     public CascadeScript removeOnSetup (final OnSetupFunction functor)
     {
-<span class="fc" id="L270">        synchronized (dataStructureLock)</span>
+<span class="fc" id="L268">        synchronized (dataStructureLock)</span>
         {
-<span class="fc" id="L272">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
-<span class="fc" id="L273">            final List&lt;OnSetupFunction&gt; builder = Lists.newArrayList(setupFunctions);</span>
-<span class="fc" id="L274">            builder.remove(functor);</span>
-<span class="fc" id="L275">            setupFunctions = ImmutableList.copyOf(builder);</span>
-<span class="fc" id="L276">            return this;</span>
-<span class="nc" id="L277">        }</span>
+<span class="fc" id="L270">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
+<span class="fc" id="L271">            final List&lt;OnSetupFunction&gt; builder = Lists.newArrayList(setupFunctions);</span>
+<span class="fc" id="L272">            builder.remove(functor);</span>
+<span class="fc" id="L273">            setupFunctions = ImmutableList.copyOf(builder);</span>
+<span class="pc" id="L274">        }</span>
+<span class="fc" id="L275">        return this;</span>
     }
 
     /**
@@ -288,17 +286,17 @@ public final class CascadeScript
     public CascadeScript prependToOnMessage (final CascadeToken event,
                                              final OnMessageFunction functor)
     {
-<span class="fc" id="L291">        synchronized (dataStructureLock)</span>
+<span class="fc" id="L289">        synchronized (dataStructureLock)</span>
         {
-<span class="fc" id="L293">            final List&lt;OnMessageFunction&gt; original = messageFunctions.getOrDefault(event, Collections.EMPTY_LIST);</span>
-<span class="fc" id="L294">            final List&lt;OnMessageFunction&gt; builder = Lists.newArrayListWithCapacity(original.size() + 1);</span>
-<span class="fc" id="L295">            builder.add(0, functor);</span>
-<span class="fc" id="L296">            builder.addAll(original);</span>
-<span class="fc" id="L297">            final List&lt;OnMessageFunction&gt; modified = ImmutableList.copyOf(builder);</span>
-<span class="fc" id="L298">            messageFunctions.put(event, modified);</span>
-<span class="fc" id="L299">            context.actor().subscribe(event);</span>
-<span class="fc" id="L300">            return this;</span>
-<span class="nc" id="L301">        }</span>
+<span class="fc" id="L291">            final List&lt;OnMessageFunction&gt; original = messageFunctions.getOrDefault(event, Collections.EMPTY_LIST);</span>
+<span class="fc" id="L292">            final List&lt;OnMessageFunction&gt; builder = Lists.newArrayListWithCapacity(original.size() + 1);</span>
+<span class="fc" id="L293">            builder.add(0, functor);</span>
+<span class="fc" id="L294">            builder.addAll(original);</span>
+<span class="fc" id="L295">            final List&lt;OnMessageFunction&gt; modified = ImmutableList.copyOf(builder);</span>
+<span class="fc" id="L296">            messageFunctions.put(event, modified);</span>
+<span class="fc" id="L297">            context.actor().subscribe(event);</span>
+<span class="pc" id="L298">        }</span>
+<span class="fc" id="L299">        return this;</span>
     }
 
     /**
@@ -312,17 +310,17 @@ public final class CascadeScript
     public CascadeScript appendToOnMessage (final CascadeToken event,
                                             final OnMessageFunction functor)
     {
-<span class="fc" id="L315">        synchronized (dataStructureLock)</span>
+<span class="fc" id="L313">        synchronized (dataStructureLock)</span>
         {
-<span class="fc" id="L317">            final List&lt;OnMessageFunction&gt; original = messageFunctions.getOrDefault(event, Collections.EMPTY_LIST);</span>
-<span class="fc" id="L318">            final List&lt;OnMessageFunction&gt; builder = Lists.newArrayListWithCapacity(original.size() + 1);</span>
-<span class="fc" id="L319">            builder.addAll(original);</span>
-<span class="fc" id="L320">            builder.add(functor);</span>
-<span class="fc" id="L321">            final List&lt;OnMessageFunction&gt; modified = ImmutableList.copyOf(builder);</span>
-<span class="fc" id="L322">            messageFunctions.put(event, modified);</span>
-<span class="fc" id="L323">            context.actor().subscribe(event);</span>
-<span class="fc" id="L324">            return this;</span>
-<span class="nc" id="L325">        }</span>
+<span class="fc" id="L315">            final List&lt;OnMessageFunction&gt; original = messageFunctions.getOrDefault(event, Collections.EMPTY_LIST);</span>
+<span class="fc" id="L316">            final List&lt;OnMessageFunction&gt; builder = Lists.newArrayListWithCapacity(original.size() + 1);</span>
+<span class="fc" id="L317">            builder.addAll(original);</span>
+<span class="fc" id="L318">            builder.add(functor);</span>
+<span class="fc" id="L319">            final List&lt;OnMessageFunction&gt; modified = ImmutableList.copyOf(builder);</span>
+<span class="fc" id="L320">            messageFunctions.put(event, modified);</span>
+<span class="fc" id="L321">            context.actor().subscribe(event);</span>
+<span class="pc" id="L322">        }</span>
+<span class="fc" id="L323">        return this;</span>
     }
 
     /**
@@ -335,23 +333,23 @@ public final class CascadeScript
     public CascadeScript removeOnMessage (final CascadeToken event,
                                           final OnMessageFunction functor)
     {
-<span class="fc" id="L338">        synchronized (dataStructureLock)</span>
+<span class="fc" id="L336">        synchronized (dataStructureLock)</span>
         {
-<span class="fc" id="L340">            final List&lt;OnMessageFunction&gt; original = messageFunctions.getOrDefault(event, Collections.EMPTY_LIST);</span>
-<span class="fc" id="L341">            final List&lt;OnMessageFunction&gt; builder = Lists.newArrayList(original);</span>
-<span class="fc" id="L342">            builder.remove(functor);</span>
-<span class="fc" id="L343">            final List&lt;OnMessageFunction&gt; modified = ImmutableList.copyOf(builder);</span>
-<span class="fc bfc" id="L344" title="All 2 branches covered.">            if (modified.isEmpty())</span>
+<span class="fc" id="L338">            final List&lt;OnMessageFunction&gt; original = messageFunctions.getOrDefault(event, Collections.EMPTY_LIST);</span>
+<span class="fc" id="L339">            final List&lt;OnMessageFunction&gt; builder = Lists.newArrayList(original);</span>
+<span class="fc" id="L340">            builder.remove(functor);</span>
+<span class="fc" id="L341">            final List&lt;OnMessageFunction&gt; modified = ImmutableList.copyOf(builder);</span>
+<span class="fc bfc" id="L342" title="All 2 branches covered.">            if (modified.isEmpty())</span>
             {
-<span class="fc" id="L346">                context.actor().unsubscribe(event);</span>
-<span class="fc" id="L347">                messageFunctions.remove(event);</span>
+<span class="fc" id="L344">                context.actor().unsubscribe(event);</span>
+<span class="fc" id="L345">                messageFunctions.remove(event);</span>
             }
             else
             {
-<span class="fc" id="L351">                messageFunctions.put(event, modified);</span>
+<span class="fc" id="L349">                messageFunctions.put(event, modified);</span>
             }
-<span class="fc" id="L353">            return this;</span>
-<span class="nc" id="L354">        }</span>
+<span class="pc" id="L351">        }</span>
+<span class="fc" id="L352">        return this;</span>
     }
 
     /**
@@ -363,15 +361,15 @@ public final class CascadeScript
      */
     public CascadeScript prependToOnException (final OnExceptionFunction functor)
     {
-<span class="fc" id="L366">        synchronized (dataStructureLock)</span>
+<span class="fc" id="L364">        synchronized (dataStructureLock)</span>
         {
-<span class="fc" id="L368">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
-<span class="fc" id="L369">            final ImmutableList.Builder&lt;OnExceptionFunction&gt; builder = ImmutableList.builder();</span>
-<span class="fc" id="L370">            builder.add(functor);</span>
-<span class="fc" id="L371">            builder.addAll(exceptionFunctions);</span>
-<span class="fc" id="L372">            exceptionFunctions = builder.build();</span>
-<span class="fc" id="L373">            return this;</span>
-<span class="nc" id="L374">        }</span>
+<span class="fc" id="L366">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
+<span class="fc" id="L367">            final ImmutableList.Builder&lt;OnExceptionFunction&gt; builder = ImmutableList.builder();</span>
+<span class="fc" id="L368">            builder.add(functor);</span>
+<span class="fc" id="L369">            builder.addAll(exceptionFunctions);</span>
+<span class="fc" id="L370">            exceptionFunctions = builder.build();</span>
+<span class="pc" id="L371">        }</span>
+<span class="fc" id="L372">        return this;</span>
     }
 
     /**
@@ -383,15 +381,15 @@ public final class CascadeScript
      */
     public CascadeScript appendToOnException (final OnExceptionFunction functor)
     {
-<span class="fc" id="L386">        synchronized (dataStructureLock)</span>
+<span class="fc" id="L384">        synchronized (dataStructureLock)</span>
         {
-<span class="fc" id="L388">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
-<span class="fc" id="L389">            final ImmutableList.Builder&lt;OnExceptionFunction&gt; builder = ImmutableList.builder();</span>
-<span class="fc" id="L390">            builder.addAll(exceptionFunctions);</span>
-<span class="fc" id="L391">            builder.add(functor);</span>
-<span class="fc" id="L392">            exceptionFunctions = builder.build();</span>
-<span class="fc" id="L393">            return this;</span>
-<span class="nc" id="L394">        }</span>
+<span class="fc" id="L386">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
+<span class="fc" id="L387">            final ImmutableList.Builder&lt;OnExceptionFunction&gt; builder = ImmutableList.builder();</span>
+<span class="fc" id="L388">            builder.addAll(exceptionFunctions);</span>
+<span class="fc" id="L389">            builder.add(functor);</span>
+<span class="fc" id="L390">            exceptionFunctions = builder.build();</span>
+<span class="pc" id="L391">        }</span>
+<span class="fc" id="L392">        return this;</span>
     }
 
     /**
@@ -402,14 +400,14 @@ public final class CascadeScript
      */
     public CascadeScript removeOnException (final OnExceptionFunction functor)
     {
-<span class="fc" id="L405">        synchronized (dataStructureLock)</span>
+<span class="fc" id="L403">        synchronized (dataStructureLock)</span>
         {
-<span class="fc" id="L407">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
-<span class="fc" id="L408">            final List&lt;OnExceptionFunction&gt; builder = Lists.newArrayList(exceptionFunctions);</span>
-<span class="fc" id="L409">            builder.remove(functor);</span>
-<span class="fc" id="L410">            exceptionFunctions = ImmutableList.copyOf(builder);</span>
-<span class="fc" id="L411">            return this;</span>
-<span class="nc" id="L412">        }</span>
+<span class="fc" id="L405">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
+<span class="fc" id="L406">            final List&lt;OnExceptionFunction&gt; builder = Lists.newArrayList(exceptionFunctions);</span>
+<span class="fc" id="L407">            builder.remove(functor);</span>
+<span class="fc" id="L408">            exceptionFunctions = ImmutableList.copyOf(builder);</span>
+<span class="pc" id="L409">        }</span>
+<span class="fc" id="L410">        return this;</span>
     }
 
     /**
@@ -421,15 +419,15 @@ public final class CascadeScript
      */
     public CascadeScript prependToOnClose (final OnCloseFunction functor)
     {
-<span class="fc" id="L424">        synchronized (dataStructureLock)</span>
+<span class="fc" id="L422">        synchronized (dataStructureLock)</span>
         {
-<span class="fc" id="L426">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
-<span class="fc" id="L427">            final ImmutableList.Builder&lt;OnCloseFunction&gt; builder = ImmutableList.builder();</span>
-<span class="fc" id="L428">            builder.add(functor);</span>
-<span class="fc" id="L429">            builder.addAll(closeFunctions);</span>
-<span class="fc" id="L430">            closeFunctions = builder.build();</span>
-<span class="fc" id="L431">            return this;</span>
-<span class="nc" id="L432">        }</span>
+<span class="fc" id="L424">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
+<span class="fc" id="L425">            final ImmutableList.Builder&lt;OnCloseFunction&gt; builder = ImmutableList.builder();</span>
+<span class="fc" id="L426">            builder.add(functor);</span>
+<span class="fc" id="L427">            builder.addAll(closeFunctions);</span>
+<span class="fc" id="L428">            closeFunctions = builder.build();</span>
+<span class="pc" id="L429">        }</span>
+<span class="fc" id="L430">        return this;</span>
     }
 
     /**
@@ -441,15 +439,15 @@ public final class CascadeScript
      */
     public CascadeScript appendToOnClose (final OnCloseFunction functor)
     {
-<span class="fc" id="L444">        synchronized (dataStructureLock)</span>
+<span class="fc" id="L442">        synchronized (dataStructureLock)</span>
         {
-<span class="fc" id="L446">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
-<span class="fc" id="L447">            final ImmutableList.Builder&lt;OnCloseFunction&gt; builder = ImmutableList.builder();</span>
-<span class="fc" id="L448">            builder.addAll(closeFunctions);</span>
-<span class="fc" id="L449">            builder.add(functor);</span>
-<span class="fc" id="L450">            closeFunctions = builder.build();</span>
-<span class="fc" id="L451">            return this;</span>
-<span class="nc" id="L452">        }</span>
+<span class="fc" id="L444">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
+<span class="fc" id="L445">            final ImmutableList.Builder&lt;OnCloseFunction&gt; builder = ImmutableList.builder();</span>
+<span class="fc" id="L446">            builder.addAll(closeFunctions);</span>
+<span class="fc" id="L447">            builder.add(functor);</span>
+<span class="fc" id="L448">            closeFunctions = builder.build();</span>
+<span class="pc" id="L449">        }</span>
+<span class="fc" id="L450">        return this;</span>
     }
 
     /**
@@ -460,14 +458,14 @@ public final class CascadeScript
      */
     public CascadeScript removeOnClose (final OnCloseFunction functor)
     {
-<span class="fc" id="L463">        synchronized (dataStructureLock)</span>
+<span class="fc" id="L461">        synchronized (dataStructureLock)</span>
         {
-<span class="fc" id="L465">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
-<span class="fc" id="L466">            final List&lt;OnCloseFunction&gt; builder = Lists.newArrayList(closeFunctions);</span>
-<span class="fc" id="L467">            builder.remove(functor);</span>
-<span class="fc" id="L468">            closeFunctions = ImmutableList.copyOf(builder);</span>
-<span class="fc" id="L469">            return this;</span>
-<span class="nc" id="L470">        }</span>
+<span class="fc" id="L463">            Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
+<span class="fc" id="L464">            final List&lt;OnCloseFunction&gt; builder = Lists.newArrayList(closeFunctions);</span>
+<span class="fc" id="L465">            builder.remove(functor);</span>
+<span class="fc" id="L466">            closeFunctions = ImmutableList.copyOf(builder);</span>
+<span class="pc" id="L467">        }</span>
+<span class="fc" id="L468">        return this;</span>
     }
 
     /**
@@ -477,7 +475,7 @@ public final class CascadeScript
      */
     public List&lt;OnSetupFunction&gt; setupScript ()
     {
-<span class="fc" id="L480">        return ImmutableList.copyOf(setupFunctions);</span>
+<span class="fc" id="L478">        return ImmutableList.copyOf(setupFunctions);</span>
     }
 
     /**
@@ -487,14 +485,14 @@ public final class CascadeScript
      */
     public Map&lt;CascadeToken, List&lt;OnMessageFunction&gt;&gt; messageScript ()
     {
-<span class="fc" id="L490">        final ImmutableMap.Builder&lt;CascadeToken, List&lt;OnMessageFunction&gt;&gt; map = ImmutableMap.builder();</span>
+<span class="fc" id="L488">        final ImmutableMap.Builder&lt;CascadeToken, List&lt;OnMessageFunction&gt;&gt; map = ImmutableMap.builder();</span>
 
-<span class="fc bfc" id="L492" title="All 2 branches covered.">        for (CascadeToken key : messageFunctions.keySet())</span>
+<span class="fc bfc" id="L490" title="All 2 branches covered.">        for (CascadeToken key : messageFunctions.keySet())</span>
         {
-<span class="fc" id="L494">            map.put(key, messageFunctions.getOrDefault(key, Collections.EMPTY_LIST));</span>
-<span class="fc" id="L495">        }</span>
+<span class="fc" id="L492">            map.put(key, messageFunctions.getOrDefault(key, Collections.EMPTY_LIST));</span>
+<span class="fc" id="L493">        }</span>
 
-<span class="fc" id="L497">        return map.build();</span>
+<span class="fc" id="L495">        return map.build();</span>
     }
 
     /**
@@ -504,7 +502,7 @@ public final class CascadeScript
      */
     public List&lt;OnExceptionFunction&gt; exceptionScript ()
     {
-<span class="fc" id="L507">        return ImmutableList.copyOf(exceptionFunctions);</span>
+<span class="fc" id="L505">        return ImmutableList.copyOf(exceptionFunctions);</span>
     }
 
     /**
@@ -514,7 +512,7 @@ public final class CascadeScript
      */
     public List&lt;OnCloseFunction&gt; closeScript ()
     {
-<span class="fc" id="L517">        return ImmutableList.copyOf(closeFunctions);</span>
+<span class="fc" id="L515">        return ImmutableList.copyOf(closeFunctions);</span>
     }
 
     private void onUnhandledException (final CascadeContext ctx,
@@ -522,49 +520,44 @@ public final class CascadeScript
     {
         try
         {
-<span class="fc" id="L525">            unhandledExceptionCount.incrementAndGet();</span>
-<span class="fc" id="L526">            reinterruptIfNeeded(cause);</span>
-<span class="fc" id="L527">            onException(ctx, cause);</span>
+<span class="fc" id="L523">            unhandledExceptionCount.incrementAndGet();</span>
+<span class="fc" id="L524">            reinterruptIfNeeded(cause);</span>
+<span class="fc" id="L525">            onException(ctx, cause);</span>
         }
-<span class="fc" id="L529">        catch (Throwable ex1)</span>
+<span class="fc" id="L527">        catch (Throwable ex1)</span>
         {
             try
             {
-<span class="fc" id="L533">                unhandledExceptionCount.incrementAndGet();</span>
-<span class="fc" id="L534">                reinterruptIfNeeded(cause);</span>
-<span class="nc" id="L535">                onException(ctx, ex1);</span>
+<span class="fc" id="L531">                unhandledExceptionCount.incrementAndGet();</span>
+<span class="fc" id="L532">                reinterruptIfNeeded(cause);</span>
+<span class="nc" id="L533">                onException(ctx, ex1);</span>
             }
-<span class="fc" id="L537">            catch (Throwable ex2)</span>
+<span class="fc" id="L535">            catch (Throwable ex2)</span>
             {
                 try
                 {
-<span class="fc" id="L541">                    unhandledExceptionCount.incrementAndGet();</span>
-<span class="fc" id="L542">                    reinterruptIfNeeded(cause);</span>
+<span class="fc" id="L539">                    unhandledExceptionCount.incrementAndGet();</span>
+<span class="fc" id="L540">                    reinterruptIfNeeded(cause);</span>
                 }
-<span class="nc" id="L544">                catch (Throwable ex3)</span>
+<span class="nc" id="L542">                catch (Throwable ex3)</span>
                 {
                     // Pass. Oh my, you are in some deep trouble.
-<span class="fc" id="L547">                }</span>
-<span class="nc" id="L548">            }</span>
-<span class="fc" id="L549">        }</span>
-<span class="fc" id="L550">    }</span>
+<span class="fc" id="L545">                }</span>
+<span class="nc" id="L546">            }</span>
+<span class="fc" id="L547">        }</span>
+<span class="fc" id="L548">    }</span>
 
     private void reinterruptIfNeeded (final Throwable cause)
     {
-<span class="pc bpc" id="L554" title="1 of 2 branches missed.">        if (cause instanceof InterruptedException)</span>
+<span class="pc bpc" id="L552" title="1 of 2 branches missed.">        if (cause instanceof InterruptedException)</span>
         {
-<span class="fc" id="L556">            Thread.currentThread().interrupt();</span>
+<span class="fc" id="L554">            Thread.currentThread().interrupt();</span>
         }
-<span class="fc" id="L558">    }</span>
-
-    private void subscribe (final CascadeContext ctx)
-    {
-<span class="fc" id="L562">        messageFunctions.keySet().forEach(evt -&gt; ctx.actor().subscribe(evt));</span>
-<span class="fc" id="L563">    }</span>
+<span class="fc" id="L556">    }</span>
 
     private void unsubscribe (final CascadeContext ctx)
     {
-<span class="fc" id="L567">        messageFunctions.keySet().forEach(evt -&gt; ctx.actor().unsubscribe(evt));</span>
-<span class="fc" id="L568">    }</span>
+<span class="fc" id="L560">        messageFunctions.keySet().forEach(evt -&gt; ctx.actor().unsubscribe(evt));</span>
+<span class="fc" id="L561">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

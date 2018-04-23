@@ -51,7 +51,7 @@ public class Main2
                                  final CascadeToken evt,
                                  final CascadeStack msg)
     {
-        if (counter.incrementAndGet() % 100_000 == 0)
+        if (counter.incrementAndGet() % 1_000 == 0)
         {
             System.out.println("X = " + counter);
         }

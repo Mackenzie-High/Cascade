@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.internal.Dispatcher;
-import com.mackenziehigh.cascade.internal.Scheduler;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Set;
@@ -27,19 +26,17 @@ public final class CascadeStage
 
     private final Cascade cascade;
 
-<span class="fc" id="L30">    private final UUID uuid = UUID.randomUUID();</span>
+<span class="fc" id="L29">    private final UUID uuid = UUID.randomUUID();</span>
 
-<span class="fc" id="L32">    private volatile String name = uuid.toString();</span>
+<span class="fc" id="L31">    private volatile String name = uuid.toString();</span>
 
-<span class="fc" id="L34">    private final Set&lt;CascadeActor&gt; actors = Sets.newConcurrentHashSet();</span>
+<span class="fc" id="L33">    private final Set&lt;CascadeActor&gt; actors = Sets.newConcurrentHashSet();</span>
 
-    private final CascadeExecutor executor;
+    private final CascadePowerSource executor;
 
-<span class="fc" id="L38">    private final AtomicInteger state = new AtomicInteger();</span>
+<span class="fc" id="L37">    private final AtomicInteger state = new AtomicInteger();</span>
 
-<span class="fc" id="L40">    private final CountDownLatch stageAwaitCloseLatch = new CountDownLatch(1);</span>
-
-<span class="fc" id="L42">    public final Scheduler&lt;CascadeActor&gt; scheduler = new Scheduler&lt;&gt;(() -&gt; executor().onTask(this));</span>
+<span class="fc" id="L39">    private final CountDownLatch stageAwaitCloseLatch = new CountDownLatch(1);</span>
 
     private final Dispatcher dispatcher;
 
@@ -47,75 +44,26 @@ public final class CascadeStage
 
     CascadeStage (final Cascade cascade,
                   final Dispatcher dispatcher,
-                  final CascadeExecutor executor,
+                  final CascadePowerSource executor,
                   final Consumer&lt;CascadeStage&gt; undertaker)
-<span class="fc" id="L52">    {</span>
-<span class="fc" id="L53">        this.cascade = Objects.requireNonNull(cascade, &quot;cascade&quot;);</span>
-<span class="fc" id="L54">        this.executor = Objects.requireNonNull(executor, &quot;executor&quot;);</span>
-<span class="fc" id="L55">        this.dispatcher = Objects.requireNonNull(dispatcher, &quot;dispatcher&quot;);</span>
-<span class="fc" id="L56">        this.undertaker = Objects.requireNonNull(undertaker, &quot;undertaker&quot;);</span>
-<span class="fc" id="L57">        executor.onStageOpened(this);</span>
+<span class="fc" id="L49">    {</span>
+<span class="fc" id="L50">        this.cascade = Objects.requireNonNull(cascade, &quot;cascade&quot;);</span>
+<span class="fc" id="L51">        this.executor = Objects.requireNonNull(executor, &quot;executor&quot;);</span>
+<span class="fc" id="L52">        this.dispatcher = Objects.requireNonNull(dispatcher, &quot;dispatcher&quot;);</span>
+<span class="fc" id="L53">        this.undertaker = Objects.requireNonNull(undertaker, &quot;undertaker&quot;);</span>
 
-<span class="fc" id="L59">    }</span>
+<span class="fc" id="L55">    }</span>
 
-<span class="fc" id="L61">    public final AtomicInteger cranks = new AtomicInteger();</span>
-
-    /**
-     * Repeatedly invoke this method in order to supply power to the stage,
-     * which in-turn supplies power to the actors contained herein.
-     *
-     * &lt;p&gt;
-     * This method will only perform one unit-of-work at a time.
-     * For example, a single unit-of-work would be when an actor
-     * processes a single incoming message. Or, when an actor is
-     * setup or closed.
-     * &lt;/p&gt;
-     *
-     */
-    public void crank ()
-    {
-        /**
-         * Try to obtain a task from the round-robin scheduler.
-         */
-        try
-        {
-<span class="fc" id="L82">            final Scheduler.Process&lt;CascadeActor&gt; task = scheduler.poll();</span>
-
-<span class="fc bfc" id="L84" title="All 2 branches covered.">            if (task == null)</span>
-            {
-<span class="fc" id="L86">                return; // No Work Performed</span>
-            }
-
-            /**
-             * Execute the actor.
-             */
-<span class="pc" id="L92">            try (Scheduler.Process&lt;CascadeActor&gt; proc = task)</span>
-            {
-<span class="fc" id="L94">                final CascadeActor actor = proc.userObject().get();</span>
-<span class="fc" id="L95">                actor.perform();</span>
-<span class="pc bpc" id="L96" title="6 of 8 branches missed.">            }</span>
-<span class="nc" id="L97">            catch (Throwable ex)</span>
-            {
-                /**
-                 * This should never happen due to the error-handling philosophy of the actor itself.
-                 */
-<span class="nc" id="L102">                ex.printStackTrace(System.err);</span>
-<span class="fc" id="L103">            }</span>
-        }
-<span class="nc" id="L105">        catch (Throwable ex)</span>
-        {
-            // Pass
-<span class="fc" id="L108">        }</span>
-<span class="fc" id="L109">    }</span>
+<span class="fc" id="L57">    public final AtomicInteger cranks = new AtomicInteger();</span>
 
     /**
      * Getter.
      *
      * @return the executor that powers this stage.
      */
-    public CascadeExecutor executor ()
+    public CascadePowerSource executor ()
     {
-<span class="fc" id="L118">        return executor;</span>
+<span class="nc" id="L66">        return executor;</span>
     }
 
     /**
@@ -126,8 +74,8 @@ public final class CascadeStage
      */
     public CascadeStage named (final String name)
     {
-<span class="nc" id="L129">        this.name = Objects.requireNonNull(name, &quot;name&quot;);</span>
-<span class="nc" id="L130">        return this;</span>
+<span class="nc" id="L77">        this.name = Objects.requireNonNull(name, &quot;name&quot;);</span>
+<span class="nc" id="L78">        return this;</span>
     }
 
     /**
@@ -141,7 +89,7 @@ public final class CascadeStage
      */
     public String name ()
     {
-<span class="nc" id="L144">        return name;</span>
+<span class="nc" id="L92">        return name;</span>
     }
 
     /**
@@ -151,7 +99,7 @@ public final class CascadeStage
      */
     public UUID uuid ()
     {
-<span class="nc" id="L154">        return uuid;</span>
+<span class="nc" id="L102">        return uuid;</span>
     }
 
     /**
@@ -161,7 +109,7 @@ public final class CascadeStage
      */
     public Cascade cascade ()
     {
-<span class="fc" id="L164">        return cascade;</span>
+<span class="fc" id="L112">        return cascade;</span>
     }
 
     /**
@@ -171,7 +119,7 @@ public final class CascadeStage
      */
     public Set&lt;CascadeActor&gt; actors ()
     {
-<span class="fc" id="L174">        return ImmutableSet.copyOf(actors);</span>
+<span class="fc" id="L122">        return ImmutableSet.copyOf(actors);</span>
     }
 
     /**
@@ -181,43 +129,20 @@ public final class CascadeStage
      */
     public synchronized CascadeActor newActor ()
     {
-<span class="pc bpc" id="L184" title="1 of 2 branches missed.">        if (isClosing())</span>
+<span class="pc bpc" id="L132" title="1 of 2 branches missed.">        if (isClosing())</span>
         {
-<span class="nc" id="L186">            throw new IllegalStateException(&quot;Already Closing!&quot;);</span>
+<span class="nc" id="L134">            throw new IllegalStateException(&quot;Already Closing!&quot;);</span>
         }
-
-<span class="fc" id="L189">        final Scheduler.Process&lt;CascadeActor&gt; task = scheduler.newProcess();</span>
-
-        /**
-         * The actor will invoke this method whenever it needs to be executed.
-         * This callback will be invoked when the actor is started,
-         * enqueues an event-message, or begins being closed.
-         */
-<span class="fc" id="L196">        final Runnable callback = () -&gt;</span>
-        {
-            /**
-             * Schedule the actor for execution using the round-robin scheduler.
-             * In effect, this just adds the actor to a queue or pending tasks for the executor.
-             */
-<span class="fc" id="L202">            task.schedule();</span>
-
-            /**
-             * Inform the executor that it needs to provide power to this stage,
-             * which in-turn will cause the actor to be executed when the power is applied.
-             */
-<span class="fc" id="L208">            executor.onTask(this);</span>
-<span class="fc" id="L209">        };</span>
 
         /**
          * This is the new actor itself, which will invoke the callback.
          */
-<span class="fc" id="L214">        final CascadeActor actor = new CascadeActor(this,</span>
+<span class="fc" id="L140">        final CascadeActor actor = new CascadeActor(this,</span>
                                                     dispatcher,
-                                                    callback,
-<span class="nc" id="L217">                                                    x -&gt; removeActor(x));</span>
-<span class="fc" id="L218">        actors.add(actor);</span>
-<span class="fc" id="L219">        task.userObject().set(actor);</span>
-<span class="fc" id="L220">        return actor;</span>
+                                                    executor,
+<span class="fc" id="L143">                                                    x -&gt; removeActor(x));</span>
+<span class="fc" id="L144">        actors.add(actor);</span>
+<span class="fc" id="L145">        return actor;</span>
     }
 
     /**
@@ -238,9 +163,9 @@ public final class CascadeStage
      */
     public CascadeActor newActor (CascadeActor.Builder builder)
     {
-<span class="nc" id="L241">        final CascadeActor actor = builder.build();</span>
-<span class="nc" id="L242">        Preconditions.checkState(this.equals(actor.stage()), &quot;Wrong Stage&quot;);</span>
-<span class="nc" id="L243">        return actor;</span>
+<span class="nc" id="L166">        final CascadeActor actor = builder.build();</span>
+<span class="nc" id="L167">        Preconditions.checkState(this.equals(actor.stage()), &quot;Wrong Stage&quot;);</span>
+<span class="nc" id="L168">        return actor;</span>
     }
 
     /**
@@ -257,7 +182,7 @@ public final class CascadeStage
      */
     public &lt;T extends CascadeActor.Builder&gt; T newActor (CascadeActor.Builder.Factory&lt;T&gt; factory)
     {
-<span class="nc" id="L260">        return factory.newBuilder(this);</span>
+<span class="nc" id="L185">        return factory.newBuilder(this);</span>
     }
 
     /**
@@ -267,7 +192,7 @@ public final class CascadeStage
      */
     public boolean isActive ()
     {
-<span class="nc bnc" id="L270" title="All 2 branches missed.">        return state.get() == ACTIVE;</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">        return state.get() == ACTIVE;</span>
     }
 
     /**
@@ -277,7 +202,7 @@ public final class CascadeStage
      */
     public boolean isClosing ()
     {
-<span class="pc bpc" id="L280" title="1 of 2 branches missed.">        return state.get() == CLOSING;</span>
+<span class="pc bpc" id="L205" title="1 of 2 branches missed.">        return state.get() == CLOSING;</span>
     }
 
     /**
@@ -287,7 +212,7 @@ public final class CascadeStage
      */
     public boolean isClosed ()
     {
-<span class="pc bpc" id="L290" title="1 of 2 branches missed.">        return state.get() == CLOSED;</span>
+<span class="pc bpc" id="L215" title="1 of 2 branches missed.">        return state.get() == CLOSED;</span>
     }
 
     /**
@@ -298,12 +223,12 @@ public final class CascadeStage
      */
     public CascadeStage close ()
     {
-<span class="nc" id="L301">        state.set(CLOSING);</span>
-<span class="nc bnc" id="L302" title="All 2 branches missed.">        for (CascadeActor actor : actors)</span>
+<span class="nc" id="L226">        state.set(CLOSING);</span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        for (CascadeActor actor : actors)</span>
         {
-<span class="nc" id="L304">            actor.close();</span>
-<span class="nc" id="L305">        }</span>
-<span class="nc" id="L306">        return this;</span>
+<span class="nc" id="L229">            actor.close();</span>
+<span class="nc" id="L230">        }</span>
+<span class="nc" id="L231">        return this;</span>
     }
 
     /**
@@ -316,21 +241,20 @@ public final class CascadeStage
     public CascadeStage awaitClose (final Duration timeout)
             throws InterruptedException
     {
-<span class="nc" id="L319">        stageAwaitCloseLatch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);</span>
-<span class="nc" id="L320">        return this;</span>
+<span class="nc" id="L244">        stageAwaitCloseLatch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);</span>
+<span class="nc" id="L245">        return this;</span>
     }
 
     private synchronized void removeActor (final CascadeActor actor)
     {
-<span class="nc" id="L325">        actors.remove(actor);</span>
+<span class="fc" id="L250">        actors.remove(actor);</span>
 
-<span class="nc bnc" id="L327" title="All 4 branches missed.">        if (actors.isEmpty() &amp;&amp; isClosing())</span>
+<span class="pc bpc" id="L252" title="2 of 4 branches missed.">        if (actors.isEmpty() &amp;&amp; isClosing())</span>
         {
-<span class="nc" id="L329">            state.set(CLOSED);</span>
-<span class="nc" id="L330">            executor.onStageClosed(this);</span>
-<span class="nc" id="L331">            undertaker.accept(this);</span>
-<span class="nc" id="L332">            stageAwaitCloseLatch.countDown();</span>
+<span class="nc" id="L254">            state.set(CLOSED);</span>
+<span class="nc" id="L255">            undertaker.accept(this);</span>
+<span class="nc" id="L256">            stageAwaitCloseLatch.countDown();</span>
         }
-<span class="nc" id="L334">    }</span>
+<span class="fc" id="L258">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

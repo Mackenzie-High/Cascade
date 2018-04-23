@@ -141,7 +141,7 @@ public final class Cascade
      * @param executor will be used to power the new stage.
      * @return the given stage.
      */
-    public synchronized CascadeStage newStage (final CascadeExecutor executor)
+    public synchronized CascadeStage newStage (final CascadePowerSource executor)
     {
         /**
          * Prevent new stages from being created as we close the existing ones.

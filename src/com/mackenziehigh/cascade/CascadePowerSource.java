@@ -3,13 +3,13 @@ package com.mackenziehigh.cascade;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * An executor provides the power needed to power a stage.
+ * Provides the power needed to power actor(s).
  */
 public interface CascadePowerSource
 {
     /**
-     * The actor that is powered by this executor will
-     * invoke this method when the actor is first created.
+     * The actor will invoke this method when this power-source
+     * becomes responsible for providing power to the actor.
      *
      * @param actor will be powered, going forward, by this executor.
      * @param pocket can be used freely by this executor for storage.
@@ -18,10 +18,10 @@ public interface CascadePowerSource
                           AtomicReference<?> pocket);
 
     /**
-     * The actor that is powered by this executor will
-     * invoke this method when the actor is closed.
+     * The actor will invoke this method when this power-source
+     * becomes no longer responsible for providing power to the actor.
      *
-     * @param actor will no longer be powered by this executor.
+     * @param actor will be powered, going forward, by this executor.
      * @param pocket can be used freely by this executor for storage.
      */
     public void removeActor (CascadeActor actor,

@@ -1,10 +1,15 @@
 package com.mackenziehigh.cascade;
 
+import com.mackenziehigh.cascade.CascadeActor.ActorLifeCycle;
+import com.mackenziehigh.cascade.internal.NopExecutor;
 import com.mackenziehigh.cascade.internal.ServiceExecutor;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 import static junit.framework.Assert.*;
 import org.junit.After;
 import org.junit.Before;
@@ -15,6 +20,12 @@ import org.junit.Test;
  */
 public final class CascadeActorTest
 {
+    private final CascadeToken X = CascadeToken.token("X");
+
+    private final CascadeToken Y = CascadeToken.token("Y");
+
+    private final CascadeToken Z = CascadeToken.token("Z");
+
     private final CascadePowerSource executor = new ServiceExecutor(Executors.newFixedThreadPool(5));
 
     private final Cascade cascade = Cascade.newCascade();
@@ -26,6 +37,8 @@ public final class CascadeActorTest
     @Before
     public void testInitialState ()
     {
+        actor.setPowerSource(new NopExecutor());
+
         assertEquals(cascade, actor.cascade());
         assertEquals(stage, actor.stage());
 
@@ -63,7 +76,7 @@ public final class CascadeActorTest
             throws InterruptedException
     {
         assertTrue(cascade.stages().contains(stage));
-        assertTrue(stage.actors().contains(actor));
+        assertTrue(actor.isDead() || stage.actors().contains(actor));
 
         actor.start(); // TODO
 
@@ -97,19 +110,104 @@ public final class CascadeActorTest
     {
         System.out.println("Test: 20180415032107415710");
 
-        final CascadeToken event1 = CascadeToken.random();
-        final CascadeToken event2 = CascadeToken.random();
-        final CascadeToken event3 = CascadeToken.random();
+        assertEquals(NopExecutor.class, actor.getPowerSource().getClass());
 
-        assertEquals(0, actor.subscriptions().size());
-        actor.subscribe(event1);
-        assertEquals(1, actor.subscriptions().size());
-        actor.subscribe(event2);
-        assertEquals(2, actor.subscriptions().size());
-        actor.subscribe(event2); // Duplicate
-        assertEquals(2, actor.subscriptions().size());
+        final List<String> family = new CopyOnWriteArrayList<>();
+        actor.setArrayInflowQueue(99);
+        assertEquals(99, actor.metrics().getBacklogCapacity());
+        actor.script().appendToOnMessage(X, (ctx, evt, msg) -> family.add(msg.peekAsString()));
 
-        fail();
+        /**
+         * Send a couple of messages before the actor starts.
+         */
+        assertEquals(ActorLifeCycle.EGG, actor.getLifeCyclePhase());
+        assertEquals(0, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Chicky"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Picky"));
+        assertEquals(2, actor.metrics().getBacklogSize());
+        IntStream.range(0, 10).forEach(i -> actor.crank());
+        assertEquals(2, actor.metrics().getBacklogSize());
+
+        /**
+         * Begin starting the actor.
+         */
+        assertEquals(ActorLifeCycle.EGG, actor.getLifeCyclePhase());
+        actor.start();
+        assertEquals(ActorLifeCycle.STARTING, actor.getLifeCyclePhase());
+
+        /**
+         * Send a couple of messages while the actor is starting.
+         */
+        assertEquals(2, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Sikorsky"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Lucky"));
+        assertEquals(4, actor.metrics().getBacklogSize());
+        assertEquals(ActorLifeCycle.STARTING, actor.getLifeCyclePhase());
+
+        /**
+         * Finish starting the actor.
+         */
+        IntStream.range(0, 10).forEach(i -> actor.crank());
+        assertEquals(ActorLifeCycle.ACTIVE, actor.getLifeCyclePhase());
+
+        /**
+         * Send a couple of messages before the actor begins to close.
+         */
+        assertEquals(0, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Eyeball"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Molly"));
+        assertEquals(2, actor.metrics().getBacklogSize());
+        IntStream.range(0, 10).forEach(i -> actor.crank());
+        assertEquals(0, actor.metrics().getBacklogSize());
+        assertEquals(ActorLifeCycle.ACTIVE, actor.getLifeCyclePhase());
+
+        /**
+         * Begin closing the actor.
+         */
+        assertEquals(ActorLifeCycle.ACTIVE, actor.getLifeCyclePhase());
+        actor.close();
+        assertEquals(ActorLifeCycle.CLOSING, actor.getLifeCyclePhase());
+
+        /**
+         * Send a couple of messages as the actor is closing.
+         * The messages should be dropped immediately, since the actor is closing.
+         * We do not want to let them set in the inflow-queue at all.
+         */
+        assertEquals(0, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Jet"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Fluffy"));
+        assertEquals(0, actor.metrics().getBacklogSize());
+
+        /**
+         * Finish closing the actor.
+         */
+        assertEquals(ActorLifeCycle.CLOSING, actor.getLifeCyclePhase());
+        IntStream.range(0, 10).forEach(i -> actor.crank());
+        assertEquals(ActorLifeCycle.DEAD, actor.getLifeCyclePhase());
+
+        /**
+         * Send a couple of messages after the actor closed completely.
+         */
+        assertEquals(0, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Michael"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Daffy"));
+        assertEquals(0, actor.metrics().getBacklogSize());
+        IntStream.range(0, 10).forEach(i -> actor.crank());
+        assertEquals(0, actor.metrics().getBacklogSize());
+        assertEquals(ActorLifeCycle.DEAD, actor.getLifeCyclePhase());
+
+        assertEquals(6, family.size());
+        assertEquals("Chicky", family.get(0));
+        assertEquals("Picky", family.get(1));
+        assertEquals("Sikorsky", family.get(2));
+        assertEquals("Lucky", family.get(3));
+        assertEquals("Eyeball", family.get(4));
+        assertEquals("Molly", family.get(5));
+
+        assertEquals(10, actor.metrics().getOfferedMessageCount());
+        assertEquals(6, actor.metrics().getAcceptedMessageCount());
+        assertEquals(4, actor.metrics().getDroppedMessageCount());
+        assertEquals(6, actor.metrics().getConsumedMessageCount());
     }
 
     /**
@@ -168,7 +266,49 @@ public final class CascadeActorTest
     {
         System.out.println("Test: 20180415033519005791");
 
-        fail();
+        assertEquals(NopExecutor.class, actor.getPowerSource().getClass());
+
+        actor.setOverflowPolicyDropIncoming();
+
+        assertFalse(actor.isOverflowPolicyDropAll());
+        assertTrue(actor.isOverflowPolicyDropIncoming());
+        assertFalse(actor.isOverflowPolicyDropNewest());
+        assertFalse(actor.isOverflowPolicyDropOldest());
+        assertFalse(actor.isOverflowPolicyDropPending());
+
+        actor.setOverflowPolicyDropAll();
+
+        assertTrue(actor.isOverflowPolicyDropAll());
+        assertFalse(actor.isOverflowPolicyDropIncoming());
+        assertFalse(actor.isOverflowPolicyDropNewest());
+        assertFalse(actor.isOverflowPolicyDropOldest());
+        assertFalse(actor.isOverflowPolicyDropPending());
+
+        /**
+         * Now we are going to test whether the overflow-policy works as expected.
+         */
+        final List<String> family = new CopyOnWriteArrayList<>();
+        actor.setArrayInflowQueue(3);
+        assertEquals(3, actor.metrics().getBacklogCapacity());
+        actor.script().appendToOnMessage(X, (ctx, evt, msg) -> family.add(msg.peekAsString()));
+
+        assertEquals(0, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Chicky"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Picky"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Fluffy"));
+        assertEquals(3, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Sikorsky"));
+        assertEquals(0, actor.metrics().getBacklogSize());
+
+        actor.start();
+        IntStream.range(0, 10).forEach(i -> actor.crank());
+
+        assertTrue(family.isEmpty());
+
+        assertEquals(4, actor.metrics().getOfferedMessageCount());
+        assertEquals(3, actor.metrics().getAcceptedMessageCount());
+        assertEquals(4, actor.metrics().getDroppedMessageCount());
+        assertEquals(0, actor.metrics().getConsumedMessageCount());
     }
 
     /**
@@ -182,36 +322,176 @@ public final class CascadeActorTest
     public void test20180415033519005861 ()
     {
         System.out.println("Test: 20180415033519005861");
-        fail();
+
+        assertEquals(NopExecutor.class, actor.getPowerSource().getClass());
+
+        actor.setOverflowPolicyDropAll();
+
+        assertTrue(actor.isOverflowPolicyDropAll());
+        assertFalse(actor.isOverflowPolicyDropIncoming());
+        assertFalse(actor.isOverflowPolicyDropNewest());
+        assertFalse(actor.isOverflowPolicyDropOldest());
+        assertFalse(actor.isOverflowPolicyDropPending());
+
+        actor.setOverflowPolicyDropIncoming();
+
+        assertFalse(actor.isOverflowPolicyDropAll());
+        assertTrue(actor.isOverflowPolicyDropIncoming());
+        assertFalse(actor.isOverflowPolicyDropNewest());
+        assertFalse(actor.isOverflowPolicyDropOldest());
+        assertFalse(actor.isOverflowPolicyDropPending());
+
+        /**
+         * Now we are going to test whether the overflow-policy works as expected.
+         */
+        final List<String> family = new CopyOnWriteArrayList<>();
+        actor.setArrayInflowQueue(3);
+        assertEquals(3, actor.metrics().getBacklogCapacity());
+        actor.script().appendToOnMessage(X, (ctx, evt, msg) -> family.add(msg.peekAsString()));
+
+        assertEquals(0, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Chicky"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Picky"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Fluffy"));
+        assertEquals(3, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Sikorsky"));
+        assertEquals(3, actor.metrics().getBacklogSize());
+
+        actor.start();
+        IntStream.range(0, 10).forEach(i -> actor.crank());
+
+        assertEquals(0, actor.metrics().getBacklogSize());
+        assertEquals(3, family.size());
+        assertEquals("Chicky", family.get(0));
+        assertEquals("Picky", family.get(1));
+        assertEquals("Fluffy", family.get(2));
+
+        assertEquals(4, actor.metrics().getOfferedMessageCount());
+        assertEquals(3, actor.metrics().getAcceptedMessageCount());
+        assertEquals(1, actor.metrics().getDroppedMessageCount());
+        assertEquals(3, actor.metrics().getConsumedMessageCount());
     }
 
     /**
      * Test: 20180415033519005889
      *
      * <p>
-     * Case: New Overflow Policy (Drop Oldest).
+     * Case: New Overflow Policy (Drop Newest).
      * </p>
      */
     @Test
     public void test20180415033519005889 ()
     {
         System.out.println("Test: 20180415033519005889");
-        fail();
+
+        assertEquals(NopExecutor.class, actor.getPowerSource().getClass());
+
+        actor.setOverflowPolicyDropAll();
+
+        assertTrue(actor.isOverflowPolicyDropAll());
+        assertFalse(actor.isOverflowPolicyDropIncoming());
+        assertFalse(actor.isOverflowPolicyDropNewest());
+        assertFalse(actor.isOverflowPolicyDropOldest());
+        assertFalse(actor.isOverflowPolicyDropPending());
+
+        actor.setOverflowPolicyDropNewest();
+
+        assertFalse(actor.isOverflowPolicyDropAll());
+        assertFalse(actor.isOverflowPolicyDropIncoming());
+        assertTrue(actor.isOverflowPolicyDropNewest());
+        assertFalse(actor.isOverflowPolicyDropOldest());
+        assertFalse(actor.isOverflowPolicyDropPending());
+
+        /**
+         * Now we are going to test whether the overflow-policy works as expected.
+         */
+        final List<String> family = new CopyOnWriteArrayList<>();
+        actor.setArrayInflowQueue(3);
+        assertEquals(3, actor.metrics().getBacklogCapacity());
+        actor.script().appendToOnMessage(X, (ctx, evt, msg) -> family.add(msg.peekAsString()));
+
+        assertEquals(0, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Chicky"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Picky"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Fluffy"));
+        assertEquals(3, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Sikorsky"));
+        assertEquals(3, actor.metrics().getBacklogSize());
+
+        actor.start();
+        IntStream.range(0, 10).forEach(i -> actor.crank());
+
+        assertEquals(0, actor.metrics().getBacklogSize());
+        assertEquals(3, family.size());
+        assertEquals("Chicky", family.get(0));
+        assertEquals("Picky", family.get(1));
+        assertEquals("Sikorsky", family.get(2));
+
+        assertEquals(4, actor.metrics().getOfferedMessageCount());
+        assertEquals(4, actor.metrics().getAcceptedMessageCount());
+        assertEquals(1, actor.metrics().getDroppedMessageCount());
+        assertEquals(3, actor.metrics().getConsumedMessageCount());
     }
 
     /**
      * Test: 20180415033519005913
      *
      * <p>
-     * Case: New Overflow Policy (Drop Newest).
+     * Case: New Overflow Policy (Drop Oldest).
      * </p>
      */
     @Test
     public void test20180415033519005913 ()
     {
-
         System.out.println("Test: 20180415033519005913");
-        fail();
+
+        assertEquals(NopExecutor.class, actor.getPowerSource().getClass());
+
+        actor.setOverflowPolicyDropAll();
+
+        assertTrue(actor.isOverflowPolicyDropAll());
+        assertFalse(actor.isOverflowPolicyDropIncoming());
+        assertFalse(actor.isOverflowPolicyDropNewest());
+        assertFalse(actor.isOverflowPolicyDropOldest());
+        assertFalse(actor.isOverflowPolicyDropPending());
+
+        actor.setOverflowPolicyDropOldest();
+
+        assertFalse(actor.isOverflowPolicyDropAll());
+        assertFalse(actor.isOverflowPolicyDropIncoming());
+        assertFalse(actor.isOverflowPolicyDropNewest());
+        assertTrue(actor.isOverflowPolicyDropOldest());
+        assertFalse(actor.isOverflowPolicyDropPending());
+
+        /**
+         * Now we are going to test whether the overflow-policy works as expected.
+         */
+        final List<String> family = new CopyOnWriteArrayList<>();
+        actor.setArrayInflowQueue(3);
+        assertEquals(3, actor.metrics().getBacklogCapacity());
+        actor.script().appendToOnMessage(X, (ctx, evt, msg) -> family.add(msg.peekAsString()));
+
+        assertEquals(0, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Chicky"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Picky"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Fluffy"));
+        assertEquals(3, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Sikorsky"));
+        assertEquals(3, actor.metrics().getBacklogSize());
+
+        actor.start();
+        IntStream.range(0, 10).forEach(i -> actor.crank());
+
+        assertEquals(0, actor.metrics().getBacklogSize());
+        assertEquals(3, family.size());
+        assertEquals("Picky", family.get(0));
+        assertEquals("Fluffy", family.get(1));
+        assertEquals("Sikorsky", family.get(2));
+
+        assertEquals(4, actor.metrics().getOfferedMessageCount());
+        assertEquals(4, actor.metrics().getAcceptedMessageCount());
+        assertEquals(1, actor.metrics().getDroppedMessageCount());
+        assertEquals(3, actor.metrics().getConsumedMessageCount());
     }
 
     /**
@@ -225,7 +505,51 @@ public final class CascadeActorTest
     public void test20180415033519005935 ()
     {
         System.out.println("Test: 20180415033519005935");
-        fail();
+
+        assertEquals(NopExecutor.class, actor.getPowerSource().getClass());
+
+        actor.setOverflowPolicyDropAll();
+
+        assertTrue(actor.isOverflowPolicyDropAll());
+        assertFalse(actor.isOverflowPolicyDropIncoming());
+        assertFalse(actor.isOverflowPolicyDropNewest());
+        assertFalse(actor.isOverflowPolicyDropOldest());
+        assertFalse(actor.isOverflowPolicyDropPending());
+
+        actor.setOverflowPolicyDropPending();
+
+        assertFalse(actor.isOverflowPolicyDropAll());
+        assertFalse(actor.isOverflowPolicyDropIncoming());
+        assertFalse(actor.isOverflowPolicyDropNewest());
+        assertFalse(actor.isOverflowPolicyDropOldest());
+        assertTrue(actor.isOverflowPolicyDropPending());
+
+        /**
+         * Now we are going to test whether the overflow-policy works as expected.
+         */
+        final List<String> family = new CopyOnWriteArrayList<>();
+        actor.setArrayInflowQueue(3);
+        actor.script().appendToOnMessage(X, (ctx, evt, msg) -> family.add(msg.peekAsString()));
+
+        assertEquals(0, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Chicky"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Picky"));
+        actor.tell(X, CascadeStack.newStack().pushObject("Fluffy"));
+        assertEquals(3, actor.metrics().getBacklogSize());
+        actor.tell(X, CascadeStack.newStack().pushObject("Sikorsky"));
+        assertEquals(1, actor.metrics().getBacklogSize());
+
+        actor.start();
+        IntStream.range(0, 10).forEach(i -> actor.crank());
+
+        assertEquals(0, actor.metrics().getBacklogSize());
+        assertEquals(1, family.size());
+        assertTrue(family.contains("Sikorsky"));
+
+        assertEquals(4, actor.metrics().getOfferedMessageCount());
+        assertEquals(4, actor.metrics().getAcceptedMessageCount());
+        assertEquals(3, actor.metrics().getDroppedMessageCount());
+        assertEquals(1, actor.metrics().getConsumedMessageCount());
     }
 
     /**

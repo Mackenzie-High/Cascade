@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 <span class="nc" id="L38">        actor2.script().appendToOnException((ctx, ex) -&gt; ex.printStackTrace(System.err));</span>
 <span class="nc" id="L39">        actor2.start();</span>
 
-<span class="nc" id="L41">        actor1.awaitStart(Duration.ofSeconds(1));</span>
+<span class="nc" id="L41">        actor1.await(CascadeActor.ActorLifeCycle.ACTIVE, Duration.ofSeconds(1));</span>
 
 <span class="nc" id="L43">        cas.send(X, CascadeStack.newStack().pushInt(0));</span>
 
@@ -51,7 +51,7 @@ import java.util.concurrent.atomic.AtomicInteger;
                                  final CascadeToken evt,
                                  final CascadeStack msg)
     {
-<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (counter.incrementAndGet() % 1 == 0)</span>
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (counter.incrementAndGet() % 1_000 == 0)</span>
         {
 <span class="nc" id="L56">            System.out.println(&quot;X = &quot; + counter);</span>
         }
