@@ -218,7 +218,7 @@ public final class CascadeActor
          */
         public Optional<Throwable> getLastUnhandledException ()
         {
-            return Optional.empty(); // TODO
+            return script().getLastUnhandledException();
         }
     }
 

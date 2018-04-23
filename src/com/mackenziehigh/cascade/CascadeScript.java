@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -60,6 +61,8 @@ public final class CascadeScript
                 throws Throwable;
     }
 
+    private volatile Optional<Throwable> lastUnhandledException = Optional.empty();
+
     private final AtomicLong unhandledExceptionCount;
 
     private volatile List<OnSetupFunction> setupFunctions = ImmutableList.of();
@@ -90,6 +93,11 @@ public final class CascadeScript
      * </p>
      */
     private final Object dataStructureLock = new Object();
+
+    public Optional<Throwable> getLastUnhandledException ()
+    {
+        return lastUnhandledException;
+    }
 
     /**
      * This event-handler will be executed when the enclosing actor is setup.
@@ -202,17 +210,6 @@ public final class CascadeScript
             catch (Throwable ex1)
             {
                 onUnhandledException(ctx, ex1);
-            }
-            finally
-            {
-                try
-                {
-                    unsubscribe(ctx);
-                }
-                catch (Throwable ex2)
-                {
-                    onUnhandledException(ctx, ex2);
-                }
             }
         }
     }
@@ -520,6 +517,7 @@ public final class CascadeScript
     {
         try
         {
+            lastUnhandledException = Optional.of(cause);
             unhandledExceptionCount.incrementAndGet();
             reinterruptIfNeeded(cause);
             onException(ctx, cause);
@@ -528,6 +526,7 @@ public final class CascadeScript
         {
             try
             {
+                lastUnhandledException = Optional.of(ex1);
                 unhandledExceptionCount.incrementAndGet();
                 reinterruptIfNeeded(cause);
                 onException(ctx, ex1);
@@ -536,6 +535,7 @@ public final class CascadeScript
             {
                 try
                 {
+                    lastUnhandledException = Optional.of(ex2);
                     unhandledExceptionCount.incrementAndGet();
                     reinterruptIfNeeded(cause);
                 }
@@ -553,10 +553,5 @@ public final class CascadeScript
         {
             Thread.currentThread().interrupt();
         }
-    }
-
-    private void unsubscribe (final CascadeContext ctx)
-    {
-        messageFunctions.keySet().forEach(evt -> ctx.actor().unsubscribe(evt));
     }
 }
