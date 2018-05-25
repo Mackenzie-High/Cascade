@@ -1,10 +1,11 @@
-package com.mackenziehigh.cascade.reactor.internal;
+package dev;
 
 import com.mackenziehigh.cascade.reactor.MutableInput;
 import com.mackenziehigh.cascade.reactor.Output;
 import com.mackenziehigh.cascade.reactor.Reaction;
 import com.mackenziehigh.cascade.reactor.Reactor;
 import com.mackenziehigh.cascade.reactor.builder.ReactorBuilder;
+import com.mackenziehigh.cascade.reactor.internal.InternalReactor;
 
 /**
  *
@@ -30,11 +31,6 @@ public final class Main2
             .build();
 
     private final Reactor core = reactor.build();
-
-    public Main2 ()
-    {
-        reactor.build();
-    }
 
     public static void main (String[] args)
     {

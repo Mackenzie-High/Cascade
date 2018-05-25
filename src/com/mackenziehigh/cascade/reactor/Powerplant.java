@@ -5,7 +5,8 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  *
  */
-public interface Executor
+public interface Powerplant
+        extends AutoCloseable
 {
     public void onStart (Reactor reactor,
                          AtomicReference<?> meta);

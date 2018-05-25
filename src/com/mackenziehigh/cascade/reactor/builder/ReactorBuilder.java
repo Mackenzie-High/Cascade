@@ -1,7 +1,7 @@
 package com.mackenziehigh.cascade.reactor.builder;
 
-import com.mackenziehigh.cascade.reactor.Executor;
 import com.mackenziehigh.cascade.reactor.Reactor;
+import com.mackenziehigh.cascade.reactor.Powerplant;
 
 /**
  *
@@ -10,7 +10,7 @@ public interface ReactorBuilder
 {
     public ReactorBuilder named (String name);
 
-    public ReactorBuilder poweredBy (Executor executor);
+    public ReactorBuilder poweredBy (Powerplant executor);
 
     public <T> InputBuilder<T> newInput (Class<T> type);
 

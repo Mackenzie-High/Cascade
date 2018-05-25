@@ -3,9 +3,9 @@ package com.mackenziehigh.cascade.reactor.internal;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.mackenziehigh.cascade.reactor.Executor;
 import com.mackenziehigh.cascade.reactor.Input;
 import com.mackenziehigh.cascade.reactor.Output;
+import com.mackenziehigh.cascade.reactor.Powerplant;
 import com.mackenziehigh.cascade.reactor.Reaction;
 import com.mackenziehigh.cascade.reactor.Reactor;
 import com.mackenziehigh.cascade.reactor.builder.InputBuilder;
@@ -39,7 +39,7 @@ public final class InternalReactor
 
     private final AtomicReference<?> meta = new AtomicReference<>();
 
-    private volatile Executor executor;
+    private volatile Powerplant executor = new NopPowerplant();
 
     private final Semaphore lock = new Semaphore(1);
 
@@ -70,7 +70,7 @@ public final class InternalReactor
     }
 
     @Override
-    public ReactorBuilder poweredBy (final Executor executor)
+    public ReactorBuilder poweredBy (final Powerplant executor)
     {
         this.executor = Objects.requireNonNull(executor, "executor");
         return this;
@@ -197,7 +197,7 @@ public final class InternalReactor
     }
 
     @Override
-    public Executor executor ()
+    public Powerplant executor ()
     {
         return executor;
     }

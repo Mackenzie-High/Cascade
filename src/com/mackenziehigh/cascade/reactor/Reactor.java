@@ -36,7 +36,7 @@ public interface Reactor
 
     public boolean isReacting ();
 
-    public Executor executor ();
+    public Powerplant executor ();
 
     public Reactor ping ();
 
