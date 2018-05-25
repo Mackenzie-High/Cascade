@@ -218,7 +218,7 @@ public final class CascadeActor
          */
         public Optional<Throwable> getLastUnhandledException ()
         {
-            return script().getLastUnhandledException();
+            return Optional.ofNullable(script.lastUnhandledException);
         }
     }
 
@@ -283,7 +283,7 @@ public final class CascadeActor
     /**
      * This script defines how this actor behaves.
      */
-    private final CascadeScript script = new CascadeScript(context, unhandledExceptionCount);
+    private final Script script = new Script();
 
     /**
      * This inflow-queue physically stores the incoming event-messages.
@@ -454,7 +454,6 @@ public final class CascadeActor
      */
     public CascadeActor setName (final String name)
     {
-        requireEgg();
         this.name = Objects.requireNonNull(name, "name");
         return this;
     }
@@ -729,7 +728,7 @@ public final class CascadeActor
          * We must synchronize to prevent new subscriptions from occurring at the same time;
          * otherwise, a race-condition would exist that could cause a memory-leak.
          */
-        synchronized (dispatcher)
+        synchronized (dispatcher) // TODO: This is global. Bad!
         {
             if (phase.get().ordinal() < ActorLifeCycle.CLOSING.ordinal())
             {
@@ -906,15 +905,6 @@ public final class CascadeActor
                 shutdownIfNeeded();
             }
         }
-        catch (Throwable ex)
-        {
-            /**
-             * This should never actually happen.
-             * If it does, something is seriously wrong.
-             */
-            unhandledExceptionCount.incrementAndGet();
-            ex.printStackTrace(System.err);
-        }
         finally
         {
             updatePendingTasks(false, true, false);
@@ -975,18 +965,18 @@ public final class CascadeActor
         }
         else
         {
-            return awaitLatches[goal.ordinal() - 1].await(timeout.toNanos(), TimeUnit.NANOSECONDS);
+            final CountDownLatch latch = awaitLatches[goal.ordinal() - 1];
+            return latch.await(timeout.toNanos(), TimeUnit.NANOSECONDS);
         }
     }
 
     private void setupIfNeeded ()
-            throws Throwable
     {
         if (phase.get() == ActorLifeCycle.STARTING)
         {
             try
             {
-                script.onSetup(context);
+                script.executeOnSetup();
             }
             finally
             {
@@ -996,7 +986,6 @@ public final class CascadeActor
     }
 
     private void processMessageIfNeeded ()
-            throws Throwable
     {
         if (phase.get() == ActorLifeCycle.ACTIVE)
         {
@@ -1007,13 +996,12 @@ public final class CascadeActor
             if (delivered)
             {
                 consumedMessageCount.incrementAndGet();
-                script.onMessage(context(), event.get(), stack.get());
+                script.executeOnMessage(event.get(), stack.get());
             }
         }
     }
 
     private void shutdownIfNeeded ()
-            throws Throwable
     {
         /**
          * If the actor is in the process of closing,
@@ -1025,7 +1013,7 @@ public final class CascadeActor
         {
             try
             {
-                script().onClose(context);
+                script.executeOnClose();
             }
             finally
             {
@@ -1122,12 +1110,10 @@ public final class CascadeActor
 
         if (phase.compareAndSet(expected, next))
         {
-            awaitLatches[next.ordinal() - 1].countDown();
-
             /**
              * All of the latches for the preceding phases must already be unblocked.
              */
-            Verify.verify(IntStream.rangeClosed(0, next.ordinal() - 1).allMatch(i -> awaitLatches[i].getCount() == 0));
+            IntStream.rangeClosed(0, next.ordinal() - 1).forEach(i -> awaitLatches[i].countDown());
 
             /**
              * Tell the executor to turn the crank.
@@ -1145,5 +1131,146 @@ public final class CascadeActor
     private void requireEgg ()
     {
         Preconditions.checkState(phase.get() == ActorLifeCycle.EGG, "Already Hatched!");
+    }
+
+    /**
+     * Concrete Implementation of CascadeScript.
+     */
+    private final class Script
+            implements CascadeScript
+    {
+        private final Script lock = this;
+
+        private volatile OnSetupFunction onSetup = (ctx) -> nop();
+
+        private volatile OnMessageFunction onMessage = (ctx, evt, stk) -> nop();
+
+        private volatile OnCloseFunction onClose = (ctx) -> nop();
+
+        private volatile OnExceptionFunction onException = (ctx, ex) -> nop();
+
+        public volatile Throwable lastUnhandledException = null;
+
+        public void executeOnSetup ()
+        {
+            synchronized (lock)
+            {
+                try
+                {
+                    onSetup.accept(context);
+                }
+                catch (Throwable ex)
+                {
+                    onException(context, ex);
+                }
+            }
+        }
+
+        public void executeOnMessage (final CascadeToken evt,
+                                      final CascadeStack stk)
+        {
+            synchronized (lock)
+            {
+                try
+                {
+                    onMessage.accept(context, evt, stk);
+                }
+                catch (Throwable ex)
+                {
+                    onException(context, ex);
+                }
+            }
+        }
+
+        public void executeOnClose ()
+        {
+            synchronized (lock)
+            {
+                try
+                {
+                    onClose.accept(context);
+                }
+                catch (Throwable ex)
+                {
+                    onException(context, ex);
+                }
+            }
+        }
+
+        private void onException (final CascadeContext ctx,
+                                  final Throwable cause)
+        {
+            synchronized (lock)
+            {
+                try
+                {
+                    unhandledExceptionCount.incrementAndGet();
+                    lastUnhandledException = cause;
+                    onException.accept(ctx, cause);
+                }
+                catch (Throwable ex)
+                {
+                    unhandledExceptionCount.incrementAndGet();
+                    lastUnhandledException = ex;
+                }
+            }
+        }
+
+        @Override
+        public CascadeScript onSetup (final OnSetupFunction handler)
+        {
+            onSetup = Objects.requireNonNull(handler, "handler");
+            return this;
+        }
+
+        @Override
+        public OnSetupFunction onSetup ()
+        {
+            return onSetup;
+        }
+
+        @Override
+        public CascadeScript onMessage (final OnMessageFunction handler)
+        {
+            onMessage = Objects.requireNonNull(handler, "handler");
+            return this;
+        }
+
+        @Override
+        public OnMessageFunction onMessage ()
+        {
+            return onMessage;
+        }
+
+        @Override
+        public CascadeScript onClose (final OnCloseFunction handler)
+        {
+            onClose = Objects.requireNonNull(handler, "handler");
+            return this;
+        }
+
+        @Override
+        public OnCloseFunction onClose ()
+        {
+            return onClose;
+        }
+
+        @Override
+        public CascadeScript onException (final OnExceptionFunction handler)
+        {
+            onException = Objects.requireNonNull(handler, "handler");
+            return this;
+        }
+
+        @Override
+        public OnExceptionFunction onException ()
+        {
+            return onException;
+        }
+    }
+
+    private static void nop ()
+    {
+        // Pass.
     }
 }

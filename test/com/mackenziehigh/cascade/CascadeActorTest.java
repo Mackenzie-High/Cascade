@@ -1,14 +1,18 @@
 package com.mackenziehigh.cascade;
 
 import com.mackenziehigh.cascade.CascadeActor.ActorLifeCycle;
+import com.mackenziehigh.cascade.CascadeScript.OnCloseFunction;
+import com.mackenziehigh.cascade.CascadeScript.OnExceptionFunction;
+import com.mackenziehigh.cascade.CascadeScript.OnMessageFunction;
+import com.mackenziehigh.cascade.CascadeScript.OnSetupFunction;
 import com.mackenziehigh.cascade.internal.NopExecutor;
 import com.mackenziehigh.cascade.internal.ServiceExecutor;
+import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import static junit.framework.Assert.*;
 import org.junit.After;
@@ -63,10 +67,10 @@ public final class CascadeActorTest
         assertEquals(0, actor.metrics().getDroppedMessageCount());
         assertEquals(0, actor.metrics().getUnhandledExceptionCount());
 
-        assertTrue(actor.script().setupScript().isEmpty());
-        assertTrue(actor.script().messageScript().isEmpty());
-        assertTrue(actor.script().exceptionScript().isEmpty());
-        assertTrue(actor.script().closeScript().isEmpty());
+        assertNotNull(actor.script().onSetup());
+        assertNotNull(actor.script().onMessage());
+        assertNotNull(actor.script().onException());
+        assertNotNull(actor.script().onClose());
 
         assertEquals(actor.uuid().toString(), actor.getName());
     }
@@ -94,6 +98,11 @@ public final class CascadeActorTest
 //        assertTrue(actor.isClosed());
     }
 
+    private void crank100 ()
+    {
+        IntStream.range(0, 100).forEach(i -> actor.crank());
+    }
+
     /**
      * Test: 20180415032107415710
      *
@@ -115,7 +124,8 @@ public final class CascadeActorTest
         final List<String> family = new CopyOnWriteArrayList<>();
         actor.setArrayInflowQueue(99);
         assertEquals(99, actor.metrics().getBacklogCapacity());
-        actor.script().appendToOnMessage(X, (ctx, evt, msg) -> family.add(msg.peekAsString()));
+        actor.script().onMessage((ctx, evt, msg) -> family.add(msg.peekAsString()));
+        actor.subscribe(X);
 
         /**
          * Send a couple of messages before the actor starts.
@@ -222,36 +232,36 @@ public final class CascadeActorTest
             throws InterruptedException
     {
         System.out.println("Test: 20180415021649285230");
-
-        final BlockingQueue<CascadeStack> list = new LinkedBlockingDeque<>();
-
-        final CascadeToken front = CascadeToken.random();
-
-        CascadeToken input = front;
-
-        final CascadeActor frontend = stage.newActor().start();
-
-        CascadeActor middleman = frontend;
-
-        final int k = 1000;
-        for (int i = 0; i < k; i++)
-        {
-            final CascadeToken output = CascadeToken.random();
-            middleman.script().appendToOnMessage(input, (ctx, evt, msg) -> ctx.send(output, msg.pushObject(ctx.actor())));
-            middleman = stage.newActor().start();
-            input = output;
-        }
-
-        final CascadeActor backend = middleman;
-        backend.script().appendToOnMessage(input, (ctx, evt, msg) -> list.add(msg));
-
-        frontend.tell(front, CascadeStack.newStack());
-
-        final CascadeStack stack = list.poll(1, TimeUnit.DAYS);
-
-        assertEquals(k, stack.size());
-        assertEquals(1, backend.metrics().getAcceptedMessageCount());
-        assertEquals(1, backend.metrics().getConsumedMessageCount());
+        fail();
+//        final BlockingQueue<CascadeStack> list = new LinkedBlockingDeque<>();
+//
+//        final CascadeToken front = CascadeToken.random();
+//
+//        CascadeToken input = front;
+//
+//        final CascadeActor frontend = stage.newActor().start();
+//
+//        CascadeActor middleman = frontend;
+//
+//        final int k = 1000;
+//        for (int i = 0; i < k; i++)
+//        {
+//            final CascadeToken output = CascadeToken.random();
+//            middleman.script().onMessage(input, (ctx, evt, msg) -> ctx.send(output, msg.pushObject(ctx.actor())));
+//            middleman = stage.newActor().start();
+//            input = output;
+//        }
+//
+//        final CascadeActor backend = middleman;
+//        backend.script().onMessage(input, (ctx, evt, msg) -> list.add(msg));
+//
+//        frontend.tell(front, CascadeStack.newStack());
+//
+//        final CascadeStack stack = list.poll(1, TimeUnit.DAYS);
+//
+//        assertEquals(k, stack.size());
+//        assertEquals(1, backend.metrics().getAcceptedMessageCount());
+//        assertEquals(1, backend.metrics().getConsumedMessageCount());
     }
 
     /**
@@ -290,7 +300,8 @@ public final class CascadeActorTest
         final List<String> family = new CopyOnWriteArrayList<>();
         actor.setArrayInflowQueue(3);
         assertEquals(3, actor.metrics().getBacklogCapacity());
-        actor.script().appendToOnMessage(X, (ctx, evt, msg) -> family.add(msg.peekAsString()));
+        actor.script().onMessage((ctx, evt, msg) -> family.add(msg.peekAsString()));
+        actor.subscribe(X);
 
         assertEquals(0, actor.metrics().getBacklogSize());
         actor.tell(X, CascadeStack.newStack().pushObject("Chicky"));
@@ -347,7 +358,8 @@ public final class CascadeActorTest
         final List<String> family = new CopyOnWriteArrayList<>();
         actor.setArrayInflowQueue(3);
         assertEquals(3, actor.metrics().getBacklogCapacity());
-        actor.script().appendToOnMessage(X, (ctx, evt, msg) -> family.add(msg.peekAsString()));
+        actor.script().onMessage((ctx, evt, msg) -> family.add(msg.peekAsString()));
+        actor.subscribe(X);
 
         assertEquals(0, actor.metrics().getBacklogSize());
         actor.tell(X, CascadeStack.newStack().pushObject("Chicky"));
@@ -408,7 +420,8 @@ public final class CascadeActorTest
         final List<String> family = new CopyOnWriteArrayList<>();
         actor.setArrayInflowQueue(3);
         assertEquals(3, actor.metrics().getBacklogCapacity());
-        actor.script().appendToOnMessage(X, (ctx, evt, msg) -> family.add(msg.peekAsString()));
+        actor.script().onMessage((ctx, evt, msg) -> family.add(msg.peekAsString()));
+        actor.subscribe(X);
 
         assertEquals(0, actor.metrics().getBacklogSize());
         actor.tell(X, CascadeStack.newStack().pushObject("Chicky"));
@@ -469,7 +482,8 @@ public final class CascadeActorTest
         final List<String> family = new CopyOnWriteArrayList<>();
         actor.setArrayInflowQueue(3);
         assertEquals(3, actor.metrics().getBacklogCapacity());
-        actor.script().appendToOnMessage(X, (ctx, evt, msg) -> family.add(msg.peekAsString()));
+        actor.script().onMessage((ctx, evt, msg) -> family.add(msg.peekAsString()));
+        actor.subscribe(X);
 
         assertEquals(0, actor.metrics().getBacklogSize());
         actor.tell(X, CascadeStack.newStack().pushObject("Chicky"));
@@ -529,7 +543,8 @@ public final class CascadeActorTest
          */
         final List<String> family = new CopyOnWriteArrayList<>();
         actor.setArrayInflowQueue(3);
-        actor.script().appendToOnMessage(X, (ctx, evt, msg) -> family.add(msg.peekAsString()));
+        actor.script().onMessage((ctx, evt, msg) -> family.add(msg.peekAsString()));
+        actor.subscribe(X);
 
         assertEquals(0, actor.metrics().getBacklogSize());
         actor.tell(X, CascadeStack.newStack().pushObject("Chicky"));
@@ -558,12 +573,38 @@ public final class CascadeActorTest
      * <p>
      * Case: close() after closed.
      * </p>
+     *
+     * @throws java.lang.InterruptedException
      */
     @Test
     public void test20180415033519005957 ()
+            throws InterruptedException
     {
         System.out.println("Test: 20180415033519005957");
-        fail();
+
+        final AtomicInteger counter = new AtomicInteger();
+
+        actor.script().onClose(ctx -> counter.incrementAndGet());
+
+        actor.start();
+
+        assertEquals(0, counter.get());
+
+        actor.close();
+
+        assertEquals(0, counter.get());
+
+        actor.close(); // Duplicate.
+
+        crank100();
+
+        actor.close(); // Duplicate.
+
+        crank100();
+
+        actor.await(ActorLifeCycle.DEAD, Duration.ofDays(1));
+
+        assertEquals(1, counter.get());
     }
 
     /**
@@ -572,12 +613,36 @@ public final class CascadeActorTest
      * <p>
      * Case: close() before start().
      * </p>
+     *
+     * @throws java.lang.InterruptedException
      */
     @Test
     public void test20180415033519005982 ()
+            throws InterruptedException
     {
         System.out.println("Test: 20180415033519005982");
-        fail();
+
+        final AtomicInteger counter = new AtomicInteger();
+
+        actor.script().onClose(ctx -> counter.incrementAndGet());
+
+        assertEquals(0, counter.get());
+
+        actor.close();
+
+        assertEquals(0, counter.get());
+
+        actor.close(); // Duplicate.
+
+        crank100();
+
+        actor.close(); // Duplicate.
+
+        crank100();
+
+        actor.await(ActorLifeCycle.DEAD, Duration.ofDays(1));
+
+        assertEquals(1, counter.get());
     }
 
     /**
@@ -591,63 +656,201 @@ public final class CascadeActorTest
     public void test20180415033519006005 ()
     {
         System.out.println("Test: 20180415033519006005");
-        fail();
+
+        final AtomicInteger counter = new AtomicInteger();
+
+        actor.script().onSetup(ctx -> counter.incrementAndGet());
+
+        assertEquals(0, counter.get());
+
+        actor.start();
+
+        assertEquals(0, counter.get());
+
+        actor.start();
+
+        crank100();
+
+        assertEquals(1, counter.get());
+
+        actor.start();
+
+        crank100();
+
+        assertEquals(1, counter.get());
     }
 
     /**
      * Test: 20180415033519006026
      *
      * <p>
-     * Case: Unhandled Exception in script(), uses explicit handler from script.
+     * Case: Unhandled Exception in Setup Script.
      * </p>
      */
     @Test
     public void test20180415033519006026 ()
     {
         System.out.println("Test: 20180415033519006026");
-        fail();
+
+        final AtomicInteger counter = new AtomicInteger();
+
+        final AtomicReference<Throwable> ref = new AtomicReference<>();
+
+        final OnSetupFunction handler = ctx ->
+        {
+            ref.set(new Throwable());
+            throw ref.get();
+        };
+
+        actor.script().onSetup(handler);
+        actor.script().onException((ctx, ex) -> counter.incrementAndGet());
+
+        assertEquals(0, actor.metrics().getUnhandledExceptionCount());
+        assertEquals(0, counter.get());
+        assertFalse(actor.metrics().getLastUnhandledException().isPresent());
+
+        actor.start();
+
+        assertEquals(0, actor.metrics().getUnhandledExceptionCount());
+        assertEquals(0, counter.get());
+        assertFalse(actor.metrics().getLastUnhandledException().isPresent());
+
+        crank100();
+
+        assertEquals(1, actor.metrics().getUnhandledExceptionCount());
+        assertEquals(1, counter.get());
+        assertEquals(ref.get(), actor.metrics().getLastUnhandledException().get());
     }
 
     /**
      * Test: 20180415033519006048
      *
      * <p>
-     * Case: Unhandled Exception in script(), uses implicit handler from actor.
+     * Case: Unhandled Exception in Message Script.
      * </p>
      */
     @Test
     public void test20180415033519006048 ()
     {
         System.out.println("Test: 20180415033519006048");
-        fail();
+
+        final AtomicInteger counter = new AtomicInteger();
+
+        final AtomicReference<Throwable> ref = new AtomicReference<>();
+
+        final OnMessageFunction handler = (ctx, evt, stk) ->
+        {
+            ref.set(new Throwable());
+            throw ref.get();
+        };
+
+        actor.script().onMessage(handler);
+        actor.script().onException((ctx, ex) -> counter.incrementAndGet());
+        actor.subscribe(X);
+
+        actor.tell(X, CascadeStack.newStack());
+
+        assertEquals(0, actor.metrics().getUnhandledExceptionCount());
+        assertEquals(0, counter.get());
+        assertFalse(actor.metrics().getLastUnhandledException().isPresent());
+
+        actor.start();
+
+        assertEquals(0, actor.metrics().getUnhandledExceptionCount());
+        assertEquals(0, counter.get());
+        assertFalse(actor.metrics().getLastUnhandledException().isPresent());
+
+        crank100();
+
+        assertEquals(1, actor.metrics().getUnhandledExceptionCount());
+        assertEquals(1, counter.get());
+        assertEquals(ref.get(), actor.metrics().getLastUnhandledException().get());
     }
 
     /**
      * Test: 20180415034324882820
      *
      * <p>
-     * Case: Unhandled Exception in script(), uses implicit handler from stage.
+     * Case: Unhandled Exception in Close Script.
      * </p>
      */
     @Test
     public void test20180415034324882820 ()
     {
         System.out.println("Test: 20180415034324882820");
-        fail();
+
+        final AtomicInteger counter = new AtomicInteger();
+
+        final AtomicReference<Throwable> ref = new AtomicReference<>();
+
+        final OnCloseFunction handler = ctx ->
+        {
+            ref.set(new Throwable());
+            throw ref.get();
+        };
+
+        actor.script().onClose(handler);
+        actor.script().onException((ctx, ex) -> counter.incrementAndGet());
+
+        assertEquals(0, actor.metrics().getUnhandledExceptionCount());
+        assertEquals(0, counter.get());
+        assertFalse(actor.metrics().getLastUnhandledException().isPresent());
+
+        actor.start();
+        actor.close();
+
+        assertEquals(0, actor.metrics().getUnhandledExceptionCount());
+        assertEquals(0, counter.get());
+        assertFalse(actor.metrics().getLastUnhandledException().isPresent());
+
+        crank100();
+
+        assertEquals(1, actor.metrics().getUnhandledExceptionCount());
+        assertEquals(1, counter.get());
+        assertEquals(ref.get(), actor.metrics().getLastUnhandledException().get());
     }
 
     /**
      * Test: 20180415034324882911
      *
      * <p>
-     * Case: Unhandled Exception in script(), uses implicit handler from cascade.
+     * Case: Unhandled Exception in Exception Script.
      * </p>
      */
     @Test
     public void test20180415034324882911 ()
     {
         System.out.println("Test: 20180415034324882911");
-        fail();
+
+        final AtomicReference<Throwable> refX = new AtomicReference<>();
+        final AtomicReference<Throwable> refY = new AtomicReference<>();
+
+        final OnSetupFunction handlerX = ctx ->
+        {
+            assertEquals(0, actor.metrics().getUnhandledExceptionCount());
+            assertFalse(actor.metrics().getLastUnhandledException().isPresent());
+            refX.set(new Throwable());
+            throw refX.get();
+        };
+
+        final OnExceptionFunction handlerY = (ctx, ex) ->
+        {
+            assertEquals(refX.get(), ex);
+            assertEquals(1, actor.metrics().getUnhandledExceptionCount());
+            assertEquals(refX.get(), actor.metrics().getLastUnhandledException().get());
+            refY.set(new Throwable());
+            throw refY.get();
+        };
+
+        actor.script().onSetup(handlerX);
+        actor.script().onException(handlerY);
+
+        actor.start();
+
+        crank100();
+
+        assertEquals(2, actor.metrics().getUnhandledExceptionCount());
+        assertEquals(refY.get(), actor.metrics().getLastUnhandledException().get());
     }
 
     /**
@@ -661,63 +864,129 @@ public final class CascadeActorTest
     public void test20180415034428512866 ()
     {
         System.out.println("Test: 20180415034428512866");
-        fail();
+
+        final StringBuffer tracer = new StringBuffer();
+
+        assertEquals(actor.uuid().toString(), actor.getName());
+
+        assertEquals(ActorLifeCycle.EGG, actor.getLifeCyclePhase());
+        tracer.append('A');
+        actor.setName("A");
+        assertEquals("A", actor.getName());
+
+        final OnSetupFunction handlerX = (ctx) ->
+        {
+            tracer.append('B');
+            assertEquals(ActorLifeCycle.STARTING, actor.getLifeCyclePhase());
+            actor.setName("B");
+            assertEquals("B", actor.getName());
+        };
+
+        final OnMessageFunction handlerY = (ctx, evt, stk) ->
+        {
+            tracer.append('C');
+            assertEquals(ActorLifeCycle.ACTIVE, actor.getLifeCyclePhase());
+            actor.setName("C");
+            assertEquals("C", actor.getName());
+        };
+
+        final OnCloseFunction handlerZ = (ctx) ->
+        {
+            tracer.append('D');
+            assertEquals(ActorLifeCycle.CLOSING, actor.getLifeCyclePhase());
+            actor.setName("D");
+            assertEquals("D", actor.getName());
+        };
+
+        actor.script().onSetup(handlerX);
+        actor.script().onMessage(handlerY);
+        actor.script().onClose(handlerZ);
+        actor.subscribe(X);
+
+        actor.tell(X, CascadeStack.newStack());
+
+        actor.start();
+        crank100();
+        actor.close();
+        crank100();
+
+        tracer.append('E');
+        assertEquals(ActorLifeCycle.DEAD, actor.getLifeCyclePhase());
+        actor.setName("E");
+        assertEquals("E", actor.getName());
+
+        assertEquals("ABCDE", tracer.toString());
     }
 
     /**
      * Test: 20180415034556318104
      *
      * <p>
-     * Case: subscribe() after start().
+     * Case: subscribe() and unsubscribe() after start().
      * </p>
      */
     @Test
     public void test20180415034556318104 ()
     {
         System.out.println("Test: 20180415034556318104");
-        fail();
-    }
 
-    /**
-     * Test: 20180415034646600185
-     *
-     * <p>
-     * Case: unsubscribe() after start().
-     * </p>
-     */
-    @Test
-    public void test20180415034646600185 ()
-    {
-        System.out.println("Test: 20180415034646600185");
-        fail();
+        final StringBuffer tracer = new StringBuffer();
+
+        actor.script().onMessage((ctx, evt, stk) -> tracer.append(stk.peekAsObject()));
+
+        actor.start();
+
+        cascade.send(X, CascadeStack.newStack().pushObject("A"));
+        actor.subscribe(X);
+        cascade.send(X, CascadeStack.newStack().pushObject("B"));
+        actor.unsubscribe(X);
+        cascade.send(X, CascadeStack.newStack().pushObject("C"));
+        actor.subscribe(X);
+        cascade.send(X, CascadeStack.newStack().pushObject("D"));
+        actor.subscribe(Y);
+        actor.subscribe(Z);
+        cascade.send(Y, CascadeStack.newStack().pushObject("E"));
+        cascade.send(Z, CascadeStack.newStack().pushObject("F"));
+
+        crank100();
+
+        assertEquals("BDEF", tracer.toString());
     }
 
     /**
      * Test: 20180415034646600270
      *
      * <p>
-     * Case: subscribe() after close().
+     * Case: subscribe() and unsubscribe() after close().
      * </p>
      */
     @Test
     public void test20180415034646600270 ()
     {
         System.out.println("Test: 20180415034646600270");
-        fail();
-    }
 
-    /**
-     * Test: 20180415034646600300
-     *
-     * <p>
-     * Case: unsubscribe() after close().
-     * </p>
-     */
-    @Test
-    public void test20180415034646600300 ()
-    {
-        System.out.println("Test: 20180415034646600300");
-        fail();
+        final StringBuffer tracer = new StringBuffer();
+
+        actor.script().onMessage((ctx, evt, stk) -> tracer.append(stk.peekAsObject()));
+
+        actor.start();
+        actor.close();
+
+        cascade.send(X, CascadeStack.newStack().pushObject("A"));
+        actor.subscribe(X);
+        cascade.send(X, CascadeStack.newStack().pushObject("B"));
+        actor.unsubscribe(X);
+        cascade.send(X, CascadeStack.newStack().pushObject("C"));
+        actor.subscribe(X);
+        cascade.send(X, CascadeStack.newStack().pushObject("D"));
+        actor.subscribe(Y);
+        actor.subscribe(Z);
+        cascade.send(Y, CascadeStack.newStack().pushObject("E"));
+        cascade.send(Z, CascadeStack.newStack().pushObject("F"));
+
+        crank100();
+
+        assertTrue(tracer.toString().isEmpty());
     }
 
     /**
@@ -749,62 +1018,6 @@ public final class CascadeActorTest
     }
 
     /**
-     * Test: 20180415034913880483
-     *
-     * <p>
-     * Case: Unhandled Exception in Setup-Handler.
-     * </p>
-     */
-    @Test
-    public void test20180415034913880483 ()
-    {
-        System.out.println("Test: 20180415034913880483");
-        fail();
-    }
-
-    /**
-     * Test: 20180415034913880567
-     *
-     * <p>
-     * Case: Unhandled Exception in Message-Handler.
-     * </p>
-     */
-    @Test
-    public void test20180415034913880567 ()
-    {
-        System.out.println("Test: 20180415034913880567");
-        fail();
-    }
-
-    /**
-     * Test: 20180415035121777621
-     *
-     * <p>
-     * Case: Unhandled Exception in Exception-Handler.
-     * </p>
-     */
-    @Test
-    public void test20180415035121777621 ()
-    {
-        System.out.println("Test: 20180415035121777621");
-        fail();
-    }
-
-    /**
-     * Test: 20180415035121777700
-     *
-     * <p>
-     * Case: Unhandled Exception in Close-Handler.
-     * </p>
-     */
-    @Test
-    public void test20180415035121777700 ()
-    {
-        System.out.println("Test: 20180415035121777700");
-        fail();
-    }
-
-    /**
      * Test: 20180415035121777728
      *
      * <p>
@@ -829,7 +1042,11 @@ public final class CascadeActorTest
     public void test20180415035557863742 ()
     {
         System.out.println("Test: 20180415035557863742");
-        fail();
+
+        /**
+         * Just make sure no exception is thrown.
+         */
+        actor.context().send(CascadeToken.random(), CascadeStack.newStack().pushObject("Vulcan"));
     }
 
     /**
@@ -843,7 +1060,18 @@ public final class CascadeActorTest
     public void test20180415035557863807 ()
     {
         System.out.println("Test: 20180415035557863807");
-        fail();
+
+        final StringBuffer tracer = new StringBuffer();
+
+        actor.subscribe(X);
+        actor.script().onMessage((ctx, evt, stk) -> tracer.append(stk.peekAsObject()));
+        actor.start();
+
+        actor.context().send(X, CascadeStack.newStack().pushObject("Vulcan"));
+
+        crank100();
+
+        assertEquals("Vulcan", tracer.toString());
     }
 
     /**
@@ -857,6 +1085,7 @@ public final class CascadeActorTest
     public void test20180415035751297263 ()
     {
         System.out.println("Test: 20180415035751297263");
-        fail();
+
+        actor.script().onMessage((ctx, evt, stk) ->)
     }
 }

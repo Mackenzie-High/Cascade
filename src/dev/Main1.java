@@ -24,8 +24,9 @@ public class Main1
         final CascadeStage stage = cas.newStage(Executors.newFixedThreadPool(1));
 
         final CascadeActor actor1 = stage.newActor();
-        actor1.script().appendToOnSetup((ctx) -> System.out.println("Z = " + cas.channelOf(token("out"))));
-        actor1.script().appendToOnMessage(token("out"), Main1::action1);
+        actor1.script().onSetup((ctx) -> System.out.println("Z = " + cas.channelOf(token("out"))));
+        actor1.script().onMessage(Main1::action1);
+        actor1.subscribe(token("out"));
         actor1.start();
 
         actor1.await(CascadeActor.ActorLifeCycle.ACTIVE, Duration.ofSeconds(1));
