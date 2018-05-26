@@ -26,7 +26,11 @@ public final class OverflowHandler<T>
 
     public boolean offer (final T value)
     {
-        if (queue.size() < capacity)
+        if (capacity == 0)
+        {
+            return false;
+        }
+        else if (queue.size() < capacity)
         {
             return queue.offer(value);
         }

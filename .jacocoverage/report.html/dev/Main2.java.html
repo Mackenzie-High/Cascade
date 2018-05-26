@@ -1,77 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>Main2.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">dev</a> &gt; <span class="el_source">Main2.java</span></div><h1>Main2.java</h1><pre class="source lang-java linenums">package dev;
 
-import com.mackenziehigh.cascade.Cascade;
-import com.mackenziehigh.cascade.CascadeActor;
-import com.mackenziehigh.cascade.CascadeContext;
-import com.mackenziehigh.cascade.CascadeStack;
-import com.mackenziehigh.cascade.CascadeStage;
-import com.mackenziehigh.cascade.CascadeToken;
-import static com.mackenziehigh.cascade.CascadeToken.*;
-import java.time.Duration;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
+import com.mackenziehigh.cascade.MutableInput;
+import com.mackenziehigh.cascade.Output;
+import com.mackenziehigh.cascade.Reaction;
+import com.mackenziehigh.cascade.Reactor;
+import com.mackenziehigh.cascade.builder.ReactorBuilder;
+import com.mackenziehigh.cascade.internal.InternalReactor;
 
 /**
  *
+ * @author mackenzie
  */
-<span class="nc" id="L17">public class Main2</span>
+<span class="nc" id="L14">public final class Main2</span>
 {
-<span class="nc" id="L19">    private static final CascadeToken X = token(&quot;x&quot;);</span>
+<span class="nc" id="L16">    private final ReactorBuilder reactor = new InternalReactor();</span>
 
-<span class="nc" id="L21">    private static final CascadeToken Y = token(&quot;y&quot;);</span>
+<span class="nc" id="L18">    private final MutableInput&lt;Integer&gt; fin = reactor</span>
+<span class="nc" id="L19">            .newArrayInput(Integer.class)</span>
+<span class="nc" id="L20">            .build();</span>
+
+<span class="nc" id="L22">    private final Output&lt;Integer&gt; fout = reactor</span>
+<span class="nc" id="L23">            .newOutput(Integer.class)</span>
+<span class="nc" id="L24">            .build();</span>
+
+<span class="nc" id="L26">    private final Reaction ract = reactor</span>
+<span class="nc" id="L27">            .newReaction()</span>
+<span class="nc" id="L28">            .require(fin)</span>
+<span class="nc bnc" id="L29" title="All 2 branches missed.">            .require(fin, x -&gt; x % 2 == 0)</span>
+<span class="nc" id="L30">            .onMatch(() -&gt; System.out.println(&quot;X = &quot; + fin.poll().get()))</span>
+<span class="nc" id="L31">            .build();</span>
+
+<span class="nc" id="L33">    private final Reactor core = reactor.build();</span>
 
     public static void main (String[] args)
-            throws InterruptedException
     {
-<span class="nc" id="L26">        final Cascade cas = Cascade.newCascade();</span>
-
-<span class="nc" id="L28">        final CascadeStage stage = cas.newStage(Executors.newScheduledThreadPool(5));</span>
-
-<span class="nc" id="L30">        final CascadeActor actor1 = stage.newActor();</span>
-<span class="nc" id="L31">        actor1.script().appendToOnMessage(X, Main2::action1);</span>
-<span class="nc" id="L32">        actor1.script().appendToOnMessage(X, Main2::action2);</span>
-<span class="nc" id="L33">        actor1.script().appendToOnException((ctx, ex) -&gt; ex.printStackTrace(System.err));</span>
-<span class="nc" id="L34">        actor1.start();</span>
-
-<span class="nc" id="L36">        final CascadeActor actor2 = stage.newActor();</span>
-<span class="nc" id="L37">        actor2.script().appendToOnMessage(Y, Main2::action3);</span>
-<span class="nc" id="L38">        actor2.script().appendToOnException((ctx, ex) -&gt; ex.printStackTrace(System.err));</span>
-<span class="nc" id="L39">        actor2.start();</span>
-
-<span class="nc" id="L41">        actor1.await(CascadeActor.ActorLifeCycle.ACTIVE, Duration.ofSeconds(1));</span>
-
-<span class="nc" id="L43">        cas.send(X, CascadeStack.newStack().pushInt(0));</span>
-
-<span class="nc" id="L45">        cas.awaitClose(Duration.ofSeconds(1000));</span>
-<span class="nc" id="L46">    }</span>
-
-<span class="nc" id="L48">    private static final AtomicInteger counter = new AtomicInteger();</span>
-
-    private static void action1 (final CascadeContext ctx,
-                                 final CascadeToken evt,
-                                 final CascadeStack msg)
-    {
-<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (counter.incrementAndGet() % 1_000 == 0)</span>
-        {
-<span class="nc" id="L56">            System.out.println(&quot;X = &quot; + counter);</span>
-        }
-<span class="nc" id="L58">    }</span>
-
-    private static void action2 (final CascadeContext ctx,
-                                 final CascadeToken evt,
-                                 final CascadeStack msg)
-    {
-<span class="nc" id="L64">        ctx.send(Y, msg);</span>
-<span class="nc" id="L65">    }</span>
-
-    private static void action3 (final CascadeContext ctx,
-                                 final CascadeToken evt,
-                                 final CascadeStack msg)
-    {
-//        final int top = msg.peekAsInt();
-//        msg.pop();
-//        ctx.send(X, CascadeStack.newStack().pushInt(top + 1));
-<span class="nc" id="L74">        ctx.send(X, msg);</span>
-<span class="nc" id="L75">    }</span>
+<span class="nc" id="L37">        final Main2 actor = new Main2();</span>
+<span class="nc" id="L38">        actor.fin.send(100);</span>
+<span class="nc" id="L39">        actor.core.crank();</span>
+<span class="nc" id="L40">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

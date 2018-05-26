@@ -30,7 +30,7 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
 {
     protected abstract T self ();
 
-    protected abstract void offer (E value);
+    protected abstract boolean offer (E value);
 
     protected final Object lock = new Object();
 
@@ -238,13 +238,12 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
         if (built.get())
         {
             final E transformed = operator.apply(value);
+            final boolean inserted = transformed != null && offer(transformed);
 
-            if (transformed != null)
+            if (inserted)
             {
-                offer(transformed);
+                reactor.ping();
             }
-
-            reactor.ping();
         }
 
         return this;

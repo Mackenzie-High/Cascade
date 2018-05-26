@@ -1,6 +1,5 @@
 package com.mackenziehigh.cascade;
 
-import com.mackenziehigh.cascade.Input;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -13,6 +12,8 @@ public interface Output<T>
     public UUID uuid ();
 
     public String name ();
+
+    public Class<T> type ();
 
     public Optional<Reactor> reactor ();
 

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ReactionBuilder.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.builder</a> &gt; <span class="el_source">ReactionBuilder.java</span></div><h1>ReactionBuilder.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.builder;
+
+import com.google.common.base.Preconditions;
+import com.mackenziehigh.cascade.CheckedRunnable;
+import com.mackenziehigh.cascade.Input;
+import com.mackenziehigh.cascade.Output;
+import com.mackenziehigh.cascade.Reaction;
+import java.time.temporal.ChronoUnit;
+import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
+
+/**
+ *
+ */
+public interface ReactionBuilder
+{
+    public ReactionBuilder named (String name);
+
+    public ReactionBuilder require (BooleanSupplier condition);
+
+    public default ReactionBuilder require (Input&lt;?&gt; input)
+    {
+<span class="nc" id="L23">        Preconditions.checkNotNull(input, &quot;input&quot;);</span>
+<span class="nc bnc" id="L24" title="All 2 branches missed.">        return require(() -&gt; !input.isEmpty());</span>
+    }
+
+    public default &lt;T&gt; ReactionBuilder require (Input&lt;T&gt; input,
+                                                Predicate&lt;T&gt; head)
+    {
+<span class="nc" id="L30">        Preconditions.checkNotNull(input, &quot;input&quot;);</span>
+<span class="nc" id="L31">        Preconditions.checkNotNull(head, &quot;head&quot;);</span>
+<span class="nc" id="L32">        return require(() -&gt; head.test(input.peekOrDefault(null)));</span>
+    }
+
+    public default ReactionBuilder require (Output&lt;?&gt; output)
+    {
+<span class="nc" id="L37">        Preconditions.checkNotNull(output, &quot;output&quot;);</span>
+<span class="nc bnc" id="L38" title="All 2 branches missed.">        return require(() -&gt; !output.isFull());</span>
+    }
+
+    public default ReactionBuilder rateLimit (int permits,
+                                              ChronoUnit unit)
+    {
+        // TODO
+<span class="nc" id="L45">        return this;</span>
+    }
+
+    public default ReactorBuilder limit (long count)
+    {
+<span class="nc" id="L50">        return null;</span>
+    }
+
+    public ReactionBuilder onMatch (CheckedRunnable task);
+
+    public ReactionBuilder orElse (CheckedRunnable task);
+
+    public ReactionBuilder onError (CheckedRunnable handler);
+
+    public Reaction build ();
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

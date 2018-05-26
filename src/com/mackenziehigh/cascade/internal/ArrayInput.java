@@ -16,18 +16,27 @@ public final class ArrayInput<E>
         implements ArrayInputBuilder<E>
 {
 
+    private final Class<E> type;
+
     private volatile Deque<E> queue;
 
     private volatile OverflowHandler<E> overflowHandler;
 
     private volatile OverflowPolicy policy = OverflowPolicy.UNSPECIFIED;
 
-    private volatile int capacity;
+    private volatile int capacity = 0;
 
-    public ArrayInput (final InternalReactor reactor,
+    public ArrayInput (final MockableReactor reactor,
                        final Class<E> type)
     {
         super(reactor);
+        this.type = Objects.requireNonNull(type, "type");
+    }
+
+    @Override
+    public Class<E> type ()
+    {
+        return type;
     }
 
     @Override
@@ -77,17 +86,20 @@ public final class ArrayInput<E>
     {
         synchronized (lock)
         {
-            queue.clear();
+            if (queue != null)
+            {
+                queue.clear();
+            }
             return this;
         }
     }
 
     @Override
-    protected void offer (final E value)
+    protected boolean offer (final E value)
     {
         synchronized (lock)
         {
-            overflowHandler.offer(value);
+            return overflowHandler.offer(value);
         }
     }
 
@@ -96,8 +108,15 @@ public final class ArrayInput<E>
     {
         synchronized (lock)
         {
-            final E head = queue.peek();
-            return head == null ? defaultValue : head;
+            if (queue != null)
+            {
+                final E head = queue.peek();
+                return head == null ? defaultValue : head;
+            }
+            else
+            {
+                return defaultValue;
+            }
         }
     }
 
@@ -106,9 +125,16 @@ public final class ArrayInput<E>
     {
         synchronized (lock)
         {
-            final E head = queue.poll();
-            pingInputs();
-            return head == null ? defaultValue : head;
+            if (queue != null)
+            {
+                final E head = queue.poll();
+                pingInputs();
+                return head == null ? defaultValue : head;
+            }
+            else
+            {
+                return defaultValue;
+            }
         }
     }
 
@@ -123,7 +149,8 @@ public final class ArrayInput<E>
     {
         synchronized (lock)
         {
-            return queue.size();
+            final int size = queue == null ? 0 : queue.size();
+            return size;
         }
     }
 
@@ -132,7 +159,7 @@ public final class ArrayInput<E>
     {
         synchronized (lock)
         {
-            return queue.isEmpty();
+            return size() == 0;
         }
     }
 
@@ -150,7 +177,11 @@ public final class ArrayInput<E>
     {
         synchronized (lock)
         {
-            queue.forEach(functor);
+            if (queue != null)
+            {
+                Preconditions.checkNotNull(functor, "functor");
+                queue.forEach(functor);
+            }
             return this;
         }
     }

@@ -25,6 +25,8 @@ public final class InternalOutput<T>
 
     private final UUID uuid = UUID.randomUUID();
 
+    private final Class<T> type;
+
     private final Object lock = new Object();
 
     private volatile boolean built = false;
@@ -37,6 +39,13 @@ public final class InternalOutput<T>
                            final Class<T> type)
     {
         this.reactor = Objects.requireNonNull(reactor);
+        this.type = Objects.requireNonNull(type);
+    }
+
+    @Override
+    public Class<T> type ()
+    {
+        return type;
     }
 
     @Override

@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>AbstractInput.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.internal</a> &gt; <span class="el_source">AbstractInput.java</span></div><h1>AbstractInput.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.internal;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.RateLimiter;
+import com.mackenziehigh.cascade.Input;
+import com.mackenziehigh.cascade.MutableInput;
+import com.mackenziehigh.cascade.Output;
+import com.mackenziehigh.cascade.Reactor;
+import com.mackenziehigh.cascade.builder.InputBuilder;
+import java.time.temporal.ChronoUnit;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
+
+/**
+ *
+ * @param &lt;E&gt;
+ */
+public abstract class AbstractInput&lt;E, T extends AbstractInput&lt;E, T&gt;&gt;
+        implements InputBuilder&lt;E&gt;,
+                   MutableInput&lt;E&gt;
+{
+    protected abstract T self ();
+
+    protected abstract boolean offer (E value);
+
+<span class="fc" id="L35">    protected final Object lock = new Object();</span>
+
+    protected final MockableReactor reactor;
+
+<span class="fc" id="L39">    protected final AtomicBoolean built = new AtomicBoolean();</span>
+
+<span class="fc" id="L41">    private final UUID uuid = UUID.randomUUID();</span>
+
+<span class="fc" id="L43">    private volatile String name = uuid.toString();</span>
+
+<span class="fc" id="L45">    private volatile UnaryOperator&lt;E&gt; operator = UnaryOperator.identity();</span>
+
+<span class="fc" id="L47">    private final Set&lt;Output&lt;E&gt;&gt; connections = new CopyOnWriteArraySet&lt;&gt;();</span>
+
+    public AbstractInput (final MockableReactor reactor)
+<span class="fc" id="L50">    {</span>
+<span class="fc" id="L51">        this.reactor = Objects.requireNonNull(reactor);</span>
+<span class="fc" id="L52">    }</span>
+
+    protected void requireEgg ()
+    {
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        if (built.get())</span>
+        {
+<span class="fc" id="L58">            throw new IllegalStateException(&quot;Already Built!&quot;);</span>
+        }
+<span class="fc" id="L60">    }</span>
+
+    protected void pingInputs ()
+    {
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        for (Output&lt;?&gt; conn : connections)</span>
+        {
+<span class="nc" id="L66">            conn.reactor().ifPresent(x -&gt; x.ping());</span>
+<span class="nc" id="L67">        }</span>
+<span class="fc" id="L68">    }</span>
+
+    @Override
+    public T named (final String name)
+    {
+<span class="fc" id="L73">        synchronized (lock)</span>
+        {
+<span class="fc" id="L75">            requireEgg();</span>
+<span class="fc" id="L76">            this.name = Objects.requireNonNull(name, &quot;name&quot;);</span>
+<span class="fc" id="L77">            return self();</span>
+<span class="fc" id="L78">        }</span>
+    }
+
+    @Override
+    public T filter (final Predicate&lt;E&gt; filter)
+    {
+<span class="nc" id="L84">        synchronized (lock)</span>
+        {
+<span class="nc" id="L86">            requireEgg();</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            operator = x -&gt; filter.test(x) ? x : null;</span>
+<span class="nc" id="L88">            return self();</span>
+<span class="nc" id="L89">        }</span>
+    }
+
+    @Override
+    public T transform (final UnaryOperator&lt;E&gt; transform)
+    {
+<span class="nc" id="L95">        Preconditions.checkNotNull(transform, &quot;transform&quot;);</span>
+
+<span class="nc" id="L97">        final UnaryOperator&lt;E&gt; wrapper = x -&gt;</span>
+        {
+            /**
+             * The send() method ensures that null was not the input.
+             * Thus, a null here must be the output of a filter.
+             * Propagate the null.
+             */
+<span class="nc bnc" id="L104" title="All 2 branches missed.">            if (x == null)</span>
+            {
+<span class="nc" id="L106">                return null;</span>
+            }
+
+            /**
+             * Apply the transform, but do not allow it to return null.
+             */
+<span class="nc" id="L112">            final E result = transform.apply(x);</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">            if (result == null)</span>
+            {
+<span class="nc" id="L115">                final String msg = &quot;A transform returned null in input: &quot; + name();</span>
+<span class="nc" id="L116">                throw new NullPointerException(msg);</span>
+            }
+<span class="nc" id="L118">            return result;</span>
+        };
+
+<span class="nc" id="L121">        synchronized (lock)</span>
+        {
+<span class="nc" id="L123">            requireEgg();</span>
+<span class="nc" id="L124">            operator = x -&gt; wrapper.apply(operator.apply(x));</span>
+<span class="nc" id="L125">            return self();</span>
+<span class="nc" id="L126">        }</span>
+    }
+
+    @Override
+    public T verify (Predicate&lt;E&gt; condition)
+    {
+<span class="nc" id="L132">        final Predicate&lt;E&gt; checker = x -&gt;</span>
+        {
+<span class="nc" id="L134">            final boolean test = condition.test(x);</span>
+<span class="nc" id="L135">            Verify.verify(test);</span>
+<span class="nc" id="L136">            return true;</span>
+        };
+
+<span class="nc" id="L139">        return filter(checker);</span>
+    }
+
+    @Override
+    public T rateLimit (final int permits,
+                        final ChronoUnit unit)
+    {
+        // TODO
+
+<span class="nc" id="L148">        final Object limiterLock = new Object();</span>
+
+<span class="nc" id="L150">        final RateLimiter limiter = RateLimiter.create(permits);</span>
+
+<span class="nc" id="L152">        final Predicate&lt;E&gt; filter = x -&gt;</span>
+        {
+<span class="nc" id="L154">            synchronized (limiterLock)</span>
+            {
+<span class="nc" id="L156">                return limiter.tryAcquire();</span>
+<span class="nc" id="L157">            }</span>
+        };
+
+<span class="nc" id="L160">        return filter(filter);</span>
+    }
+
+    @Override
+    public T limit (final long count)
+    {
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        Preconditions.checkArgument(count &gt;= 0, &quot;limit &lt; 0&quot;);</span>
+
+<span class="nc" id="L168">        final AtomicLong counter = new AtomicLong(1);</span>
+
+<span class="nc bnc" id="L170" title="All 2 branches missed.">        final Predicate&lt;E&gt; condition = x -&gt; counter.incrementAndGet() &lt;= count;</span>
+
+<span class="nc" id="L172">        filter(condition);</span>
+<span class="nc" id="L173">        return self();</span>
+    }
+
+    @Override
+    public UUID uuid ()
+    {
+<span class="fc" id="L179">        return uuid;</span>
+    }
+
+    @Override
+    public String name ()
+    {
+<span class="fc" id="L185">        return name;</span>
+    }
+
+    @Override
+    public Optional&lt;Reactor&gt; reactor ()
+    {
+<span class="nc" id="L191">        return reactor.reactor();</span>
+    }
+
+    @Override
+    public Input&lt;E&gt; connect (Output&lt;E&gt; output)
+    {
+<span class="nc" id="L197">        synchronized (lock)</span>
+        {
+<span class="nc" id="L199">            Preconditions.checkNotNull(output, &quot;output&quot;);</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">            if (connections.contains(output) == false)</span>
+            {
+<span class="nc" id="L202">                connections.add(output);</span>
+<span class="nc" id="L203">                output.connect(this);</span>
+            }
+<span class="nc" id="L205">            return this;</span>
+<span class="nc" id="L206">        }</span>
+    }
+
+    @Override
+    public Input&lt;E&gt; disconnect (Output&lt;E&gt; output)
+    {
+<span class="nc" id="L212">        synchronized (lock)</span>
+        {
+<span class="nc" id="L214">            Preconditions.checkNotNull(output, &quot;output&quot;);</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">            if (connections.contains(output))</span>
+            {
+<span class="nc" id="L217">                connections.remove(output);</span>
+<span class="nc" id="L218">                output.disconnect(this);</span>
+            }
+<span class="nc" id="L220">            return this;</span>
+<span class="nc" id="L221">        }</span>
+    }
+
+    @Override
+    public Set&lt;Output&lt;E&gt;&gt; connections ()
+    {
+<span class="nc" id="L227">        return ImmutableSet.copyOf(connections);</span>
+    }
+
+    @Override
+    public Input&lt;E&gt; send (final E value)
+    {
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        if (value == null)</span>
+        {
+<span class="fc" id="L235">            throw new NullPointerException(&quot;Refusing to send() null!&quot;);</span>
+        }
+
+<span class="fc bfc" id="L238" title="All 2 branches covered.">        if (built.get())</span>
+        {
+<span class="fc" id="L240">            final E transformed = operator.apply(value);</span>
+<span class="pc bpc" id="L241" title="1 of 4 branches missed.">            final boolean inserted = transformed != null &amp;&amp; offer(transformed);</span>
+
+<span class="fc bfc" id="L243" title="All 2 branches covered.">            if (inserted)</span>
+            {
+<span class="fc" id="L245">                reactor.ping();</span>
+            }
+        }
+
+<span class="fc" id="L249">        return this;</span>
+    }
+
+    @Override
+    public String toString ()
+    {
+<span class="nc" id="L255">        return name;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

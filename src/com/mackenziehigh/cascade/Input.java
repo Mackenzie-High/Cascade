@@ -17,6 +17,8 @@ public interface Input<T>
      */
     public UUID uuid ();
 
+    public Class<T> type ();
+
     public String name ();
 
     /**
