@@ -1,11 +1,11 @@
 package dev.actors;
 
-import com.mackenziehigh.cascade.reactor.Cascade;
-import com.mackenziehigh.cascade.reactor.Input;
-import com.mackenziehigh.cascade.reactor.MutableInput;
-import com.mackenziehigh.cascade.reactor.Reaction;
-import com.mackenziehigh.cascade.reactor.Reactor;
-import com.mackenziehigh.cascade.reactor.builder.ReactorBuilder;
+import com.mackenziehigh.cascade.Cascade;
+import com.mackenziehigh.cascade.Input;
+import com.mackenziehigh.cascade.MutableInput;
+import com.mackenziehigh.cascade.Reaction;
+import com.mackenziehigh.cascade.Reactor;
+import com.mackenziehigh.cascade.builder.ReactorBuilder;
 
 /**
  *
@@ -14,7 +14,7 @@ public final class Printer
 {
     private final ReactorBuilder core = Cascade.newReactor();
 
-    private final MutableInput<Integer> input = core.newInput(Integer.class).build();
+    private final MutableInput<Integer> input = core.newArrayInput(Integer.class).build();
 
     private final Reaction action = core
             .newReaction()

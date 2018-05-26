@@ -1,12 +1,12 @@
 package dev.actors;
 
-import com.mackenziehigh.cascade.reactor.Cascade;
-import com.mackenziehigh.cascade.reactor.Input;
-import com.mackenziehigh.cascade.reactor.MutableInput;
-import com.mackenziehigh.cascade.reactor.Output;
-import com.mackenziehigh.cascade.reactor.Reaction;
-import com.mackenziehigh.cascade.reactor.Reactor;
-import com.mackenziehigh.cascade.reactor.builder.ReactorBuilder;
+import com.mackenziehigh.cascade.Cascade;
+import com.mackenziehigh.cascade.Input;
+import com.mackenziehigh.cascade.MutableInput;
+import com.mackenziehigh.cascade.Output;
+import com.mackenziehigh.cascade.Reaction;
+import com.mackenziehigh.cascade.Reactor;
+import com.mackenziehigh.cascade.builder.ReactorBuilder;
 
 /**
  *
@@ -16,9 +16,9 @@ public final class Adder
 {
     private final ReactorBuilder core = Cascade.newReactor();
 
-    private final MutableInput<Integer> left = core.newInput(Integer.class).build();
+    private final MutableInput<Integer> left = core.newArrayInput(Integer.class).build();
 
-    private final MutableInput<Integer> right = core.newInput(Integer.class).build();
+    private final MutableInput<Integer> right = core.newArrayInput(Integer.class).build();
 
     private final Output<Integer> result = core.newOutput(Integer.class).build();
 
