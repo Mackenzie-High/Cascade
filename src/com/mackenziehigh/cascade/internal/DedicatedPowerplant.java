@@ -40,7 +40,7 @@ public final class DedicatedPowerplant
     }
 
     @Override
-    public void onReady (final Reactor reactor,
+    public void onPing (final Reactor reactor,
                          final AtomicReference<?> meta)
     {
         // Pass

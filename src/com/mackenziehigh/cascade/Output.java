@@ -1,7 +1,6 @@
 package com.mackenziehigh.cascade;
 
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -19,11 +18,10 @@ public interface Output<T>
 
     public Output<T> connect (Input<T> input);
 
-    public Output<T> disconnect (Input<T> input);
+    public Output<T> disconnect ();
 
-    public Set<Input<T>> connections ();
+    public Optional<Input<T>> connection ();
 
     public boolean isFull ();
 
-    public Output<T> send (T value);
 }

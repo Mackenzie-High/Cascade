@@ -61,8 +61,8 @@ public class PeriodicPowerplant
     }
 
     @Override
-    public void onReady (final Reactor reactor,
-                         final AtomicReference<?> meta)
+    public void onPing (final Reactor reactor,
+                        final AtomicReference<?> meta)
     {
         // Pass.
     }

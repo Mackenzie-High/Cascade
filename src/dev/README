@@ -1,0 +1,33 @@
+
+
+Notes for CascadeX:
++ Have some way of testing Function reactors using a truth-table like approach.
++ Whenever possible, the predefined reactors should work seamlessly with pipelines (back-pressure).
+
+Reactors for CascadeX:
++ GPB Decoder
++ Async Counter
++ Splitter
++ Functions 0 -> 9
++ Unary Operator (same input and output type)
++ Binary Operator (same inputs and output type)
++ Reduction
++ Switch (Inserter, like Factorio)
++ If (Inserter, like Factorio)
++ If/Else (Insert, like Factorio)
++ Constant (every crank)
++ Constant (on input)
++ Unary Predicate
++ Binary Predicate
+
+
+
+
+
+
+
+
+
+
+
+

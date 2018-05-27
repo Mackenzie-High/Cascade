@@ -26,7 +26,7 @@ public final class ScheduledPowerplant
     }
 
     @Override
-    public void onReady (final Reactor reactor,
+    public void onPing (final Reactor reactor,
                          final AtomicReference<?> meta)
     {
         // Pass

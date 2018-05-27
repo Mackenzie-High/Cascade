@@ -2,19 +2,16 @@ package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.RateLimiter;
 import com.mackenziehigh.cascade.Input;
-import com.mackenziehigh.cascade.MutableInput;
 import com.mackenziehigh.cascade.Output;
+import com.mackenziehigh.cascade.PrivateInput;
 import com.mackenziehigh.cascade.Reactor;
 import com.mackenziehigh.cascade.builder.InputBuilder;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
@@ -26,7 +23,7 @@ import java.util.function.UnaryOperator;
  */
 public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
         implements InputBuilder<E>,
-                   MutableInput<E>
+                   PrivateInput<E>
 {
     protected abstract T self ();
 
@@ -44,7 +41,7 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
 
     private volatile UnaryOperator<E> operator = UnaryOperator.identity();
 
-    private final Set<Output<E>> connections = new CopyOnWriteArraySet<>();
+    private volatile Optional<Output<E>> connection = Optional.empty();
 
     public AbstractInput (final MockableReactor reactor)
     {
@@ -61,9 +58,12 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
 
     protected void pingInputs ()
     {
-        for (Output<?> conn : connections)
+        synchronized (lock)
         {
-            conn.reactor().ifPresent(x -> x.ping());
+            if (connection.isPresent())
+            {
+                connection.get().reactor().ifPresent(x -> x.ping());
+            }
         }
     }
 
@@ -193,14 +193,18 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
     }
 
     @Override
-    public Input<E> connect (Output<E> output)
+    public Input<E> connect (final Output<E> output)
     {
         synchronized (lock)
         {
             Preconditions.checkNotNull(output, "output");
-            if (connections.contains(output) == false)
+            if (connection.isPresent())
             {
-                connections.add(output);
+                throw new IllegalStateException("Alreayd Connected!");
+            }
+            else
+            {
+                connection = Optional.of(output);
                 output.connect(this);
             }
             return this;
@@ -208,24 +212,24 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
     }
 
     @Override
-    public Input<E> disconnect (Output<E> output)
+    public Input<E> disconnect ()
     {
         synchronized (lock)
         {
-            Preconditions.checkNotNull(output, "output");
-            if (connections.contains(output))
+            final Output<E> output = connection.orElse(null);
+            connection = Optional.empty();
+            if (output != null)
             {
-                connections.remove(output);
-                output.disconnect(this);
+                output.disconnect();
             }
             return this;
         }
     }
 
     @Override
-    public Set<Output<E>> connections ()
+    public Optional<Output<E>> connection ()
     {
-        return ImmutableSet.copyOf(connections);
+        return connection;
     }
 
     @Override

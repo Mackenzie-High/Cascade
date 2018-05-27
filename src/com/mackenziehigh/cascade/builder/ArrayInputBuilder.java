@@ -1,10 +1,10 @@
 package com.mackenziehigh.cascade.builder;
 
-import com.mackenziehigh.cascade.MutableInput;
 import com.mackenziehigh.cascade.internal.OverflowPolicy;
 import java.time.temporal.ChronoUnit;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
+import com.mackenziehigh.cascade.PrivateInput;
 
 /**
  *
@@ -29,7 +29,7 @@ public interface ArrayInputBuilder<E>
      * {@inheritDoc}
      */
     @Override
-    public MutableInput<E> build ();
+    public PrivateInput<E> build ();
 
     /**
      * {@inheritDoc}

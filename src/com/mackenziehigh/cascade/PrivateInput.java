@@ -6,11 +6,11 @@ import java.util.Optional;
 /**
  *
  */
-public interface MutableInput<T>
+public interface PrivateInput<T>
         extends Input<T>
 {
 
-    public MutableInput<T> clear ();
+    public PrivateInput<T> clear ();
 
     public T pollOrDefault (T defaultValue);
 

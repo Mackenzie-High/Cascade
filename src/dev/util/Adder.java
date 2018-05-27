@@ -2,8 +2,9 @@ package dev.util;
 
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.Input;
-import com.mackenziehigh.cascade.MutableInput;
 import com.mackenziehigh.cascade.Output;
+import com.mackenziehigh.cascade.PrivateInput;
+import com.mackenziehigh.cascade.PrivateOutput;
 import com.mackenziehigh.cascade.Reaction;
 import com.mackenziehigh.cascade.Reactor;
 import com.mackenziehigh.cascade.builder.ReactorBuilder;
@@ -16,18 +17,17 @@ public final class Adder
 {
     private final ReactorBuilder core = Cascade.newReactor();
 
-    private final MutableInput<Long> left = core
+    private final PrivateInput<Long> left = core
             .newArrayInput(Long.class)
             .withCapacity(10)
             .build();
 
-    private final MutableInput<Long> right = core
+    private final PrivateInput<Long> right = core
             .newArrayInput(Long.class)
             .withCapacity(10)
-            .transform(x -> 1L)
             .build();
 
-    private final Output<Long> result = core.newOutput(Long.class).build();
+    private final PrivateOutput<Long> result = core.newOutput(Long.class).build();
 
     private final Reaction adder = core
             .newReaction()

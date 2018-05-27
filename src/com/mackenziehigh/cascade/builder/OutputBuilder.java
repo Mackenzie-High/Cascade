@@ -1,6 +1,6 @@
 package com.mackenziehigh.cascade.builder;
 
-import com.mackenziehigh.cascade.Output;
+import com.mackenziehigh.cascade.PrivateOutput;
 import java.util.function.Predicate;
 
 /**
@@ -13,5 +13,5 @@ public interface OutputBuilder<T>
 
     public OutputBuilder<T> verify (Predicate<T> condition);
 
-    public Output<T> build ();
+    public PrivateOutput<T> build ();
 }

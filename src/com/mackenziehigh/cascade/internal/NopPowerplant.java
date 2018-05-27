@@ -25,7 +25,7 @@ public final class NopPowerplant
     }
 
     @Override
-    public void onReady (final Reactor reactor,
+    public void onPing (final Reactor reactor,
                          final AtomicReference<?> meta)
     {
         // Pass

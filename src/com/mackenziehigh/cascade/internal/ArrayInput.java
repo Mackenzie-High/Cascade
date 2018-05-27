@@ -1,12 +1,12 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
-import com.mackenziehigh.cascade.MutableInput;
 import com.mackenziehigh.cascade.builder.ArrayInputBuilder;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Objects;
 import java.util.function.Consumer;
+import com.mackenziehigh.cascade.PrivateInput;
 
 /**
  *
@@ -69,7 +69,7 @@ public final class ArrayInput<E>
     }
 
     @Override
-    public MutableInput<E> build ()
+    public PrivateInput<E> build ()
     {
         synchronized (lock)
         {
@@ -82,7 +82,7 @@ public final class ArrayInput<E>
     }
 
     @Override
-    public MutableInput<E> clear ()
+    public PrivateInput<E> clear ()
     {
         synchronized (lock)
         {

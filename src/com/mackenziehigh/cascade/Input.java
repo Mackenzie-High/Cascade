@@ -1,7 +1,6 @@
 package com.mackenziehigh.cascade;
 
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -41,9 +40,9 @@ public interface Input<T>
      */
     public Input<T> connect (Output<T> output);
 
-    public Input<T> disconnect (Output<T> output);
+    public Input<T> disconnect ();
 
-    public Set<Output<T>> connections ();
+    public Optional<Output<T>> connection ();
 
     public int capacity ();
 

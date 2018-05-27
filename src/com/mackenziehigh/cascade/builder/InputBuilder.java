@@ -1,9 +1,9 @@
 package com.mackenziehigh.cascade.builder;
 
-import com.mackenziehigh.cascade.MutableInput;
 import java.time.temporal.ChronoUnit;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
+import com.mackenziehigh.cascade.PrivateInput;
 
 /**
  *
@@ -25,5 +25,5 @@ public interface InputBuilder<E>
 
     public InputBuilder<E> limit (final long count);
 
-    public MutableInput<E> build ();
+    public PrivateInput<E> build ();
 }

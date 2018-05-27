@@ -14,6 +14,11 @@ public interface Powerplant
     public void onStop (Reactor reactor,
                         AtomicReference<?> meta);
 
-    public void onReady (Reactor reactor,
+    public void onPing (Reactor reactor,
                          AtomicReference<?> meta);
+
+    public default void onKeepalive ()
+    {
+        // TODO: Make non-default
+    }
 }

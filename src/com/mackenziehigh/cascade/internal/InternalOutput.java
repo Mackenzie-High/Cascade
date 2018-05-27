@@ -1,16 +1,14 @@
 package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
 import com.mackenziehigh.cascade.Input;
 import com.mackenziehigh.cascade.Output;
+import com.mackenziehigh.cascade.PrivateOutput;
 import com.mackenziehigh.cascade.Reactor;
 import com.mackenziehigh.cascade.builder.OutputBuilder;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Predicate;
 
 /**
@@ -19,7 +17,7 @@ import java.util.function.Predicate;
  */
 public final class InternalOutput<T>
         implements OutputBuilder<T>,
-                   Output<T>
+                   PrivateOutput<T>
 {
     private final InternalReactor reactor;
 
@@ -33,7 +31,7 @@ public final class InternalOutput<T>
 
     private volatile String name = uuid.toString();
 
-    private final Set<Input<T>> connections = new CopyOnWriteArraySet<>();
+    private volatile Optional<Input<T>> connection = Optional.empty();
 
     public InternalOutput (final InternalReactor reactor,
                            final Class<T> type)
@@ -62,7 +60,7 @@ public final class InternalOutput<T>
     }
 
     @Override
-    public Output<T> build ()
+    public PrivateOutput<T> build ()
     {
         built = true;
         return this;
@@ -90,43 +88,49 @@ public final class InternalOutput<T>
     public Output<T> connect (final Input<T> input)
     {
         Preconditions.checkNotNull(input, "input");
-        if (connections.contains(input) == false)
+        if (connection.isPresent())
         {
-            connections.add(input);
-            input.connect(this);
+            throw new IllegalStateException("Already Connected!");
+        }
+        else
+        {
+            connection = Optional.of(input);
         }
         return this;
     }
 
     @Override
-    public Output<T> disconnect (final Input<T> input)
+    public Output<T> disconnect ()
     {
-        Preconditions.checkNotNull(input, "input");
-        if (connections.contains(input))
+        if (connection.isPresent())
         {
-            connections.remove(input);
-            input.disconnect(this);
+            final Input<T> input = connection.get();
+            connection = Optional.empty();
+            input.disconnect();
         }
         return this;
     }
 
     @Override
-    public Set<Input<T>> connections ()
+    public Optional<Input<T>> connection ()
     {
-        return ImmutableSet.copyOf(connections);
+        return connection;
     }
 
     @Override
     public boolean isFull ()
     {
-        final boolean answer = connections.stream().anyMatch(x -> x.isFull());
+        final boolean answer = connection.map(x -> x.isFull()).orElse(false);
         return answer;
     }
 
     @Override
     public Output<T> send (final T value)
     {
-        connections.stream().forEach(x -> x.send(value));
+        if (connection.isPresent())
+        {
+            connection.get().send(value);
+        }
         return this;
     }
 

@@ -206,7 +206,7 @@ public final class InternalReactor
     @Override
     public InternalReactor ping ()
     {
-        executor.onReady(this, meta);
+        executor.onPing(this, meta);
         return this;
     }
 

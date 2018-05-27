@@ -1,11 +1,11 @@
 package dev;
 
-import com.mackenziehigh.cascade.MutableInput;
 import com.mackenziehigh.cascade.Output;
 import com.mackenziehigh.cascade.Reaction;
 import com.mackenziehigh.cascade.Reactor;
 import com.mackenziehigh.cascade.builder.ReactorBuilder;
 import com.mackenziehigh.cascade.internal.InternalReactor;
+import com.mackenziehigh.cascade.PrivateInput;
 
 /**
  *
@@ -15,7 +15,7 @@ public final class Main2
 {
     private final ReactorBuilder reactor = new InternalReactor();
 
-    private final MutableInput<Integer> fin = reactor
+    private final PrivateInput<Integer> fin = reactor
             .newArrayInput(Integer.class)
             .build();
 
