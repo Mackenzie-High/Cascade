@@ -121,7 +121,8 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
         synchronized (lock)
         {
             requireEgg();
-            operator = x -> wrapper.apply(operator.apply(x));
+            final UnaryOperator<E> op = operator;
+            operator = x -> wrapper.apply(op.apply(x));
             return self();
         }
     }

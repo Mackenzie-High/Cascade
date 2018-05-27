@@ -7,7 +7,7 @@ import dev.util.Printer;
 /**
  *
  */
-public final class Main3
+public final class Main4
 {
     public static void main (String[] args)
     {
@@ -18,10 +18,13 @@ public final class Main3
         plant.add(adder.reactor);
         plant.add(printer.reactor);
 
+        adder.left().connect(adder.output());
+        adder.right().connect(adder.output());
+
         printer.input().connect(adder.output());
 
-        adder.left().send(100L);
-        adder.right().send(200L);
+        adder.left().send(1L);
+        adder.right().send(2L);
 
         plant.start();
     }

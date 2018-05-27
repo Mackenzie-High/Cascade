@@ -1,4 +1,4 @@
-package dev.actors;
+package dev.util;
 
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.Input;
@@ -14,7 +14,10 @@ public final class Printer
 {
     private final ReactorBuilder core = Cascade.newReactor();
 
-    private final MutableInput<Integer> input = core.newArrayInput(Integer.class).build();
+    private final MutableInput<Long> input = core
+            .newArrayInput(Long.class)
+            .withCapacity(10)
+            .build();
 
     private final Reaction action = core
             .newReaction()
@@ -24,7 +27,7 @@ public final class Printer
 
     public final Reactor reactor = core.build();
 
-    public Input<Integer> input ()
+    public Input<Long> input ()
     {
         return input;
     }
