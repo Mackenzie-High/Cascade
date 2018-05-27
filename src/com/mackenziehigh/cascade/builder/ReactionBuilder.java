@@ -5,7 +5,6 @@ import com.mackenziehigh.cascade.CheckedRunnable;
 import com.mackenziehigh.cascade.Input;
 import com.mackenziehigh.cascade.Output;
 import com.mackenziehigh.cascade.Reaction;
-import java.time.temporal.ChronoUnit;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
@@ -36,18 +35,6 @@ public interface ReactionBuilder
     {
         Preconditions.checkNotNull(output, "output");
         return require(() -> !output.isFull());
-    }
-
-    public default ReactionBuilder rateLimit (int permits,
-                                              ChronoUnit unit)
-    {
-        // TODO
-        return this;
-    }
-
-    public default ReactorBuilder limit (long count)
-    {
-        return null;
     }
 
     public ReactionBuilder onMatch (CheckedRunnable task);

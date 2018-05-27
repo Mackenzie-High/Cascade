@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ArrayInput.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade.internal</a> &gt; <span class="el_source">ArrayInput.java</span></div><h1>ArrayInput.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
-import com.mackenziehigh.cascade.MutableInput;
 import com.mackenziehigh.cascade.builder.ArrayInputBuilder;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -22,168 +21,168 @@ public final class ArrayInput&lt;E&gt;
 
     private volatile OverflowHandler&lt;E&gt; overflowHandler;
 
-<span class="fc" id="L25">    private volatile OverflowPolicy policy = OverflowPolicy.UNSPECIFIED;</span>
+<span class="fc" id="L24">    private volatile OverflowPolicy policy = OverflowPolicy.UNSPECIFIED;</span>
 
-<span class="fc" id="L27">    private volatile int capacity = 0;</span>
+<span class="fc" id="L26">    private volatile int capacity = 0;</span>
 
     public ArrayInput (final MockableReactor reactor,
                        final Class&lt;E&gt; type)
     {
-<span class="fc" id="L32">        super(reactor);</span>
-<span class="fc" id="L33">        this.type = Objects.requireNonNull(type, &quot;type&quot;);</span>
-<span class="fc" id="L34">    }</span>
+<span class="fc" id="L31">        super(reactor);</span>
+<span class="fc" id="L32">        this.type = Objects.requireNonNull(type, &quot;type&quot;);</span>
+<span class="fc" id="L33">    }</span>
 
     @Override
     public Class&lt;E&gt; type ()
     {
-<span class="fc" id="L39">        return type;</span>
+<span class="fc" id="L38">        return type;</span>
     }
 
     @Override
     protected ArrayInput&lt;E&gt; self ()
     {
-<span class="fc" id="L45">        return this;</span>
+<span class="fc" id="L44">        return this;</span>
     }
 
     @Override
     public ArrayInput&lt;E&gt; withCapacity (final int capacity)
     {
-<span class="fc" id="L51">        synchronized (lock)</span>
+<span class="fc" id="L50">        synchronized (lock)</span>
         {
-<span class="fc" id="L53">            requireEgg();</span>
-<span class="fc bfc" id="L54" title="All 2 branches covered.">            Preconditions.checkArgument(capacity &gt;= 0, &quot;capacity &lt; 0&quot;);</span>
-<span class="fc" id="L55">            this.capacity = capacity;</span>
-<span class="fc" id="L56">            return this;</span>
-<span class="fc" id="L57">        }</span>
+<span class="fc" id="L52">            requireEgg();</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">            Preconditions.checkArgument(capacity &gt;= 0, &quot;capacity &lt; 0&quot;);</span>
+<span class="fc" id="L54">            this.capacity = capacity;</span>
+<span class="fc" id="L55">            return this;</span>
+<span class="fc" id="L56">        }</span>
     }
 
     @Override
     public ArrayInput&lt;E&gt; withOverflowPolicy (final OverflowPolicy policy)
     {
-<span class="fc" id="L63">        synchronized (lock)</span>
+<span class="fc" id="L62">        synchronized (lock)</span>
         {
-<span class="fc" id="L65">            requireEgg();</span>
-<span class="fc" id="L66">            this.policy = Objects.requireNonNull(policy, &quot;policy&quot;);</span>
-<span class="fc" id="L67">            return this;</span>
-<span class="nc" id="L68">        }</span>
+<span class="fc" id="L64">            requireEgg();</span>
+<span class="fc" id="L65">            this.policy = Objects.requireNonNull(policy, &quot;policy&quot;);</span>
+<span class="fc" id="L66">            return this;</span>
+<span class="nc" id="L67">        }</span>
     }
 
     @Override
-    public MutableInput&lt;E&gt; build ()
+    public ArrayInput&lt;E&gt; build ()
     {
-<span class="fc" id="L74">        synchronized (lock)</span>
+<span class="fc" id="L73">        synchronized (lock)</span>
         {
-<span class="fc" id="L76">            requireEgg();</span>
-<span class="fc" id="L77">            queue = new ArrayDeque&lt;&gt;(capacity);</span>
-<span class="fc" id="L78">            overflowHandler = new OverflowHandler&lt;&gt;(queue, capacity, policy);</span>
-<span class="fc" id="L79">            built.set(true);</span>
-<span class="fc" id="L80">            return this;</span>
-<span class="nc" id="L81">        }</span>
+<span class="fc" id="L75">            requireEgg();</span>
+<span class="fc" id="L76">            queue = new ArrayDeque&lt;&gt;(capacity);</span>
+<span class="fc" id="L77">            overflowHandler = new OverflowHandler&lt;&gt;(queue, capacity, policy);</span>
+<span class="fc" id="L78">            built.set(true);</span>
+<span class="fc" id="L79">            return this;</span>
+<span class="nc" id="L80">        }</span>
     }
 
     @Override
-    public MutableInput&lt;E&gt; clear ()
+    public ArrayInput&lt;E&gt; clear ()
     {
-<span class="fc" id="L87">        synchronized (lock)</span>
+<span class="fc" id="L86">        synchronized (lock)</span>
         {
-<span class="fc bfc" id="L89" title="All 2 branches covered.">            if (queue != null)</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">            if (queue != null)</span>
             {
-<span class="fc" id="L91">                queue.clear();</span>
+<span class="fc" id="L90">                queue.clear();</span>
             }
-<span class="fc" id="L93">            return this;</span>
-<span class="nc" id="L94">        }</span>
+<span class="fc" id="L92">            return this;</span>
+<span class="nc" id="L93">        }</span>
     }
 
     @Override
     protected boolean offer (final E value)
     {
-<span class="fc" id="L100">        synchronized (lock)</span>
+<span class="fc" id="L99">        synchronized (lock)</span>
         {
-<span class="fc" id="L102">            return overflowHandler.offer(value);</span>
-<span class="nc" id="L103">        }</span>
+<span class="fc" id="L101">            return overflowHandler.offer(value);</span>
+<span class="nc" id="L102">        }</span>
     }
 
     @Override
     public E peekOrDefault (final E defaultValue)
     {
-<span class="fc" id="L109">        synchronized (lock)</span>
+<span class="fc" id="L108">        synchronized (lock)</span>
         {
-<span class="fc bfc" id="L111" title="All 2 branches covered.">            if (queue != null)</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">            if (queue != null)</span>
             {
-<span class="fc" id="L113">                final E head = queue.peek();</span>
-<span class="fc bfc" id="L114" title="All 2 branches covered.">                return head == null ? defaultValue : head;</span>
+<span class="fc" id="L112">                final E head = queue.peek();</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">                return head == null ? defaultValue : head;</span>
             }
             else
             {
-<span class="fc" id="L118">                return defaultValue;</span>
+<span class="fc" id="L117">                return defaultValue;</span>
             }
-<span class="nc" id="L120">        }</span>
+<span class="nc" id="L119">        }</span>
     }
 
     @Override
     public E pollOrDefault (final E defaultValue)
     {
-<span class="fc" id="L126">        synchronized (lock)</span>
+<span class="fc" id="L125">        synchronized (lock)</span>
         {
-<span class="fc bfc" id="L128" title="All 2 branches covered.">            if (queue != null)</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">            if (queue != null)</span>
             {
-<span class="fc" id="L130">                final E head = queue.poll();</span>
-<span class="fc" id="L131">                pingInputs();</span>
-<span class="fc bfc" id="L132" title="All 2 branches covered.">                return head == null ? defaultValue : head;</span>
+<span class="fc" id="L129">                final E head = queue.poll();</span>
+<span class="fc" id="L130">                pingInputs();</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">                return head == null ? defaultValue : head;</span>
             }
             else
             {
-<span class="fc" id="L136">                return defaultValue;</span>
+<span class="fc" id="L135">                return defaultValue;</span>
             }
-<span class="nc" id="L138">        }</span>
+<span class="nc" id="L137">        }</span>
     }
 
     @Override
     public int capacity ()
     {
-<span class="fc" id="L144">        return capacity;</span>
+<span class="fc" id="L143">        return capacity;</span>
     }
 
     @Override
     public int size ()
     {
-<span class="fc" id="L150">        synchronized (lock)</span>
+<span class="fc" id="L149">        synchronized (lock)</span>
         {
-<span class="fc bfc" id="L152" title="All 2 branches covered.">            final int size = queue == null ? 0 : queue.size();</span>
-<span class="fc" id="L153">            return size;</span>
-<span class="nc" id="L154">        }</span>
+<span class="fc bfc" id="L151" title="All 2 branches covered.">            final int size = queue == null ? 0 : queue.size();</span>
+<span class="fc" id="L152">            return size;</span>
+<span class="nc" id="L153">        }</span>
     }
 
     @Override
     public boolean isEmpty ()
     {
-<span class="fc" id="L160">        synchronized (lock)</span>
+<span class="fc" id="L159">        synchronized (lock)</span>
         {
-<span class="fc bfc" id="L162" title="All 2 branches covered.">            return size() == 0;</span>
-<span class="nc" id="L163">        }</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">            return size() == 0;</span>
+<span class="nc" id="L162">        }</span>
     }
 
     @Override
     public boolean isFull ()
     {
-<span class="fc" id="L169">        synchronized (lock)</span>
+<span class="fc" id="L168">        synchronized (lock)</span>
         {
-<span class="fc bfc" id="L171" title="All 2 branches covered.">            return size() == capacity();</span>
-<span class="nc" id="L172">        }</span>
+<span class="fc bfc" id="L170" title="All 4 branches covered.">            return built.get() ? size() == capacity() : false;</span>
+<span class="nc" id="L171">        }</span>
     }
 
     @Override
     public ArrayInput&lt;E&gt; forEach (final Consumer&lt;E&gt; functor)
     {
-<span class="fc" id="L178">        synchronized (lock)</span>
+<span class="fc" id="L177">        synchronized (lock)</span>
         {
-<span class="fc bfc" id="L180" title="All 2 branches covered.">            if (queue != null)</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">            if (queue != null)</span>
             {
-<span class="fc" id="L182">                Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
-<span class="fc" id="L183">                queue.forEach(functor);</span>
+<span class="fc" id="L181">                Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
+<span class="fc" id="L182">                queue.forEach(functor);</span>
             }
-<span class="fc" id="L185">            return this;</span>
-<span class="nc" id="L186">        }</span>
+<span class="fc" id="L184">            return this;</span>
+<span class="nc" id="L185">        }</span>
     }
 
 }

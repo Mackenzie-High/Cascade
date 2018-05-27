@@ -6,7 +6,6 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Objects;
 import java.util.function.Consumer;
-import com.mackenziehigh.cascade.PrivateInput;
 
 /**
  *
@@ -69,7 +68,7 @@ public final class ArrayInput<E>
     }
 
     @Override
-    public PrivateInput<E> build ()
+    public ArrayInput<E> build ()
     {
         synchronized (lock)
         {
@@ -82,7 +81,7 @@ public final class ArrayInput<E>
     }
 
     @Override
-    public PrivateInput<E> clear ()
+    public ArrayInput<E> clear ()
     {
         synchronized (lock)
         {
@@ -168,7 +167,7 @@ public final class ArrayInput<E>
     {
         synchronized (lock)
         {
-            return size() == capacity();
+            return built.get() ? size() == capacity() : false;
         }
     }
 

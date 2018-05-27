@@ -19,6 +19,7 @@ Reactors for CascadeX:
 + Constant (on input)
 + Unary Predicate
 + Binary Predicate
++ Filter
 
 
 

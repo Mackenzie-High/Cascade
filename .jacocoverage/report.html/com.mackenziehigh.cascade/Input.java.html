@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>Input.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade</a> &gt; <span class="el_source">Input.java</span></div><h1>Input.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade;
 
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -41,9 +40,9 @@ public interface Input&lt;T&gt;
      */
     public Input&lt;T&gt; connect (Output&lt;T&gt; output);
 
-    public Input&lt;T&gt; disconnect (Output&lt;T&gt; output);
+    public Input&lt;T&gt; disconnect ();
 
-    public Set&lt;Output&lt;T&gt;&gt; connections ();
+    public Optional&lt;Output&lt;T&gt;&gt; connection ();
 
     public int capacity ();
 
@@ -57,8 +56,8 @@ public interface Input&lt;T&gt;
 
     public default Optional&lt;T&gt; peek ()
     {
-<span class="fc" id="L60">        final T head = peekOrDefault(null);</span>
-<span class="fc" id="L61">        return Optional.ofNullable(head);</span>
+<span class="fc" id="L59">        final T head = peekOrDefault(null);</span>
+<span class="fc" id="L60">        return Optional.ofNullable(head);</span>
     }
 
     public Input&lt;T&gt; forEach (Consumer&lt;T&gt; functor);

@@ -5,7 +5,6 @@ import java.util.UUID;
 
 /**
  *
- * @author mackenzie
  */
 public interface Reaction
 {

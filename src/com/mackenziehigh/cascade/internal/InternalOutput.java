@@ -2,7 +2,6 @@ package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.Input;
-import com.mackenziehigh.cascade.Output;
 import com.mackenziehigh.cascade.PrivateOutput;
 import com.mackenziehigh.cascade.Reactor;
 import com.mackenziehigh.cascade.builder.OutputBuilder;
@@ -12,6 +11,7 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
+ * TODO: Already built; locks.
  *
  * @author mackenzie
  */
@@ -19,7 +19,7 @@ public final class InternalOutput<T>
         implements OutputBuilder<T>,
                    PrivateOutput<T>
 {
-    private final InternalReactor reactor;
+    private final MockableReactor reactor;
 
     private final UUID uuid = UUID.randomUUID();
 
@@ -33,7 +33,7 @@ public final class InternalOutput<T>
 
     private volatile Optional<Input<T>> connection = Optional.empty();
 
-    public InternalOutput (final InternalReactor reactor,
+    public InternalOutput (final MockableReactor reactor,
                            final Class<T> type)
     {
         this.reactor = Objects.requireNonNull(reactor);
@@ -60,8 +60,9 @@ public final class InternalOutput<T>
     }
 
     @Override
-    public PrivateOutput<T> build ()
+    public InternalOutput<T> build ()
     {
+        Preconditions.checkState(!built, "Already Built!");
         built = true;
         return this;
     }
@@ -85,7 +86,7 @@ public final class InternalOutput<T>
     }
 
     @Override
-    public Output<T> connect (final Input<T> input)
+    public PrivateOutput<T> connect (final Input<T> input)
     {
         Preconditions.checkNotNull(input, "input");
         if (connection.isPresent())
@@ -100,7 +101,7 @@ public final class InternalOutput<T>
     }
 
     @Override
-    public Output<T> disconnect ()
+    public PrivateOutput<T> disconnect ()
     {
         if (connection.isPresent())
         {
@@ -120,12 +121,19 @@ public final class InternalOutput<T>
     @Override
     public boolean isFull ()
     {
-        final boolean answer = connection.map(x -> x.isFull()).orElse(false);
-        return answer;
+        if (built)
+        {
+            final boolean answer = connection.map(x -> x.isFull()).orElse(false);
+            return answer;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     @Override
-    public Output<T> send (final T value)
+    public PrivateOutput<T> send (final T value)
     {
         if (connection.isPresent())
         {

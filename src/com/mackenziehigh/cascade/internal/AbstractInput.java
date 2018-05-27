@@ -2,18 +2,14 @@ package com.mackenziehigh.cascade.internal;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
-import com.google.common.util.concurrent.RateLimiter;
-import com.mackenziehigh.cascade.Input;
 import com.mackenziehigh.cascade.Output;
 import com.mackenziehigh.cascade.PrivateInput;
 import com.mackenziehigh.cascade.Reactor;
 import com.mackenziehigh.cascade.builder.InputBuilder;
-import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
@@ -39,7 +35,7 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
 
     private volatile String name = uuid.toString();
 
-    private volatile UnaryOperator<E> operator = UnaryOperator.identity();
+    private volatile UnaryOperator<E> verifications = UnaryOperator.identity();
 
     private volatile Optional<Output<E>> connection = Optional.empty();
 
@@ -79,99 +75,22 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
     }
 
     @Override
-    public T filter (final Predicate<E> filter)
-    {
-        synchronized (lock)
-        {
-            requireEgg();
-            operator = x -> filter.test(x) ? x : null;
-            return self();
-        }
-    }
-
-    @Override
-    public T transform (final UnaryOperator<E> transform)
-    {
-        Preconditions.checkNotNull(transform, "transform");
-
-        final UnaryOperator<E> wrapper = x ->
-        {
-            /**
-             * The send() method ensures that null was not the input.
-             * Thus, a null here must be the output of a filter.
-             * Propagate the null.
-             */
-            if (x == null)
-            {
-                return null;
-            }
-
-            /**
-             * Apply the transform, but do not allow it to return null.
-             */
-            final E result = transform.apply(x);
-            if (result == null)
-            {
-                final String msg = "A transform returned null in input: " + name();
-                throw new NullPointerException(msg);
-            }
-            return result;
-        };
-
-        synchronized (lock)
-        {
-            requireEgg();
-            final UnaryOperator<E> op = operator;
-            operator = x -> wrapper.apply(op.apply(x));
-            return self();
-        }
-    }
-
-    @Override
     public T verify (Predicate<E> condition)
     {
-        final Predicate<E> checker = x ->
+        final UnaryOperator<E> checker = x ->
         {
             final boolean test = condition.test(x);
             Verify.verify(test);
-            return true;
+            return x;
         };
 
-        return filter(checker);
-    }
-
-    @Override
-    public T rateLimit (final int permits,
-                        final ChronoUnit unit)
-    {
-        // TODO
-
-        final Object limiterLock = new Object();
-
-        final RateLimiter limiter = RateLimiter.create(permits);
-
-        final Predicate<E> filter = x ->
+        synchronized (lock)
         {
-            synchronized (limiterLock)
-            {
-                return limiter.tryAcquire();
-            }
-        };
-
-        return filter(filter);
-    }
-
-    @Override
-    public T limit (final long count)
-    {
-        Preconditions.checkArgument(count >= 0, "limit < 0");
-
-        final AtomicLong counter = new AtomicLong(1);
-
-        final Predicate<E> condition = x -> counter.incrementAndGet() <= count;
-
-        filter(condition);
-        return self();
+            requireEgg();
+            final UnaryOperator<E> op = verifications;
+            verifications = x -> checker.apply(op.apply(x));
+            return self();
+        }
     }
 
     @Override
@@ -193,7 +112,7 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
     }
 
     @Override
-    public Input<E> connect (final Output<E> output)
+    public PrivateInput<E> connect (final Output<E> output)
     {
         synchronized (lock)
         {
@@ -212,7 +131,7 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
     }
 
     @Override
-    public Input<E> disconnect ()
+    public PrivateInput<E> disconnect ()
     {
         synchronized (lock)
         {
@@ -233,7 +152,7 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
     }
 
     @Override
-    public Input<E> send (final E value)
+    public PrivateInput<E> send (final E value)
     {
         if (value == null)
         {
@@ -242,7 +161,7 @@ public abstract class AbstractInput<E, T extends AbstractInput<E, T>>
 
         if (built.get())
         {
-            final E transformed = operator.apply(value);
+            final E transformed = verifications.apply(value);
             final boolean inserted = transformed != null && offer(transformed);
 
             if (inserted)
