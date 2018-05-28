@@ -1,7 +1,7 @@
 package dev;
 
 import dev.util.Adder;
-import dev.util.PeriodicPowerplant;
+import com.mackenziehigh.cascade.powerplants.PeriodicPowerplant;
 import dev.util.Printer;
 import dev.util.Splitter;
 

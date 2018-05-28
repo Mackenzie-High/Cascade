@@ -1,5 +1,7 @@
 package com.mackenziehigh.cascade.internal;
 
+import com.mackenziehigh.internal.cascade.ArrayInput;
+import com.mackenziehigh.cascade.builder.OverflowPolicy;
 import com.google.common.collect.Lists;
 import java.util.LinkedList;
 import java.util.List;
@@ -893,78 +895,6 @@ public final class ArrayInputTest
     public void test20180525230353278358 ()
     {
         System.out.println("Test: 20180525230353278358");
-        fail();
-    }
-
-    /**
-     * Test: 20180525230353278377
-     *
-     * <p>
-     * Method: <code>filter</code>
-     * </p>
-     *
-     * <p>
-     * Case:
-     * </p>
-     */
-    @Test
-    public void test20180525230353278377 ()
-    {
-        System.out.println("Test: 20180525230353278377");
-        fail();
-    }
-
-    /**
-     * Test: 20180525230850539135
-     *
-     * <p>
-     * Method: <code>transform</code>
-     * </p>
-     *
-     * <p>
-     * Case:
-     * </p>
-     */
-    @Test
-    public void test20180525230850539135 ()
-    {
-        System.out.println("Test: 20180525230850539135");
-        fail();
-    }
-
-    /**
-     * Test: 20180525231117106048
-     *
-     * <p>
-     * Method: <code>limit</code>
-     * </p>
-     *
-     * <p>
-     * Case:
-     * </p>
-     */
-    @Test
-    public void test20180525231117106048 ()
-    {
-        System.out.println("Test: 20180525231117106048");
-        fail();
-    }
-
-    /**
-     * Test: 20180525231117106136
-     *
-     * <p>
-     * Method: <code>rateLimit</code>
-     * </p>
-     *
-     * <p>
-     * Case:
-     * </p>
-     */
-    @Test
-    public void test20180525231117106136 ()
-    {
-        System.out.println("Test: 20180525231117106136");
         fail();
     }
 

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2018 Michael Mackenzie High
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.mackenziehigh.cascade;
 
 import java.util.Optional;
@@ -7,8 +22,8 @@ import java.util.function.Consumer;
 /**
  *
  */
-public interface PrivateInput<T>
-        extends Input<T>
+public interface PrivateInput<E>
+        extends Input<E>
 {
     /**
      * {@inheritDoc}
@@ -20,7 +35,7 @@ public interface PrivateInput<T>
      * {@inheritDoc}
      */
     @Override
-    public Class<T> type ();
+    public Class<E> type ();
 
     /**
      * {@inheritDoc}
@@ -38,19 +53,19 @@ public interface PrivateInput<T>
      * {@inheritDoc}
      */
     @Override
-    public PrivateInput<T> connect (Output<T> output);
+    public PrivateInput<E> connect (Output<E> output);
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public PrivateInput<T> disconnect ();
+    public PrivateInput<E> disconnect ();
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Optional<Output<T>> connection ();
+    public Optional<Output<E>> connection ();
 
     /**
      * {@inheritDoc}
@@ -80,15 +95,21 @@ public interface PrivateInput<T>
      * {@inheritDoc}
      */
     @Override
-    public T peekOrDefault (T defaultValue);
+    public E peekOrNull ();
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public default Optional<T> peek ()
+    public E peekOrDefault (E defaultValue);
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public default Optional<E> peek ()
     {
-        final T head = peekOrDefault(null);
+        final E head = peekOrDefault(null);
         return Optional.ofNullable(head);
     }
 
@@ -96,21 +117,26 @@ public interface PrivateInput<T>
      * {@inheritDoc}
      */
     @Override
-    public PrivateInput<T> forEach (Consumer<T> functor);
+    public PrivateInput<E> forEach (Consumer<E> functor);
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public PrivateInput<T> send (T value);
+    public PrivateInput<E> send (E value);
 
-    public PrivateInput<T> clear ();
+    public PrivateInput<E> clear ();
 
-    public T pollOrDefault (T defaultValue);
-
-    public default Optional<T> poll ()
+    public default E pollOrNull ()
     {
-        final T head = pollOrDefault(null);
+        return pollOrDefault(null);
+    }
+
+    public E pollOrDefault (E defaultValue);
+
+    public default Optional<E> poll ()
+    {
+        final E head = pollOrDefault(null);
         return Optional.ofNullable(head);
     }
 

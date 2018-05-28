@@ -13,26 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.mackenziehigh.cascade.builder;
+package com.mackenziehigh.cascade.powerplants;
 
 import com.mackenziehigh.cascade.Powerplant;
 import com.mackenziehigh.cascade.Reactor;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  *
  */
-public interface ReactorBuilder
+public final class NopPowerplant
+        implements Powerplant
 {
-    public ReactorBuilder named (String name);
+    @Override
+    public void onStart (final Reactor reactor,
+                         final AtomicReference<Object> meta)
+    {
+        // Pass
+    }
 
-    public ReactorBuilder poweredBy (Powerplant executor);
+    @Override
+    public void onStop (final Reactor reactor,
+                        final AtomicReference<Object> meta)
+    {
+        // Pass
+    }
 
-    public <T> ArrayInputBuilder<T> newArrayInput (Class<T> type);
+    @Override
+    public void onPing (final Reactor reactor,
+                        final AtomicReference<Object> meta)
+    {
+        // Pass
+    }
 
-    public <T> OutputBuilder<T> newOutput (Class<T> type);
-
-    public ReactionBuilder newReaction ();
-
-    public Reactor build ();
+    @Override
+    public void close ()
+            throws Exception
+    {
+        // Pass
+    }
 
 }

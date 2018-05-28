@@ -1,5 +1,6 @@
 package com.mackenziehigh.cascade.internal;
 
+import com.mackenziehigh.internal.cascade.MockableReactor;
 import com.mackenziehigh.cascade.Reactor;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
@@ -16,7 +17,7 @@ public final class MockReactor
     @Override
     public Optional<Reactor> reactor ()
     {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return Optional.empty();
     }
 
     @Override

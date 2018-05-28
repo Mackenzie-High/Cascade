@@ -1,7 +1,7 @@
 package dev;
 
+import com.mackenziehigh.cascade.powerplants.PeriodicPowerplant;
 import dev.util.Bus;
-import dev.util.PeriodicPowerplant;
 import dev.util.Printer;
 import dev.util.UnaryOperation;
 

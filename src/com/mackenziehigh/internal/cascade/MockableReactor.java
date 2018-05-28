@@ -13,22 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.mackenziehigh.cascade;
+package com.mackenziehigh.internal.cascade;
 
+import com.mackenziehigh.cascade.Reactor;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  *
  */
-public interface Reaction
+public interface MockableReactor
 {
-
-    public UUID uuid ();
-
-    public String name ();
-
     public Optional<Reactor> reactor ();
 
-    public boolean isKeepAliveRequired ();
+    public MockableReactor ping ();
 }

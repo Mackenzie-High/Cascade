@@ -1,3 +1,18 @@
+/*
+ * Copyright 2018 Michael Mackenzie High
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.mackenziehigh.cascade;
 
 import java.util.Optional;
@@ -6,8 +21,8 @@ import java.util.UUID;
 /**
  *
  */
-public interface PrivateOutput<T>
-        extends Output<T>
+public interface PrivateOutput<E>
+        extends Output<E>
 {
     /**
      * {@inheritDoc}
@@ -25,7 +40,7 @@ public interface PrivateOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public Class<T> type ();
+    public Class<E> type ();
 
     /**
      * {@inheritDoc}
@@ -37,25 +52,49 @@ public interface PrivateOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public PrivateOutput<T> connect (Input<T> input);
+    public PrivateOutput<E> connect (Input<E> input);
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public PrivateOutput<T> disconnect ();
+    public PrivateOutput<E> disconnect ();
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Optional<Input<T>> connection ();
+    public Optional<Input<E>> connection ();
 
     /**
      * {@inheritDoc}
      */
     @Override
     public boolean isFull ();
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isEmpty ();
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int capacity ();
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int size ();
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int remainingCapacity ();
 
     /**
      * Send a message via this output to the connected input, if any.
@@ -67,5 +106,5 @@ public interface PrivateOutput<T>
      * @param value is the message to send.
      * @return this.
      */
-    public PrivateOutput<T> send (T value);
+    public PrivateOutput<E> send (E value);
 }

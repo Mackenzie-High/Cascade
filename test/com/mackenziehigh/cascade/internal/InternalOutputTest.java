@@ -1,5 +1,7 @@
 package com.mackenziehigh.cascade.internal;
 
+import com.mackenziehigh.internal.cascade.ArrayInput;
+import com.mackenziehigh.internal.cascade.InternalOutput;
 import java.util.UUID;
 import static junit.framework.Assert.*;
 import org.junit.Test;

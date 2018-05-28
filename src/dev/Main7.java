@@ -1,6 +1,6 @@
 package dev;
 
-import dev.util.PeriodicPowerplant;
+import com.mackenziehigh.cascade.powerplants.PeriodicPowerplant;
 import dev.util.Printer;
 import dev.util.Reduction;
 
@@ -27,6 +27,11 @@ public final class Main7
         plant.add(sum3.reactor);
         plant.add(printer.reactor);
         plant.start();
+
+        sum1.reactor.start();
+        sum2.reactor.start();
+        sum3.reactor.start();
+        printer.reactor.start();
 
         sum1.input().send(100L);
         sum1.input().send(100L);
