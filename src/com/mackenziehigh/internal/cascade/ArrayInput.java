@@ -25,6 +25,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
+ * Array-based <code>Input</code>.
+ *
  * TODO: Default capacity should not be zero!!!
  */
 public final class ArrayInput<E>

@@ -20,12 +20,15 @@ import com.mackenziehigh.cascade.Reactor;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- *
+ * A dangerous powerplant that should be used with great care.
  */
 public final class DirectPowerplant
         implements Powerplant
 {
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onStart (final Reactor reactor,
                          final AtomicReference<Object> meta)
@@ -33,6 +36,9 @@ public final class DirectPowerplant
         // Pass
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onStop (final Reactor reactor,
                         final AtomicReference<Object> meta)
@@ -40,6 +46,9 @@ public final class DirectPowerplant
         // Pass
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onPing (final Reactor reactor,
                         final AtomicReference<Object> meta)
@@ -47,6 +56,9 @@ public final class DirectPowerplant
         reactor.crank();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void close ()
             throws Exception

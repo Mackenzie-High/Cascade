@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- *
+ * A powerplant this is based on a <code>ScheduledExecutorService</code>.
  */
 public final class ExecutorPowerplant
         implements Powerplant
@@ -42,6 +42,9 @@ public final class ExecutorPowerplant
         this.service = service;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onStart (final Reactor reactor,
                          final AtomicReference<Object> meta)
@@ -54,6 +57,9 @@ public final class ExecutorPowerplant
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onStop (final Reactor reactor,
                         final AtomicReference<Object> meta)
@@ -61,6 +67,9 @@ public final class ExecutorPowerplant
         keepAlives.remove(reactor);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onPing (final Reactor reactor,
                         final AtomicReference<Object> meta)
@@ -74,6 +83,9 @@ public final class ExecutorPowerplant
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void close ()
             throws Exception

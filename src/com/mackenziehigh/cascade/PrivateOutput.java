@@ -19,7 +19,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
+ * An <code>Output</code> with additional methods that should
+ * only be used from within a reactor object itself.
  *
+ * @param <E>
  */
 public interface PrivateOutput<E>
         extends Output<E>

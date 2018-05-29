@@ -20,11 +20,14 @@ import com.mackenziehigh.cascade.Reactor;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- *
+ * A powerplant that does nothing (no-op).
  */
 public final class NopPowerplant
         implements Powerplant
 {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onStart (final Reactor reactor,
                          final AtomicReference<Object> meta)
@@ -32,6 +35,9 @@ public final class NopPowerplant
         // Pass
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onStop (final Reactor reactor,
                         final AtomicReference<Object> meta)
@@ -39,6 +45,9 @@ public final class NopPowerplant
         // Pass
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onPing (final Reactor reactor,
                         final AtomicReference<Object> meta)
@@ -46,6 +55,9 @@ public final class NopPowerplant
         // Pass
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void close ()
             throws Exception

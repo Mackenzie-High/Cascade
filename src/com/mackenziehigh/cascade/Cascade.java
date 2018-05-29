@@ -19,7 +19,7 @@ import com.mackenziehigh.cascade.builder.ReactorBuilder;
 import com.mackenziehigh.internal.cascade.InternalReactor;
 
 /**
- *
+ * Factory.
  */
 public final class Cascade
 {

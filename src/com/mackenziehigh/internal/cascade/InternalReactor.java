@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 /**
- *
+ * Combined Implementation of <code>ReactorBuilder</code> and <code>Reactor</code>.
  */
 public final class InternalReactor
         implements ReactorBuilder,

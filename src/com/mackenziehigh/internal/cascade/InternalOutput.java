@@ -26,6 +26,8 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
+ * Combined Implementation of <code>OutputBuilder</code> and <code>PrivateOutput</code>.
+ *
  * TODO: Already built; locks.
  */
 public final class InternalOutput<T>

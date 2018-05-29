@@ -24,8 +24,20 @@ import java.util.function.Predicate;
 public interface ArrayInputBuilder<E>
         extends InputBuilder<E>
 {
+    /**
+     * Specify how the input will respond to queue overflows.
+     *
+     * @param policy defines how the queue responds to queue overflows.
+     * @return this.
+     */
     public ArrayInputBuilder<E> withOverflowPolicy (OverflowPolicy policy);
 
+    /**
+     * Specify the maximum capacity of the input queue.
+     *
+     * @param capacity will be the maximum number of simultaneously enqueued incoming messages.
+     * @return this.
+     */
     public ArrayInputBuilder<E> withCapacity (int capacity);
 
     /**

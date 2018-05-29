@@ -21,6 +21,90 @@ Reactors for CascadeX:
 + Binary Predicate
 + Filter
 
+CascadeX - Milestone #1:
++ Allocators
++ + Fixed
++ + Dynamic
++ + Composite
++ Cascade Token
++ Cascade Stack
++ Final
++ Testers:
++ + Function Tester
++ + Binary Operator Tester
++ + Unary Operator Tester
++ Reactors:
++ + Amb
++ + Assertion
++ + Async Executor (takes Runnable, gives Futures?)
++ + Balancer
++ + Bus
++ + Router (Dynamically add/remove inputs/outputs identified by tokens) (Event Loop like)
++ + Binary File Reader/Writer
++ + Text File Reader/Writer
++ + Binary Operator
++ + + Custom
++ + + Standard
++ + Unary Operator
++ + + Custom
++ + + Standard
++ + Reduction
++ + Buffer (Additional Queuing)
++ + Clock Pulsar
++ + Counting Pulsar
++ + Command Chain (Cascade Stack Ops) (Rename)
++ + Constant
++ + Constant Pulsar
++ + Correlator (Binary Operator that recombines two streams)
++ + Cron Pulsar
++ + Demultiplexer (Route based on condition / key-extraction)
++ + Multiplexer (Add/Extract Routing Key)
++ + Functions (0 - 9)
++ + Lossless Rate Limiter
++ + Rate Limiter
++ + Variable
++ + Persistent Variable
++ + Switch
++ + Printer
++ + Collector (To Collection, List, etc)
++ + Zip (Merge two or more streams like zip function)
++ + Filter Inserter
++ + Batch Inserter
+
+CascadeX - Milestone #2:
++ Reactors:
++ + Sexpr
++ + JavaScript
++ + ZeroMQ
++ + Mapped Bus
++ + NanoHTTP
++ + JBDC
++ + GPB Encoder
++ + GPB Decoder
++ + Web Messaging (JavaScript Event Loop)
+
+CascadeX - Milestone #3:
++ Reactors:
++ Reactors - JavaFX:
++ +
+
+CascadeX - Milestone #4:
++ Reactors:
++ + Monitoring Client
++ + Monitoring Server
+
+CascadeX - Milestone #5:
++ Reactors:
++ + Service Discovery/Balancer
++ + Netty HTTP
++ + Netty Sockets
+
+
+
+
+
+
+
 
 
 

@@ -21,7 +21,8 @@ import java.util.Deque;
 import java.util.Objects;
 
 /**
- *
+ * An instance of this class implements a given <code>OverflowPolicy</code>
+ * with regards to a given <code>Deque</code> data-structure.
  */
 public final class OverflowHandler<T>
 {
@@ -31,6 +32,13 @@ public final class OverflowHandler<T>
 
     private final OverflowPolicy policy;
 
+    /**
+     * Sole constructor.
+     *
+     * @param queue will be forced to obey the given overflow-policy.
+     * @param capacity is the maximum number of elements in the queue.
+     * @param policy defines what shall happen when the capacity is exceeded.
+     */
     public OverflowHandler (final Deque<T> queue,
                             final int capacity,
                             final OverflowPolicy policy)
@@ -40,6 +48,13 @@ public final class OverflowHandler<T>
         this.capacity = capacity;
     }
 
+    /**
+     * Attempt to add the given value to the queue,
+     * but obey the overflow-policy when necessary.
+     *
+     * @param value is being added to the queue.
+     * @return true, if the value was added to the queue.
+     */
     public boolean offer (final T value)
     {
         if (capacity == 0)

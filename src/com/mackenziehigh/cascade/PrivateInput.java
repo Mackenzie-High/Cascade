@@ -20,7 +20,10 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
+ * An <code>Input</code> with additional methods that should
+ * only be used from within a reactor object itself.
  *
+ * @param <E>
  */
 public interface PrivateInput<E>
         extends Input<E>
@@ -125,15 +128,42 @@ public interface PrivateInput<E>
     @Override
     public PrivateInput<E> send (E value);
 
+    /**
+     * Remove all enqueued messages from this input.
+     *
+     * @return this.
+     */
     public PrivateInput<E> clear ();
 
+    /**
+     * Retrieve and remove the message that has been
+     * enqueued in this input for the longest time.
+     *
+     * @return the first element in the FIFO queue,
+     * or null, if the queue is empty.
+     */
     public default E pollOrNull ()
     {
         return pollOrDefault(null);
     }
 
+    /**
+     * Retrieve and remove the message that has been
+     * enqueued in this input for the longest time.
+     *
+     * @param defaultValue will returned, if the queue is empty.
+     * @return the first element in the FIFO queue,
+     * or the default value, if the queue is empty.
+     */
     public E pollOrDefault (E defaultValue);
 
+    /**
+     * Retrieve and remove the message that has been
+     * enqueued in this input for the longest time.
+     *
+     * @return the first element in the FIFO queue,
+     * or empty, if the queue is empty.
+     */
     public default Optional<E> poll ()
     {
         final E head = pollOrDefault(null);
