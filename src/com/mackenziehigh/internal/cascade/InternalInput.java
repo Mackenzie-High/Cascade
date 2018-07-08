@@ -39,13 +39,6 @@ import java.util.function.UnaryOperator;
 final class InternalInput<E>
         implements Input<E>
 {
-
-    private final Class<E> type;
-
-    private volatile Deque<E> queue;
-
-    private volatile OverflowHandler<E> overflowHandler;
-
     private final Object lock = new Object();
 
     private final Reactor reactor;
@@ -53,6 +46,12 @@ final class InternalInput<E>
     private final UUID uuid = UUID.randomUUID();
 
     private volatile String name = uuid.toString();
+
+    private final Class<E> type;
+
+    private final Deque<E> queue;
+
+    private final OverflowHandler<E> overflowHandler;
 
     private volatile UnaryOperator<E> verifications = UnaryOperator.identity();
 
@@ -179,7 +178,7 @@ final class InternalInput<E>
     {
         synchronized (lock)
         {
-            final int size = queue == null ? 0 : queue.size();
+            final int size = queue.size();
             return size;
         }
     }
@@ -187,29 +186,24 @@ final class InternalInput<E>
     @Override
     public boolean isEmpty ()
     {
-        synchronized (lock)
-        {
-            return size() == 0;
-        }
+        return size() == 0;
     }
 
     @Override
     public boolean isFull ()
     {
-        synchronized (lock)
-        {
-            return size() == capacity();
-        }
+        return size() == capacity();
     }
 
     @Override
     public InternalInput<E> forEach (final Consumer<E> functor)
     {
+        Preconditions.checkNotNull(functor, "functor");
+
         synchronized (lock)
         {
             if (queue != null)
             {
-                Preconditions.checkNotNull(functor, "functor");
                 queue.forEach(functor);
             }
             return this;

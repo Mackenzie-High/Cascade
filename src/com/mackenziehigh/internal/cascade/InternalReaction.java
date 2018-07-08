@@ -41,10 +41,6 @@ final class InternalReaction
 
     private volatile String name = uuid.toString();
 
-    private volatile boolean atStart = false;
-
-    private volatile boolean atStop = false;
-
     private final List<BooleanSupplier> requirements = Lists.newCopyOnWriteArrayList();
 
     private volatile ReactionTask onTrue = () ->

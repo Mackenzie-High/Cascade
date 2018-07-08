@@ -1,5 +1,9 @@
 package com.mackenziehigh.internal.cascade;
 
+import com.mackenziehigh.cascade.Cascade;
+import com.mackenziehigh.cascade.Input;
+import com.mackenziehigh.cascade.Output;
+import com.mackenziehigh.cascade.Reactor;
 import static junit.framework.Assert.*;
 import org.junit.Test;
 
@@ -9,13 +13,13 @@ import org.junit.Test;
  */
 public final class InternalReactionTest
 {
-    private final MockReactor reactor = new MockReactor();
+    private final Reactor reactor = Cascade.newReactor();
 
     private final InternalReaction reaction = new InternalReaction(reactor);
 
-    private final InternalInput<String> input = new InternalInput<>(reactor, String.class).withCapacity(8).build();
+    private final Input<String> input = reactor.newLinkedInput(String.class);
 
-    private final InternalOutput<String> output = new InternalOutput<>(reactor, String.class);
+    private final Output<String> output = reactor.newOutput(String.class);
 
     /**
      * Test: 20180529201504798481
@@ -78,13 +82,13 @@ public final class InternalReactionTest
      * </p>
      *
      * <p>
-     * Case: After build(), Empty Input.
+     * Case: Empty Input.
      * </p>
      */
     @Test
     public void test20180529201504798643 ()
     {
-        reaction.require(input).build();
+        reaction.require(input);
 
         assertTrue(input.isEmpty());
         assertFalse(reaction.isReady());
@@ -98,13 +102,13 @@ public final class InternalReactionTest
      * </p>
      *
      * <p>
-     * Case: After build(), Non-Empty Input.
+     * Case: Non-Empty Input.
      * </p>
      */
     @Test
     public void test20180529201504798668 ()
     {
-        reaction.require(input).build();
+        reaction.require(input);
 
         input.send("X");
         assertFalse(input.isEmpty());

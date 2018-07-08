@@ -1,9 +1,9 @@
 package com.mackenziehigh.internal.cascade;
 
-import com.mackenziehigh.internal.cascade.MockReactor;
-import com.mackenziehigh.internal.cascade.InternalInput;
-import com.mackenziehigh.cascade.OverflowPolicy;
 import com.google.common.collect.Lists;
+import com.mackenziehigh.cascade.Cascade;
+import com.mackenziehigh.cascade.OverflowPolicy;
+import com.mackenziehigh.cascade.Reactor;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
@@ -18,9 +18,9 @@ import org.junit.Test;
  */
 public final class ArrayInputTest
 {
-    private final MockReactor reactor = new MockReactor();
+    private final Reactor reactor = Cascade.newReactor();
 
-    private final InternalInput<String> object = new InternalInput<>(reactor, String.class);
+    private InternalInput<String> object = InternalInput.newLinkedInput(reactor, String.class, 8, OverflowPolicy.DROP_INCOMING);
 
     /**
      * Test: 20180525225637428064
@@ -32,15 +32,7 @@ public final class ArrayInputTest
     @Test
     public void test20180525225637428064 ()
     {
-        /**
-         * Before build().
-         */
         final UUID uuid1 = object.uuid();
-
-        /**
-         * After build().
-         */
-        object.build();
         final UUID uuid2 = object.uuid();
 
         assertNotNull(uuid1);
@@ -55,39 +47,12 @@ public final class ArrayInputTest
      * </p>
      *
      * <p>
-     * Case: Before build().
+     * Case: Default.
      * </p>
      */
     @Test
     public void test20180525225637428144 ()
     {
-        /**
-         * Before build(), Before named().
-         */
-        assertEquals(object.uuid().toString(), object.name());
-
-        /**
-         * Before build(), After named().
-         */
-        object.named("Coal");
-        assertEquals("Coal", object.name());
-    }
-
-    /**
-     * Test: 20180525233352121667
-     *
-     * <p>
-     * Method: <code>name</code>
-     * </p>
-     *
-     * <p>
-     * Case: After build(), Before named().
-     * </p>
-     */
-    @Test
-    public void test20180525233352121667 ()
-    {
-        object.build();
         assertEquals(object.uuid().toString(), object.name());
     }
 
@@ -99,33 +64,14 @@ public final class ArrayInputTest
      * </p>
      *
      * <p>
-     * Case: After build(), After named().
+     * Case: After Assignment.
      * </p>
      */
     @Test
     public void test20180525233556498166 ()
     {
         object.named("Coal");
-        object.build();
         assertEquals("Coal", object.name());
-    }
-
-    /**
-     * Test: 20180525233751021852
-     *
-     * <p>
-     * Method: <code>named</code>
-     * </p>
-     *
-     * <p>
-     * Case: After build().
-     * </p>
-     */
-    @Test (expected = IllegalStateException.class)
-    public void test20180525233751021852 ()
-    {
-        object.build();
-        object.named("Coal");
     }
 
     /**
@@ -136,14 +82,13 @@ public final class ArrayInputTest
      * </p>
      *
      * <p>
-     * Case:
+     * Case: Normal.
      * </p>
      */
     @Test
     public void test20180525225637428172 ()
     {
-        System.out.println("Test: 20180525225637428172");
-        fail();
+        assertEquals(reactor, object.reactor());
     }
 
     /**
@@ -210,114 +155,7 @@ public final class ArrayInputTest
     @Test
     public void test20180525230353277923 ()
     {
-        /**
-         * Before specified.
-         */
-        assertEquals(0, object.capacity());
-
-        /**
-         * After specified, Before build().
-         */
-        object.withCapacity(128);
-        assertEquals(128, object.capacity());
-
-        /**
-         * After specified, After build().
-         */
-        object.build();
-        assertEquals(128, object.capacity());
-    }
-
-    /**
-     * Test: 20180525234811438774
-     *
-     * <p>
-     * Method: <code>capacity</code>
-     * </p>
-     *
-     * <p>
-     * Case: Capacity Assignment, Duplicate.
-     * </p>
-     */
-    @Test
-    public void test20180525234811438774 ()
-    {
-        object.withCapacity(100);
-        object.withCapacity(200);
-        assertEquals(200, object.capacity());
-    }
-
-    /**
-     * Test: 20180525234913400670
-     *
-     * <p>
-     * Method: <code>capacity</code>
-     * </p>
-     *
-     * <p>
-     * Case: Capacity Assignment, After build().
-     * </p>
-     */
-    @Test (expected = IllegalStateException.class)
-    public void test20180525234913400670 ()
-    {
-        object.build();
-        object.withCapacity(100);
-    }
-
-    /**
-     * Test: 20180525235046853903
-     *
-     * <p>
-     * Method: <code>capacity</code>
-     * </p>
-     *
-     * <p>
-     * Case: Capacity Assignment, Negative.
-     * </p>
-     */
-    @Test (expected = IllegalArgumentException.class)
-    public void test20180525235046853903 ()
-    {
-        object.withCapacity(-1);
-    }
-
-    /**
-     * Test: 20180525235221088739
-     *
-     * <p>
-     * Method: <code>capacity</code>
-     * </p>
-     *
-     * <p>
-     * Case: Capacity Assignment, Zero.
-     * </p>
-     */
-    @Test
-    public void test20180525235221088739 ()
-    {
-        /**
-         * Build the object.
-         */
-        object.withCapacity(0);
-        assertEquals(0, object.capacity());
-        object.build();
-
-        /**
-         * Verify that it was built correctly.
-         */
-        assertEquals(0, object.size());
-        assertTrue(object.isEmpty());
-        assertTrue(object.isFull());
-
-        /**
-         * Try to use the object.
-         */
-        object.send("Pong");
-        assertEquals(0, object.size());
-        assertTrue(object.isEmpty());
-        assertTrue(object.isFull());
-        assertEquals(0, reactor.pings.get());
+        assertEquals(8, object.capacity());
     }
 
     /**
@@ -332,20 +170,7 @@ public final class ArrayInputTest
     {
         System.out.println("Test: 20180525230353277954");
 
-        /**
-         * Before build().
-         */
         assertEquals(0, object.size());
-
-        /**
-         * After build(), Before Use.
-         */
-        object.withCapacity(100).build();
-        assertEquals(0, object.size());
-
-        /**
-         * After build(), After Use.
-         */
         object.send("Vulcan");
         assertEquals(1, object.size());
         object.send("Andoria");
@@ -362,24 +187,8 @@ public final class ArrayInputTest
     @Test
     public void test20180525230353277987 ()
     {
-        System.out.println("Test: 20180525230353277987");
-
-        /**
-         * Before build().
-         */
         assertEquals(0, object.size());
         assertTrue(object.isEmpty());
-
-        /**
-         * After build(), Before Use.
-         */
-        object.withCapacity(100).build();
-        assertEquals(0, object.size());
-        assertTrue(object.isEmpty());
-
-        /**
-         * After build(), After Use.
-         */
         object.send("Vulcan");
         assertEquals(1, object.size());
         assertFalse(object.isEmpty());
@@ -398,32 +207,12 @@ public final class ArrayInputTest
     @Test
     public void test20180525230353278019 ()
     {
-        /**
-         * Before build(), Before Capacity Assignment.
-         */
-        assertEquals(0, object.size());
-        assertTrue(object.isEmpty());
-        assertTrue(object.isFull());
+        assertEquals(8, object.capacity());
 
-        /**
-         * Before build(), After Capacity Assignment.
-         */
-        object.withCapacity(5);
         assertEquals(0, object.size());
         assertTrue(object.isEmpty());
         assertFalse(object.isFull());
 
-        /**
-         * After build(), Before Use.
-         */
-        object.build();
-        assertEquals(0, object.size());
-        assertTrue(object.isEmpty());
-        assertFalse(object.isFull());
-
-        /**
-         * After build(), After Use.
-         */
         object.send("Vulcan");
         assertEquals(1, object.size());
         assertFalse(object.isEmpty());
@@ -443,6 +232,18 @@ public final class ArrayInputTest
         object.send("Uranus");
         assertEquals(5, object.size());
         assertFalse(object.isEmpty());
+        assertFalse(object.isFull());
+        object.send("Romulus");
+        assertEquals(6, object.size());
+        assertFalse(object.isEmpty());
+        assertFalse(object.isFull());
+        object.send("Mars");
+        assertEquals(7, object.size());
+        assertFalse(object.isEmpty());
+        assertFalse(object.isFull());
+        object.send("Venus");
+        assertEquals(8, object.size());
+        assertFalse(object.isEmpty());
         assertTrue(object.isFull());
     }
 
@@ -456,29 +257,15 @@ public final class ArrayInputTest
     @Test
     public void test20180525230353278044 ()
     {
-        /**
-         * Before build(), Null.
-         */
-        assertNull(object.peekOrDefault(null));
 
         /**
-         * Before build(), Not Null.
+         * Empty Queue.
          */
+        assertNull(object.peekOrDefault(null));
         assertEquals("Mars", object.peekOrDefault("Mars"));
 
         /**
-         * After build(), Default Value, Null.
-         */
-        object.withCapacity(100).build();
-        assertNull(object.peekOrDefault(null));
-
-        /**
-         * After build(), Default Value, Not Null.
-         */
-        assertEquals("Mars", object.peekOrDefault("Mars"));
-
-        /**
-         * After build(), Non-Default Value.
+         * Non-Empty Queue.
          */
         object.send("T'Pol");
         assertEquals(1, object.size());
@@ -503,18 +290,12 @@ public final class ArrayInputTest
     public void test20180525230353278071 ()
     {
         /**
-         * Before build().
+         * Empty Queue.
          */
         assertFalse(object.peek().isPresent());
 
         /**
-         * After build(), Default Value.
-         */
-        object.withCapacity(100).build();
-        assertFalse(object.peek().isPresent());
-
-        /**
-         * After build(), Non-Default Value.
+         * Non-Empty Queue.
          */
         object.send("T'Pol");
         assertEquals(1, object.size());
@@ -541,28 +322,13 @@ public final class ArrayInputTest
         System.out.println("Test: 20180525230353278097");
 
         /**
-         * Before build(), Null.
+         * Empty Queue.
          */
         assertNull(object.pollOrDefault(null));
-
-        /**
-         * Before build(), Not Null.
-         */
         assertEquals("Mars", object.pollOrDefault("Mars"));
 
         /**
-         * After build(), Default Value, Null.
-         */
-        object.withCapacity(100).build();
-        assertNull(object.pollOrDefault(null));
-
-        /**
-         * After build(), Default Value, Not Null.
-         */
-        assertEquals("Mars", object.pollOrDefault("Mars"));
-
-        /**
-         * After build(), Non-Default Value.
+         * Non-Empty Queue.
          */
         object.send("T'Pol");
         assertEquals(1, object.size());
@@ -583,18 +349,12 @@ public final class ArrayInputTest
         System.out.println("Test: 20180525230353278124");
 
         /**
-         * Before build().
+         * Empty Queue.
          */
         assertFalse(object.poll().isPresent());
 
         /**
-         * After build(), Default Value.
-         */
-        object.withCapacity(100).build();
-        assertFalse(object.poll().isPresent());
-
-        /**
-         * After build(), Non-Default Value.
+         * Non-Empty Queue.
          */
         object.send("T'Pol");
         assertEquals(1, object.size());
@@ -615,20 +375,13 @@ public final class ArrayInputTest
         final List<String> out = new LinkedList<>();
 
         /**
-         * Before build().
+         * Empty Queue.
          */
         object.forEach(x -> out.add(x));
         assertTrue(out.isEmpty());
 
         /**
-         * After build(), Empty.
-         */
-        object.withCapacity(100).build();
-        object.forEach(x -> out.add(x));
-        assertTrue(out.isEmpty());
-
-        /**
-         * After build(), Not Empty.
+         * Non-Empty Queue.
          */
         object.send("Vancouver");
         object.send("Toronto");
@@ -647,31 +400,13 @@ public final class ArrayInputTest
      * </p>
      *
      * <p>
-     * Case: Null Argument
+     * Case: Null Argument.
      * </p>
      */
     @Test (expected = NullPointerException.class)
     public void test20180525230353278173 ()
     {
-        object.withCapacity(10).build().send(null);
-    }
-
-    /**
-     * Test: 20180525230353278199
-     *
-     * <p>
-     * Method: <code>send</code>
-     * </p>
-     *
-     * <p>
-     * Case: Not Built Yet
-     * </p>
-     */
-    @Test
-    public void test20180525230353278199 ()
-    {
-        assertTrue(object.withCapacity(10).send("Vulcan").isEmpty());
-        assertEquals(0, reactor.pings.get());
+        object.send(null);
     }
 
     /**
@@ -682,7 +417,7 @@ public final class ArrayInputTest
      * </p>
      *
      * <p>
-     * Case: Overflow Policy - Drop Oldest
+     * Case: Overflow Policy - Drop Oldest.
      * </p>
      */
     @Test
@@ -691,12 +426,13 @@ public final class ArrayInputTest
         /**
          * Build the input and fill it up to capacity.
          */
-        object.withCapacity(3).withOverflowPolicy(OverflowPolicy.DROP_OLDEST).build();
+        object = InternalInput.newLinkedInput(reactor, String.class, 3, OverflowPolicy.DROP_OLDEST);
         object.send("A");
         object.send("B");
         object.send("C");
         assertEquals(3, object.size());
         assertTrue(object.isFull());
+        assertEquals(OverflowPolicy.DROP_OLDEST, object.overflowPolicy());
 
         /**
          * Try to insert another element, which will overflow the capacity.
@@ -730,12 +466,13 @@ public final class ArrayInputTest
         /**
          * Build the input and fill it up to capacity.
          */
-        object.withCapacity(3).withOverflowPolicy(OverflowPolicy.DROP_NEWEST).build();
+        object = InternalInput.newLinkedInput(reactor, String.class, 3, OverflowPolicy.DROP_NEWEST);
         object.send("A");
         object.send("B");
         object.send("C");
         assertEquals(3, object.size());
         assertTrue(object.isFull());
+        assertEquals(OverflowPolicy.DROP_NEWEST, object.overflowPolicy());
 
         /**
          * Try to insert another element, which will overflow the capacity.
@@ -769,12 +506,13 @@ public final class ArrayInputTest
         /**
          * Build the input and fill it up to capacity.
          */
-        object.withCapacity(3).withOverflowPolicy(OverflowPolicy.DROP_PENDING).build();
+        object = InternalInput.newLinkedInput(reactor, String.class, 3, OverflowPolicy.DROP_PENDING);
         object.send("A");
         object.send("B");
         object.send("C");
         assertEquals(3, object.size());
         assertTrue(object.isFull());
+        assertEquals(OverflowPolicy.DROP_PENDING, object.overflowPolicy());
 
         /**
          * Try to insert another element, which will overflow the capacity.
@@ -806,12 +544,13 @@ public final class ArrayInputTest
         /**
          * Build the input and fill it up to capacity.
          */
-        object.withCapacity(3).withOverflowPolicy(OverflowPolicy.DROP_INCOMING).build();
+        object = InternalInput.newLinkedInput(reactor, String.class, 3, OverflowPolicy.DROP_INCOMING);
         object.send("A");
         object.send("B");
         object.send("C");
         assertEquals(3, object.size());
         assertTrue(object.isFull());
+        assertEquals(OverflowPolicy.DROP_INCOMING, object.overflowPolicy());
 
         /**
          * Try to insert another element, which will overflow the capacity.
@@ -845,12 +584,13 @@ public final class ArrayInputTest
         /**
          * Build the input and fill it up to capacity.
          */
-        object.withCapacity(3).withOverflowPolicy(OverflowPolicy.DROP_ALL).build();
+        object = InternalInput.newLinkedInput(reactor, String.class, 3, OverflowPolicy.DROP_ALL);
         object.send("A");
         object.send("B");
         object.send("C");
         assertEquals(3, object.size());
         assertTrue(object.isFull());
+        assertEquals(OverflowPolicy.DROP_ALL, object.overflowPolicy());
 
         /**
          * Try to insert another element, which will overflow the capacity.
@@ -909,15 +649,6 @@ public final class ArrayInputTest
     @Test
     public void test20180525231117106175 ()
     {
-        /**
-         * Before build().
-         */
-        assertEquals(String.class, object.type());
-
-        /**
-         * After build().
-         */
-        object.withCapacity(10).build();
         assertEquals(String.class, object.type());
     }
 
@@ -932,20 +663,14 @@ public final class ArrayInputTest
     public void test20180525231117106210 ()
     {
         /**
-         * Case: Before build().
+         * Empty Queue.
          */
+        assertTrue(object.isEmpty());
         object.clear();
         assertTrue(object.isEmpty());
 
         /**
-         * Case: After build(), Before Use.
-         */
-        object.withCapacity(3).build();
-        object.clear();
-        assertTrue(object.isEmpty());
-
-        /**
-         * After build(), After Use.
+         * Non-Empty Queue.
          */
         object.send("A");
         object.send("B");

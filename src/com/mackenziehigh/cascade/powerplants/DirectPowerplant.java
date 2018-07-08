@@ -31,7 +31,7 @@ public final class DirectPowerplant
      */
     @Override
     public void onBind (final Reactor reactor,
-                         final AtomicReference<Object> meta)
+                        final AtomicReference<Object> meta)
     {
         // Pass
     }
@@ -41,7 +41,7 @@ public final class DirectPowerplant
      */
     @Override
     public void onUnbind (final Reactor reactor,
-                        final AtomicReference<Object> meta)
+                          final AtomicReference<Object> meta)
     {
         // Pass
     }

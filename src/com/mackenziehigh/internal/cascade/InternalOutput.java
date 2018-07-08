@@ -40,8 +40,6 @@ final class InternalOutput<T>
 
     private final Object lock = new Object();
 
-    private volatile boolean built = false;
-
     private volatile String name = uuid.toString();
 
     private volatile Optional<Input<T>> connection = Optional.empty();
@@ -51,11 +49,6 @@ final class InternalOutput<T>
     {
         this.reactor = Objects.requireNonNull(reactor, "reactor");
         this.type = Objects.requireNonNull(type, "type");
-    }
-
-    private void requireEgg ()
-    {
-        Preconditions.checkState(!built, "Already Built!");
     }
 
     /**
@@ -75,7 +68,6 @@ final class InternalOutput<T>
     {
         synchronized (lock)
         {
-            requireEgg();
             this.name = Objects.requireNonNull(name, "name");
             return this;
         }
@@ -89,7 +81,6 @@ final class InternalOutput<T>
     {
         synchronized (lock)
         {
-            requireEgg();
             throw new UnsupportedOperationException("Not supported yet.");
         }
     }
@@ -127,9 +118,10 @@ final class InternalOutput<T>
     @Override
     public Output<T> connect (final Input<T> input)
     {
+        Preconditions.checkNotNull(input, "input");
+
         synchronized (lock)
         {
-            Preconditions.checkNotNull(input, "input");
             if (connection.map(x -> x.equals(input)).orElse(false))
             {
                 return this;
@@ -186,7 +178,7 @@ final class InternalOutput<T>
     {
         synchronized (lock)
         {
-            return remainingCapacity() == 0;
+            return connection.isPresent() ? remainingCapacity() == 0 : false;
         }
     }
 
@@ -219,7 +211,7 @@ final class InternalOutput<T>
     {
         synchronized (lock)
         {
-            return connection.map(x -> x.isEmpty()).orElse(false);
+            return connection.map(x -> x.isEmpty()).orElse(true);
         }
     }
 
@@ -255,14 +247,8 @@ final class InternalOutput<T>
     {
         synchronized (lock)
         {
-            if (built == false)
-            {
-                return 0;
-            }
-            else
-            {
-                return connection.map(x -> x.remainingCapacity()).orElse(0);
-            }
+            final int result = connection.isPresent() ? capacity() - connection.get().size() : 0;
+            return result;
         }
     }
 }
