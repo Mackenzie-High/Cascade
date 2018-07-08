@@ -17,6 +17,8 @@ package com.mackenziehigh.internal.cascade;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
+import com.mackenziehigh.cascade.Input;
+import com.mackenziehigh.cascade.Output;
 import com.mackenziehigh.cascade.OverflowPolicy;
 import com.mackenziehigh.cascade.Reactor;
 import java.util.ArrayDeque;
@@ -24,7 +26,10 @@ import java.util.Deque;
 import java.util.LinkedList;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 
 /**
  * Array-based <code>Input</code>.
@@ -32,7 +37,7 @@ import java.util.function.Consumer;
  * TODO: Default capacity should not be zero!!!
  */
 final class InternalInput<E>
-        extends AbstractInput<E, InternalInput<E>>
+        implements Input<E>
 {
 
     private final Class<E> type;
@@ -41,12 +46,24 @@ final class InternalInput<E>
 
     private volatile OverflowHandler<E> overflowHandler;
 
+    private final Object lock = new Object();
+
+    private final Reactor reactor;
+
+    private final UUID uuid = UUID.randomUUID();
+
+    private volatile String name = uuid.toString();
+
+    private volatile UnaryOperator<E> verifications = UnaryOperator.identity();
+
+    private volatile Optional<Output<E>> connection = Optional.empty();
+
     private InternalInput (final Reactor reactor,
                            final Class<E> type,
                            final Deque<E> queue,
                            final OverflowHandler<E> handler)
     {
-        super(reactor);
+        this.reactor = Objects.requireNonNull(reactor, "reactor");
         this.type = Objects.requireNonNull(type, "type");
         this.queue = queue;
         this.overflowHandler = handler;
@@ -72,6 +89,25 @@ final class InternalInput<E>
         return new InternalInput<>(reactor, type, queue, handler);
     }
 
+    private void pingInputs ()
+    {
+        synchronized (lock)
+        {
+            if (connection.isPresent())
+            {
+                connection.get().reactor().ping();
+            }
+        }
+    }
+
+    private boolean offer (final E value)
+    {
+        synchronized (lock)
+        {
+            return overflowHandler.offer(value);
+        }
+    }
+
     @Override
     public Class<E> type ()
     {
@@ -85,12 +121,6 @@ final class InternalInput<E>
     }
 
     @Override
-    protected InternalInput<E> self ()
-    {
-        return this;
-    }
-
-    @Override
     public InternalInput<E> clear ()
     {
         synchronized (lock)
@@ -100,15 +130,6 @@ final class InternalInput<E>
                 queue.clear();
             }
             return this;
-        }
-    }
-
-    @Override
-    protected boolean offer (final E value)
-    {
-        synchronized (lock)
-        {
-            return overflowHandler.offer(value);
         }
     }
 
@@ -218,4 +239,153 @@ final class InternalInput<E>
         return Optional.ofNullable(queue.peek());
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Input<E> named (final String name)
+    {
+        synchronized (lock)
+        {
+            this.name = Objects.requireNonNull(name, "name");
+            return this;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Input<E> verify (final Predicate<E> condition)
+    {
+        synchronized (lock)
+        {
+            final UnaryOperator<E> checker = x ->
+            {
+                final boolean test = condition.test(x);
+                Verify.verify(test); // TODO: Correct exception type?
+                return x;
+            };
+
+            final UnaryOperator<E> op = verifications;
+            verifications = x -> checker.apply(op.apply(x));
+            return this;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public UUID uuid ()
+    {
+        return uuid;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String name ()
+    {
+        return name;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Reactor reactor ()
+    {
+        return reactor;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Input<E> connect (final Output<E> output)
+    {
+        Preconditions.checkNotNull(output, "output");
+
+        synchronized (lock)
+        {
+            if (connection.map(x -> x.equals(output)).orElse(false))
+            {
+                return this;
+            }
+            else if (connection.isPresent())
+            {
+                throw new IllegalStateException("Alreayd Connected!");
+            }
+            else
+            {
+                connection = Optional.of(output);
+                output.connect(this);
+                pingInputs();
+                reactor.ping();
+            }
+            return this;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Input<E> disconnect ()
+    {
+        synchronized (lock)
+        {
+            final Output<E> output = connection.orElse(null);
+            connection = Optional.empty();
+            if (output != null)
+            {
+                output.disconnect();
+                pingInputs();
+                reactor.ping();
+            }
+            return this;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Optional<Output<E>> connection ()
+    {
+        return connection;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Input<E> send (final E value)
+    {
+        if (value == null)
+        {
+            throw new NullPointerException("Refusing to send() null!");
+        }
+
+        final E transformed = verifications.apply(value);
+        final boolean inserted = transformed != null && offer(transformed);
+
+        if (inserted)
+        {
+            reactor.ping();
+        }
+
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String toString ()
+    {
+        return name;
+    }
 }
