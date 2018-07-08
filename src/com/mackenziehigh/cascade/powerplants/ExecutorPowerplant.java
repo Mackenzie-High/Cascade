@@ -15,15 +15,9 @@
  */
 package com.mackenziehigh.cascade.powerplants;
 
-import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Powerplant;
 import com.mackenziehigh.cascade.Reactor;
-import java.time.Duration;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -35,8 +29,6 @@ public final class ExecutorPowerplant
 {
     private final ExecutorService service;
 
-    private final Set<Reactor> keepAlives = Sets.newConcurrentHashSet();
-
     private ExecutorPowerplant (final ExecutorService service)
     {
         this.service = service;
@@ -46,25 +38,20 @@ public final class ExecutorPowerplant
      * {@inheritDoc}
      */
     @Override
-    public void onStart (final Reactor reactor,
-                         final AtomicReference<Object> meta)
+    public void onBind (final Reactor reactor,
+                        final AtomicReference<Object> meta)
     {
         meta.set(new AtomicBoolean());
-
-        if (reactor.isKeepAliveRequired())
-        {
-            keepAlives.add(reactor);
-        }
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void onStop (final Reactor reactor,
-                        final AtomicReference<Object> meta)
+    public void onUnbind (final Reactor reactor,
+                          final AtomicReference<Object> meta)
     {
-        keepAlives.remove(reactor);
+        // Pass
     }
 
     /**
@@ -101,29 +88,8 @@ public final class ExecutorPowerplant
         }
     }
 
-    private void keepAlive ()
+    public static ExecutorPowerplant from (final ExecutorService service)
     {
-        keepAlives.forEach(x -> x.ping());
+        return new ExecutorPowerplant(service);
     }
-
-    public static ExecutorPowerplant create (final int threadCount,
-                                             final Duration keepalive)
-    {
-        final ScheduledExecutorService service = Executors.newScheduledThreadPool(threadCount);
-        return create(service, keepalive);
-    }
-
-    public static ExecutorPowerplant create (final ScheduledExecutorService service,
-                                             final Duration keepalive)
-    {
-        final ExecutorPowerplant plant = new ExecutorPowerplant(service);
-
-        // TODO: Is this prone to some sort of internal queue backlogs???
-        service.scheduleWithFixedDelay(plant::keepAlive, 0, keepalive.toNanos(), TimeUnit.NANOSECONDS);
-
-        plant.keepAlive();
-
-        return plant;
-    }
-
 }

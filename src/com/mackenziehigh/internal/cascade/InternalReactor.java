@@ -15,56 +15,34 @@
  */
 package com.mackenziehigh.internal.cascade;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.mackenziehigh.cascade.Input;
 import com.mackenziehigh.cascade.Output;
+import com.mackenziehigh.cascade.OverflowPolicy;
 import com.mackenziehigh.cascade.Powerplant;
 import com.mackenziehigh.cascade.Reaction;
 import com.mackenziehigh.cascade.Reactor;
-import com.mackenziehigh.cascade.builder.OutputBuilder;
-import com.mackenziehigh.cascade.builder.ReactionBuilder;
-import com.mackenziehigh.cascade.builder.ReactorBuilder;
 import com.mackenziehigh.cascade.powerplants.NopPowerplant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 /**
  * Combined Implementation of <code>ReactorBuilder</code> and <code>Reactor</code>.
  */
 public final class InternalReactor
-        implements ReactorBuilder,
-                   Reactor,
-                   MockableReactor
+        implements Reactor
 {
-
-    private static enum LifeCycle
-    {
-        UNSTARTED,
-        STARTING,
-        STARTED,
-        STOPPING,
-        STOPPED,
-    }
-
     private final UUID uuid = UUID.randomUUID();
 
     private volatile String name = uuid.toString();
 
-    private volatile boolean built = false;
-
     private volatile boolean reacting = false;
-
-    private volatile LifeCycle phase = LifeCycle.UNSTARTED;
 
     private final AtomicReference<Object> meta = new AtomicReference<>();
 
@@ -74,41 +52,28 @@ public final class InternalReactor
 
     private final Semaphore runLock = new Semaphore(1);
 
-    private final Set<Input<?>> inputsBuilder = Sets.newConcurrentHashSet();
-
-    private final Set<Output<?>> outputsBuilder = Sets.newConcurrentHashSet();
-
     private final List<InternalReaction> reactionsList = Lists.newCopyOnWriteArrayList();
 
-    private volatile SortedMap<String, Input<?>> inputs = ImmutableSortedMap.of();
+    private final Set<Input<?>> inputs = Sets.newCopyOnWriteArraySet();
 
-    private volatile SortedMap<String, Output<?>> outputs = ImmutableSortedMap.of();
+    private final Set<Output<?>> outputs = Sets.newCopyOnWriteArraySet();
 
-    private volatile SortedMap<String, Reaction> reactions = ImmutableSortedMap.of();
+    private final List<Reaction> reactions = Lists.newCopyOnWriteArrayList();
 
-    private void requireEgg ()
-    {
-        Preconditions.checkState(!built, "Already Built!");
-    }
+    private final Set<Input<?>> unmodInputs = Collections.unmodifiableSet(inputs);
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Optional<Reactor> reactor ()
-    {
-        return built ? Optional.of(this) : Optional.empty();
-    }
+    private final Set<Output<?>> unmodOutputs = Collections.unmodifiableSet(outputs);
+
+    private final List<Reaction> unmodReactions = Collections.unmodifiableList(reactions);
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public ReactorBuilder named (final String name)
+    public Reactor named (final String name)
     {
         synchronized (lock)
         {
-            requireEgg();
             this.name = Objects.requireNonNull(name, "name");
             return this;
         }
@@ -118,12 +83,16 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public ReactorBuilder poweredBy (final Powerplant executor)
+    public Reactor poweredBy (final Powerplant executor)
     {
+        Objects.requireNonNull(executor, "executor");
+
         synchronized (lock)
         {
-            requireEgg();
-            this.powerplant = Objects.requireNonNull(executor, "executor");
+            powerplant.onUnbind(this, meta);
+            powerplant = executor;
+            powerplant.onBind(this, meta);
+            ping();
             return this;
         }
     }
@@ -132,43 +101,10 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public <T> ArrayInput<T> newArrayInput (final Class<T> type)
+    public Reaction newReaction ()
     {
         synchronized (lock)
         {
-            requireEgg();
-            Preconditions.checkNotNull(type, "type");
-            final ArrayInput<T> input = new ArrayInput<>(this, type);
-            inputsBuilder.add(input);
-            return input;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public <T> OutputBuilder<T> newOutput (final Class<T> type)
-    {
-        synchronized (lock)
-        {
-            requireEgg();
-            Preconditions.checkNotNull(type, "type");
-            final InternalOutput<T> output = new InternalOutput<>(this, type);
-            outputsBuilder.add(output);
-            return output;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public ReactionBuilder newReaction ()
-    {
-        synchronized (lock)
-        {
-            requireEgg();
             final InternalReaction builder = new InternalReaction(this);
             reactionsList.add(builder);
             return builder;
@@ -179,16 +115,45 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public Reactor build ()
+    public <T> Input newArrayInput (final Class<T> type,
+                                    final int capacity,
+                                    final OverflowPolicy policy)
     {
         synchronized (lock)
         {
-            requireEgg();
-            inputs = ImmutableSortedMap.copyOf(inputsBuilder.stream().collect(Collectors.toMap(x -> x.name(), x -> x)));
-            outputs = ImmutableSortedMap.copyOf(outputsBuilder.stream().collect(Collectors.toMap(x -> x.name(), x -> x)));
-            reactions = ImmutableSortedMap.copyOf(reactionsList.stream().collect(Collectors.toMap(x -> x.name(), x -> x)));
-            built = true;
-            return this;
+            final InternalInput<T> input = InternalInput.newArrayInput(this, type, capacity, policy);
+            inputs.add(input);
+            return input;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public <T> Input newLinkedInput (final Class<T> type,
+                                     final int capacity,
+                                     final OverflowPolicy policy)
+    {
+        synchronized (lock)
+        {
+            final InternalInput<T> input = InternalInput.newLinkedInput(this, type, capacity, policy);
+            inputs.add(input);
+            return input;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public <T> Output<T> newOutput (final Class<T> type)
+    {
+        synchronized (lock)
+        {
+            final Output<T> output = new InternalOutput<>(this, type);
+            outputs.add(output);
+            return output;
         }
     }
 
@@ -214,120 +179,42 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public SortedMap<String, Input<?>> inputs ()
+    public Set<Input<?>> inputs ()
     {
-        return inputs;
+        return unmodInputs;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public SortedMap<String, Output<?>> outputs ()
+    public Set<Output<?>> outputs ()
     {
-        return outputs;
+        return unmodOutputs;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public SortedMap<String, Reaction> reactions ()
+    public List<Reaction> reactions ()
     {
-        return reactions;
+        return unmodReactions;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Reactor start ()
+    public Reactor disconnect ()
     {
         synchronized (lock)
         {
-            if (isUnstarted())
-            {
-                phase = LifeCycle.STARTING;
-                ping();
-            }
+            inputs().forEach(x -> x.disconnect());
+            outputs().forEach(x -> x.disconnect());
         }
 
         return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Reactor stop ()
-    {
-        synchronized (lock)
-        {
-            // TODO: What if Unstarted or Starting??????
-
-            if (isStarted())
-            {
-                phase = LifeCycle.STOPPING;
-                ping();
-            }
-        }
-
-        return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isUnstarted ()
-    {
-        return phase == LifeCycle.UNSTARTED;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isStarting ()
-    {
-        return phase == LifeCycle.STARTING;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isStarted ()
-    {
-        return phase == LifeCycle.STARTED;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isStopping ()
-    {
-        return phase == LifeCycle.STOPPING;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isStopped ()
-    {
-        return phase == LifeCycle.STOPPED;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isAlive ()
-    {
-        final boolean result = isStarting() || isStarted() || isStopping();
-        return result;
     }
 
     /**
@@ -346,15 +233,6 @@ public final class InternalReactor
     public Powerplant powerplant ()
     {
         return powerplant;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isKeepAliveRequired ()
-    {
-        return reactionsList.stream().anyMatch(x -> x.isKeepAliveRequired());
     }
 
     /**
@@ -381,57 +259,22 @@ public final class InternalReactor
          */
         if (runLock.tryAcquire())
         {
-            /**
-             * This lock prevents start() and stop() being called while in the critical section,
-             * where the start() and stop() state will be queried.
-             */
-            synchronized (lock)
+            try
             {
-                if (phase == LifeCycle.UNSTARTED)
-                {
-                    return false;
-                }
-                else if (phase == LifeCycle.STOPPED)
-                {
-                    return false;
-                }
+                reacting = true;
 
-                try
+                synchronized (lock)
                 {
-                    reacting = true;
-
-                    if (isStarting())
-                    {
-                        powerplant.onStart(this, meta);
-                        reactionsList.forEach(x -> x.setStarting(true));
-                    }
-                    else if (isStopping())
-                    {
-                        reactionsList.forEach(x -> x.setStopping(true));
-                    }
-
                     for (int i = 0; i < reactionsList.size(); i++)
                     {
                         result |= reactionsList.get(i).crank();
                     }
-
-                    if (isStarting())
-                    {
-                        reactionsList.forEach(x -> x.setStarting(false));
-                        phase = LifeCycle.STARTED;
-                    }
-                    else if (isStopping())
-                    {
-                        reactionsList.forEach(x -> x.setStopping(false));
-                        phase = LifeCycle.STOPPED;
-                        powerplant.onStop(this, meta);
-                    }
                 }
-                finally
-                {
-                    reacting = false;
-                    runLock.release();
-                }
+            }
+            finally
+            {
+                reacting = false;
+                runLock.release();
             }
         }
 

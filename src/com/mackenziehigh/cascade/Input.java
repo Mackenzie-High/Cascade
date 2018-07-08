@@ -18,6 +18,7 @@ package com.mackenziehigh.cascade;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * An <code>Input</code> queues messages that are destined for the enclosing <code>Reactor</code>.
@@ -29,6 +30,26 @@ import java.util.function.Consumer;
  */
 public interface Input<E>
 {
+    /**
+     * Specify a verification-check that will be performed
+     * whenever a message is enqueued in this input.
+     *
+     * <p>
+     * The verification-check will be performed by the sender
+     * on whatever thread the sender is executing on.
+     * Moreover, the verification-check may be executed concurrently
+     * by different senders given different messages.
+     * </p>
+     *
+     * <p>
+     * The verification-check will never receive null as a message.
+     * </p>
+     *
+     * @param condition must be true given the incoming message.
+     * @return this.
+     */
+    public Input<E> verify (Predicate<E> condition);
+
     /**
      * Retrieve a UUID that uniquely identifies this input in space-time.
      *
@@ -44,6 +65,13 @@ public interface Input<E>
     public Class<E> type ();
 
     /**
+     * Get the policy that dictates what happens, if this queue overflows.
+     *
+     * @return the overflow-policy of this input.
+     */
+    public OverflowPolicy overflowPolicy ();
+
+    /**
      * Retrieve the name of this input.
      *
      * @return the name of this input.
@@ -51,12 +79,19 @@ public interface Input<E>
     public String name ();
 
     /**
+     * Specify the name of the input.
+     *
+     * @param name will be the name of the input.
+     * @return this.
+     */
+    public Input<E> named (String name);
+
+    /**
      * Retrieve the reactor that this input is a part of.
      *
-     * @return the enclosing reactor, or empty,
-     * if the reactor is not fully constructed yet.
+     * @return the enclosing reactor.
      */
-    public Optional<Reactor> reactor ();
+    public Reactor reactor ();
 
     /**
      * Connect this input to the given output.
@@ -154,6 +189,48 @@ public interface Input<E>
      * or empty, if the queue is empty.
      */
     public Optional<E> peek ();
+
+    /**
+     * Remove all enqueued messages from this input.
+     *
+     * @return this.
+     */
+    public Input<E> clear ();
+
+    /**
+     * Retrieve and remove the message that has been
+     * enqueued in this input for the longest time.
+     *
+     * @return the first element in the FIFO queue,
+     * or null, if the queue is empty.
+     */
+    public default E pollOrNull ()
+    {
+        return pollOrDefault(null);
+    }
+
+    /**
+     * Retrieve and remove the message that has been
+     * enqueued in this input for the longest time.
+     *
+     * @param defaultValue will returned, if the queue is empty.
+     * @return the first element in the FIFO queue,
+     * or the default value, if the queue is empty.
+     */
+    public E pollOrDefault (E defaultValue);
+
+    /**
+     * Retrieve and remove the message that has been
+     * enqueued in this input for the longest time.
+     *
+     * @return the first element in the FIFO queue,
+     * or empty, if the queue is empty.
+     */
+    public default Optional<E> poll ()
+    {
+        final E head = pollOrDefault(null);
+        return Optional.ofNullable(head);
+    }
 
     /**
      * Apply the given function to each message enqueued in this input.

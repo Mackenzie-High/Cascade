@@ -17,11 +17,13 @@ package com.mackenziehigh.internal.cascade;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
-import com.mackenziehigh.cascade.builder.ArrayInputBuilder;
-import com.mackenziehigh.cascade.builder.OverflowPolicy;
+import com.mackenziehigh.cascade.OverflowPolicy;
+import com.mackenziehigh.cascade.Reactor;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.LinkedList;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -29,9 +31,8 @@ import java.util.function.Consumer;
  *
  * TODO: Default capacity should not be zero!!!
  */
-public final class ArrayInput<E>
-        extends AbstractInput<E, ArrayInput<E>>
-        implements ArrayInputBuilder<E>
+final class InternalInput<E>
+        extends AbstractInput<E, InternalInput<E>>
 {
 
     private final Class<E> type;
@@ -40,15 +41,35 @@ public final class ArrayInput<E>
 
     private volatile OverflowHandler<E> overflowHandler;
 
-    private volatile OverflowPolicy policy = OverflowPolicy.UNSPECIFIED;
-
-    private volatile int capacity = 0;
-
-    public ArrayInput (final MockableReactor reactor,
-                       final Class<E> type)
+    private InternalInput (final Reactor reactor,
+                           final Class<E> type,
+                           final Deque<E> queue,
+                           final OverflowHandler<E> handler)
     {
         super(reactor);
         this.type = Objects.requireNonNull(type, "type");
+        this.queue = queue;
+        this.overflowHandler = handler;
+    }
+
+    public static <T> InternalInput<T> newArrayInput (final Reactor reactor,
+                                                      final Class<T> type,
+                                                      final int capacity,
+                                                      final OverflowPolicy policy)
+    {
+        final Deque<T> queue = new ArrayDeque<>(capacity);
+        final OverflowHandler<T> handler = new OverflowHandler<>(queue, capacity, policy);
+        return new InternalInput<>(reactor, type, queue, handler);
+    }
+
+    public static <T> InternalInput<T> newLinkedInput (final Reactor reactor,
+                                                       final Class<T> type,
+                                                       final int capacity,
+                                                       final OverflowPolicy policy)
+    {
+        final Deque<T> queue = new LinkedList<>();
+        final OverflowHandler<T> handler = new OverflowHandler<>(queue, capacity, policy);
+        return new InternalInput<>(reactor, type, queue, handler);
     }
 
     @Override
@@ -58,49 +79,19 @@ public final class ArrayInput<E>
     }
 
     @Override
-    protected ArrayInput<E> self ()
+    public OverflowPolicy overflowPolicy ()
+    {
+        return overflowHandler.policy;
+    }
+
+    @Override
+    protected InternalInput<E> self ()
     {
         return this;
     }
 
     @Override
-    public ArrayInput<E> withCapacity (final int capacity)
-    {
-        synchronized (lock)
-        {
-            requireEgg();
-            Preconditions.checkArgument(capacity >= 0, "capacity < 0");
-            this.capacity = capacity;
-            return this;
-        }
-    }
-
-    @Override
-    public ArrayInput<E> withOverflowPolicy (final OverflowPolicy policy)
-    {
-        synchronized (lock)
-        {
-            requireEgg();
-            this.policy = Objects.requireNonNull(policy, "policy");
-            return this;
-        }
-    }
-
-    @Override
-    public ArrayInput<E> build ()
-    {
-        synchronized (lock)
-        {
-            requireEgg();
-            queue = new ArrayDeque<>(capacity);
-            overflowHandler = new OverflowHandler<>(queue, capacity, policy);
-            built.set(true);
-            return this;
-        }
-    }
-
-    @Override
-    public ArrayInput<E> clear ()
+    public InternalInput<E> clear ()
     {
         synchronized (lock)
         {
@@ -159,7 +150,7 @@ public final class ArrayInput<E>
     @Override
     public int capacity ()
     {
-        return capacity;
+        return overflowHandler.capacity;
     }
 
     @Override
@@ -186,12 +177,12 @@ public final class ArrayInput<E>
     {
         synchronized (lock)
         {
-            return built.get() ? size() == capacity() : false;
+            return size() == capacity();
         }
     }
 
     @Override
-    public ArrayInput<E> forEach (final Consumer<E> functor)
+    public InternalInput<E> forEach (final Consumer<E> functor)
     {
         synchronized (lock)
         {
@@ -219,6 +210,12 @@ public final class ArrayInput<E>
     public E peekOrNull ()
     {
         return peekOrDefault(null);
+    }
+
+    @Override
+    public Optional<E> peek ()
+    {
+        return Optional.ofNullable(queue.peek());
     }
 
 }

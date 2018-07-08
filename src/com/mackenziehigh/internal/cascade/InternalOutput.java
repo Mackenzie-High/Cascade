@@ -17,9 +17,8 @@ package com.mackenziehigh.internal.cascade;
 
 import com.google.common.base.Preconditions;
 import com.mackenziehigh.cascade.Input;
-import com.mackenziehigh.cascade.PrivateOutput;
+import com.mackenziehigh.cascade.Output;
 import com.mackenziehigh.cascade.Reactor;
-import com.mackenziehigh.cascade.builder.OutputBuilder;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,11 +29,10 @@ import java.util.function.Predicate;
  *
  * TODO: Already built; locks.
  */
-public final class InternalOutput<T>
-        implements OutputBuilder<T>,
-                   PrivateOutput<T>
+final class InternalOutput<T>
+        implements Output<T>
 {
-    private final MockableReactor reactor;
+    private final Reactor reactor;
 
     private final UUID uuid = UUID.randomUUID();
 
@@ -48,7 +46,7 @@ public final class InternalOutput<T>
 
     private volatile Optional<Input<T>> connection = Optional.empty();
 
-    public InternalOutput (final MockableReactor reactor,
+    public InternalOutput (final Reactor reactor,
                            final Class<T> type)
     {
         this.reactor = Objects.requireNonNull(reactor, "reactor");
@@ -73,7 +71,7 @@ public final class InternalOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public OutputBuilder<T> named (final String name)
+    public Output<T> named (final String name)
     {
         synchronized (lock)
         {
@@ -87,27 +85,12 @@ public final class InternalOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public OutputBuilder<T> verify (final Predicate<T> condition)
+    public Output<T> verify (final Predicate<T> condition)
     {
         synchronized (lock)
         {
             requireEgg();
             throw new UnsupportedOperationException("Not supported yet.");
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public InternalOutput<T> build ()
-    {
-        synchronized (lock)
-        {
-            requireEgg();
-            Preconditions.checkState(!built, "Already Built!");
-            built = true;
-            return this;
         }
     }
 
@@ -133,16 +116,16 @@ public final class InternalOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public Optional<Reactor> reactor ()
+    public Reactor reactor ()
     {
-        return reactor.reactor();
+        return reactor;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public PrivateOutput<T> connect (final Input<T> input)
+    public Output<T> connect (final Input<T> input)
     {
         synchronized (lock)
         {
@@ -160,7 +143,7 @@ public final class InternalOutput<T>
                 connection = Optional.of(input);
                 input.connect(this);
                 reactor.ping();
-                input.reactor().ifPresent(x -> x.ping());
+                input.reactor().ping();
             }
             return this;
         }
@@ -170,7 +153,7 @@ public final class InternalOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public PrivateOutput<T> disconnect ()
+    public Output<T> disconnect ()
     {
         synchronized (lock)
         {
@@ -180,7 +163,7 @@ public final class InternalOutput<T>
                 connection = Optional.empty();
                 input.disconnect();
                 reactor.ping();
-                input.reactor().ifPresent(x -> x.ping());
+                input.reactor().ping();
             }
             return this;
         }
@@ -211,7 +194,7 @@ public final class InternalOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public PrivateOutput<T> send (final T value)
+    public Output<T> send (final T value)
     {
         /**
          * TODO: Should this *not* be synchronized???

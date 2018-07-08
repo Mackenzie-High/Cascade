@@ -16,7 +16,7 @@
 package com.mackenziehigh.internal.cascade;
 
 import com.google.common.base.Verify;
-import com.mackenziehigh.cascade.builder.OverflowPolicy;
+import com.mackenziehigh.cascade.OverflowPolicy;
 import java.util.Deque;
 import java.util.Objects;
 
@@ -24,13 +24,13 @@ import java.util.Objects;
  * An instance of this class implements a given <code>OverflowPolicy</code>
  * with regards to a given <code>Deque</code> data-structure.
  */
-public final class OverflowHandler<T>
+final class OverflowHandler<T>
 {
     private final Deque<T> queue;
 
-    private final int capacity;
+    public final int capacity;
 
-    private final OverflowPolicy policy;
+    public final OverflowPolicy policy;
 
     /**
      * Sole constructor.

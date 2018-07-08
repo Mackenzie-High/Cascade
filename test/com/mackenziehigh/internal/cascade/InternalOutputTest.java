@@ -1,7 +1,5 @@
-package com.mackenziehigh.cascade.internal;
+package com.mackenziehigh.internal.cascade;
 
-import com.mackenziehigh.internal.cascade.ArrayInput;
-import com.mackenziehigh.internal.cascade.InternalOutput;
 import java.util.UUID;
 import static junit.framework.Assert.*;
 import org.junit.Test;
@@ -14,7 +12,7 @@ public final class InternalOutputTest
 {
     private final MockReactor reactor = new MockReactor();
 
-    private final ArrayInput<String> input = new ArrayInput<>(reactor, String.class).withCapacity(8).build();
+    private final InternalInput<String> input = new InternalInput<>(reactor, String.class).withCapacity(8).build();
 
     private final InternalOutput<String> output = new InternalOutput<>(reactor, String.class);
 
@@ -373,7 +371,7 @@ public final class InternalOutputTest
     @Test
     public void test20180527123535256340 ()
     {
-        final ArrayInput<String> arrayInput = new ArrayInput<>(reactor, String.class)
+        final InternalInput<String> arrayInput = new InternalInput<>(reactor, String.class)
                 .withCapacity(3)
                 .build();
         final InternalOutput<String> underTest = new InternalOutput<>(reactor, String.class);
@@ -414,7 +412,7 @@ public final class InternalOutputTest
     @Test
     public void test20180527134525242539 ()
     {
-        final ArrayInput<String> arrayInput = new ArrayInput<>(reactor, String.class)
+        final InternalInput<String> arrayInput = new InternalInput<>(reactor, String.class)
                 .withCapacity(3)
                 .build();
         final InternalOutput<String> underTest = new InternalOutput<>(reactor, String.class);

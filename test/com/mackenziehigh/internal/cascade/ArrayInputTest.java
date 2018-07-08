@@ -1,7 +1,8 @@
-package com.mackenziehigh.cascade.internal;
+package com.mackenziehigh.internal.cascade;
 
-import com.mackenziehigh.internal.cascade.ArrayInput;
-import com.mackenziehigh.cascade.builder.OverflowPolicy;
+import com.mackenziehigh.internal.cascade.MockReactor;
+import com.mackenziehigh.internal.cascade.InternalInput;
+import com.mackenziehigh.cascade.OverflowPolicy;
 import com.google.common.collect.Lists;
 import java.util.LinkedList;
 import java.util.List;
@@ -19,7 +20,7 @@ public final class ArrayInputTest
 {
     private final MockReactor reactor = new MockReactor();
 
-    private final ArrayInput<String> object = new ArrayInput<>(reactor, String.class);
+    private final InternalInput<String> object = new InternalInput<>(reactor, String.class);
 
     /**
      * Test: 20180525225637428064

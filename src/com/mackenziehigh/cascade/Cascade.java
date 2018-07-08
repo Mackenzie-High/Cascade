@@ -15,7 +15,6 @@
  */
 package com.mackenziehigh.cascade;
 
-import com.mackenziehigh.cascade.builder.ReactorBuilder;
 import com.mackenziehigh.internal.cascade.InternalReactor;
 
 /**
@@ -28,8 +27,9 @@ public final class Cascade
      *
      * @return a builder that can create a new <code>Reactor</code>.
      */
-    public static ReactorBuilder newReactor ()
+    public static Reactor newReactor ()
     {
         return new InternalReactor();
     }
+
 }

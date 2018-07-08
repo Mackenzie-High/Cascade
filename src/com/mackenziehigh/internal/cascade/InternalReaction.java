@@ -21,10 +21,8 @@ import com.mackenziehigh.cascade.Input;
 import com.mackenziehigh.cascade.Output;
 import com.mackenziehigh.cascade.Reaction;
 import com.mackenziehigh.cascade.Reactor;
-import com.mackenziehigh.cascade.builder.ReactionBuilder;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
@@ -32,17 +30,20 @@ import java.util.function.Predicate;
 /**
  * Combined Implementation of <code>ReactionBuilder</code> and <code>Reaction</code>.
  */
-public final class InternalReaction
-        implements ReactionBuilder,
-                   Reaction
+final class InternalReaction
+        implements Reaction
 {
     private final Object lock = new Object();
 
-    private final MockableReactor reactor;
+    private final Reactor reactor;
 
     private final UUID uuid = UUID.randomUUID();
 
     private volatile String name = uuid.toString();
+
+    private volatile boolean atStart = false;
+
+    private volatile boolean atStop = false;
 
     private final List<BooleanSupplier> requirements = Lists.newCopyOnWriteArrayList();
 
@@ -52,47 +53,16 @@ public final class InternalReaction
     };
 
     // TODO: NOP instead????
-    private volatile ReactionTask onError = () -> reactor().get().stop();
+    private volatile ReactionTask onError = () ->
+    {
+    };
 
-    private volatile boolean atStart = false;
-
-    private volatile boolean atStop = false;
-
-    private volatile boolean keepAliveRequired = false;
-
-    private volatile boolean built = false;
-
-    private volatile boolean starting = false;
-
-    private volatile boolean stopping = false;
-
-    public InternalReaction (final MockableReactor reactor)
+    public InternalReaction (final Reactor reactor)
     {
         this.reactor = Objects.requireNonNull(reactor, "reactor");
     }
 
-    public void setStarting (final boolean flag)
-    {
-        synchronized (lock)
-        {
-            starting = flag;
-        }
-    }
-
-    public void setStopping (final boolean flag)
-    {
-        synchronized (lock)
-        {
-            stopping = flag;
-        }
-    }
-
-    private void requireEgg ()
-    {
-        Preconditions.checkState(!built, "Already Built!");
-    }
-
-    private ReactionBuilder doRequire (final BooleanSupplier condition)
+    private Reaction doRequire (final BooleanSupplier condition)
     {
         requirements.add(condition);
         return this;
@@ -102,11 +72,10 @@ public final class InternalReaction
      * {@inheritDoc}
      */
     @Override
-    public ReactionBuilder named (final String name)
+    public Reaction named (final String name)
     {
         synchronized (lock)
         {
-            requireEgg();
             this.name = Objects.requireNonNull(name, "name");
             return this;
         }
@@ -116,51 +85,13 @@ public final class InternalReaction
      * {@inheritDoc}
      */
     @Override
-    public ReactionBuilder atStart ()
+    public Reaction require (final Input<?> input,
+                             final int count)
     {
+        Preconditions.checkNotNull(input, "input");
+        Preconditions.checkArgument(count >= 0, "count < 0");
         synchronized (lock)
         {
-            requireEgg();
-            atStart = true;
-            return this;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public ReactionBuilder atStop ()
-    {
-        synchronized (lock)
-        {
-            requireEgg();
-            atStop = true;
-            return this;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isKeepAliveRequired ()
-    {
-        return keepAliveRequired;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public ReactionBuilder require (final Input<?> input,
-                                    final int count)
-    {
-        synchronized (lock)
-        {
-            requireEgg();
-            Preconditions.checkNotNull(input, "input");
-            Preconditions.checkArgument(count >= 0, "count < 0");
             return doRequire(() -> input.size() >= count);
         }
     }
@@ -169,24 +100,13 @@ public final class InternalReaction
      * {@inheritDoc}
      */
     @Override
-    public ReactionBuilder require (final Input<?> input)
+    public <T> Reaction require (final Input<T> input,
+                                 final Predicate<T> head)
     {
-        return require(input, 1);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public <T> ReactionBuilder require (final Input<T> input,
-                                        final Predicate<T> head)
-    {
+        Preconditions.checkNotNull(input, "input");
+        Preconditions.checkNotNull(head, "head");
         synchronized (lock)
         {
-            requireEgg();
-            Preconditions.checkNotNull(input, "input");
-            Preconditions.checkNotNull(head, "head");
-            keepAliveRequired = true;
             return doRequire(() -> head.test(input.peekOrDefault(null)));
         }
     }
@@ -195,24 +115,14 @@ public final class InternalReaction
      * {@inheritDoc}
      */
     @Override
-    public ReactionBuilder require (final Output<?> output)
+    public Reaction require (final Output<?> output,
+                             final int count)
     {
-        return require(output, 1);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public ReactionBuilder require (final Output<?> output,
-                                    final int count)
-    {
+        Preconditions.checkNotNull(output, "output");
+        Preconditions.checkArgument(count >= 0, "count < 0");
         synchronized (lock)
         {
-            requireEgg();
-            Preconditions.checkNotNull(output, "output");
-            Preconditions.checkArgument(count >= 0, "count < 0");
-            return doRequire(() -> output.remainingCapacity() >= count);
+            return doRequire(() -> !output.connection().isPresent() || output.remainingCapacity() >= count);
         }
     }
 
@@ -220,13 +130,11 @@ public final class InternalReaction
      * {@inheritDoc}
      */
     @Override
-    public ReactionBuilder require (final BooleanSupplier condition)
+    public Reaction require (final BooleanSupplier condition)
     {
+        Preconditions.checkNotNull(condition, "condition");
         synchronized (lock)
         {
-            requireEgg();
-            Preconditions.checkNotNull(condition, "condition");
-            keepAliveRequired = true;
             return doRequire(condition);
         }
     }
@@ -235,12 +143,11 @@ public final class InternalReaction
      * {@inheritDoc}
      */
     @Override
-    public ReactionBuilder onMatch (final ReactionTask task)
+    public Reaction onMatch (final ReactionTask task)
     {
+        Preconditions.checkNotNull(task, "task");
         synchronized (lock)
         {
-            requireEgg();
-            Preconditions.checkNotNull(task, "task");
             onTrue = onTrue.andThen(task);
             return this;
         }
@@ -250,27 +157,12 @@ public final class InternalReaction
      * {@inheritDoc}
      */
     @Override
-    public ReactionBuilder onError (final ReactionTask handler)
+    public Reaction onError (final ReactionTask handler)
     {
+        Preconditions.checkNotNull(handler, "handler");
         synchronized (lock)
         {
-            requireEgg();
-            Preconditions.checkNotNull(handler, "handler");
             onError = onError.andThen(handler);
-            return this;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Reaction build ()
-    {
-        synchronized (lock)
-        {
-            requireEgg();
-            built = true;
             return this;
         }
     }
@@ -297,28 +189,26 @@ public final class InternalReaction
      * {@inheritDoc}
      */
     @Override
-    public Optional<Reactor> reactor ()
+    public Reactor reactor ()
     {
-        return reactor.reactor();
+        return reactor;
     }
 
-    public boolean crank ()
+    public boolean isReady ()
     {
-        if (starting && !atStart)
-        {
-            return false;
-        }
-        else if (stopping && !atStop)
-        {
-            return false;
-        }
-
         boolean condition = true;
 
         for (int i = 0; condition && i < requirements.size(); i++)
         {
             condition &= requirements.get(i).getAsBoolean();
         }
+
+        return condition;
+    }
+
+    public boolean crank ()
+    {
+        final boolean condition = isReady();
 
         if (condition)
         {

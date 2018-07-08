@@ -1,4 +1,4 @@
-package com.mackenziehigh.cascade.internal;
+package com.mackenziehigh.internal.cascade;
 
 import com.mackenziehigh.internal.cascade.MockableReactor;
 import com.mackenziehigh.cascade.Reactor;

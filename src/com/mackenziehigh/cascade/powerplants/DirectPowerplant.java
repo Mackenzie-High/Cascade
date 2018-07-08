@@ -30,7 +30,7 @@ public final class DirectPowerplant
      * {@inheritDoc}
      */
     @Override
-    public void onStart (final Reactor reactor,
+    public void onBind (final Reactor reactor,
                          final AtomicReference<Object> meta)
     {
         // Pass
@@ -40,7 +40,7 @@ public final class DirectPowerplant
      * {@inheritDoc}
      */
     @Override
-    public void onStop (final Reactor reactor,
+    public void onUnbind (final Reactor reactor,
                         final AtomicReference<Object> meta)
     {
         // Pass

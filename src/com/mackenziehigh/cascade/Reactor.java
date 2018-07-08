@@ -15,112 +15,156 @@
  */
 package com.mackenziehigh.cascade;
 
-import java.util.SortedMap;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * A reaction responds to inputs by producing outputs and/or side-effects.
+ * A reactor responds to inputs by producing outputs and/or side-effects via reactions.
  */
 public interface Reactor
 {
     /**
-     * Retrieve a UUID that uniquely identifies this reactor in space-time.
+     * Create a reaction to execute whenever this reactor receives an input.
+     *
+     * @return the new reaction.
+     * @throws IllegalStateException if the reactor has already started.
+     */
+    public Reaction newReaction ();
+
+    /**
+     *
+     *
+     * @param <T>
+     * @param type
+     * @param capacity
+     * @return
+     * @throws IllegalStateException if the reactor has already started.
+     */
+    public default <T> Input newArrayInput (final Class<T> type,
+                                            final int capacity)
+    {
+        return newArrayInput(type, capacity, OverflowPolicy.DROP_INCOMING);
+    }
+
+    /**
+     *
+     * @param <T>
+     * @param type
+     * @param capacity
+     * @param policy
+     * @return
+     * @throws IllegalStateException if the reactor has already started.
+     */
+    public <T> Input newArrayInput (Class<T> type,
+                                    int capacity,
+                                    OverflowPolicy policy);
+
+    /**
+     *
+     * @param <T>
+     * @param type
+     * @return
+     * @throws IllegalStateException if the reactor has already started.
+     */
+    public default <T> Input newLinkedInput (final Class<T> type)
+    {
+        return newLinkedInput(type, Integer.MAX_VALUE, OverflowPolicy.DROP_INCOMING);
+    }
+
+    /**
+     *
+     * @param <T>
+     * @param type
+     * @param capacity
+     * @return
+     * @throws IllegalStateException if the reactor has already started.
+     */
+    public default <T> Input newLinkedInput (final Class<T> type,
+                                             final int capacity)
+    {
+        return newLinkedInput(type, capacity, OverflowPolicy.DROP_INCOMING);
+    }
+
+    /**
+     *
+     * @param <T>
+     * @param type
+     * @param capacity
+     * @param policy
+     * @return
+     * @throws IllegalStateException if the reactor has already started.
+     */
+    public <T> Input newLinkedInput (Class<T> type,
+                                     int capacity,
+                                     OverflowPolicy policy);
+
+    /**
+     *
+     * @param <T>
+     * @param type
+     * @return
+     * @throws IllegalStateException if the reactor has already started.
+     */
+    public <T> Output<T> newOutput (Class<T> type);
+
+    /**
+     * Get the UUID that uniquely identifies this reactor in space-time.
      *
      * @return the unique identifier of this reactor.
      */
     public UUID uuid ();
 
     /**
-     * Retrieve the name of this reactor.
+     * Get the name of this reactor.
+     *
+     * <p>
+     * By default, the name is the string representation of the <code>uuid()</code>.
+     * </p>
      *
      * @return the name of this reactor.
      */
     public String name ();
 
     /**
-     * Retrieve all of the inputs that feed messages into this reactor.
-     *
-     * @return an immutable map that maps input-names to inputs.
-     */
-    public SortedMap<String, Input<?>> inputs ();
-
-    /**
-     * Retrieve all of the outputs that transmit messages from this reactor.
-     *
-     * @return an immutable map that maps output-names to outputs.
-     */
-    public SortedMap<String, Output<?>> outputs ();
-
-    /**
-     * Retrieve all of the reactions that define the behavior of this reactor.
-     *
-     * @return an immutable map that maps reaction-names to reactions.
-     */
-    public SortedMap<String, Reaction> reactions ();
-
-    /**
-     * Cause this reactor to begin accepting and reacting to inputs.
+     * Set the name of the reactor.
      *
      * <p>
-     * This method is a no-op, if this method was invoked previously.
+     * This method can be called after the reactor has started.
      * </p>
+     *
+     * @param name will be the name of the reactor.
+     * @return this.
+     */
+    public Reactor named (String name);
+
+    /**
+     * Get all of the inputs that feed messages into this reactor.
+     *
+     * @return the inputs.
+     */
+    public Set<Input<?>> inputs ();
+
+    /**
+     * Get all of the outputs that transmit messages from this reactor.
+     *
+     * @return the outputs.
+     */
+    public Set<Output<?>> outputs ();
+
+    /**
+     * Get all of the reactions that define the behavior of this reactor.
+     *
+     * @return the reactions.
+     */
+    public List<Reaction> reactions ();
+
+    /**
+     * Disconnect the reactor from all of the inputs and outputs.
      *
      * @return this.
      */
-    public Reactor start ();
-
-    /**
-     * Cause this reactor to cease accepting and reacting to inputs.
-     *
-     * <p>
-     * This method is a no-op, if this method was invoked previously.
-     * </p>
-     *
-     * @return this.
-     */
-    public Reactor stop ();
-
-    /**
-     * Determine whether this reactor is in the unstarted phase of its life-cycle.
-     *
-     * @return true, if <code>start()</code> was not invoked yet.
-     */
-    public boolean isUnstarted ();
-
-    /**
-     * Determine whether this reactor is in the startup phase of its life-cycle.
-     *
-     * @return true, if <code>start()</code> was invoked, but startup is not yet complete.
-     */
-    public boolean isStarting ();
-
-    /**
-     * Determine whether this reactor has already started and has not begun to stop.
-     *
-     * @return true, if startup is complete, but <code>stop()</code> was not invoked yet.
-     */
-    public boolean isStarted ();
-
-    /**
-     * Determine whether this reactor is in the stopping phase of its life-cycle.
-     *
-     * @return true, if <code>stop</code> was invoked, but stopping has not completed yet.
-     */
-    public boolean isStopping ();
-
-    /**
-     * Determine whether this reactor is now in the stopped phase of its life-cycle.
-     *
-     * @return true, if this reactor has fully stopped.
-     */
-    public boolean isStopped ();
-
-    /**
-     * Determine whether this reactor is neither unstarted nor stopped.
-     *
-     * @return true, if this reactor is still capable of reacting to inputs.
-     */
-    public boolean isAlive ();
+    public Reactor disconnect ();
 
     /**
      * Determine whether this reactor is currently reacting to an input.
@@ -130,18 +174,27 @@ public interface Reactor
     public boolean isReacting ();
 
     /**
-     * Retrieve the powerplant that provides power to this reactor whenever necessary.
+     * Get the powerplant that provides power to this reactor whenever necessary.
+     *
+     * <p>
+     * The powerplant may change during the life of the reactor.
+     * </p>
      *
      * @return the associated powerplant.
      */
     public Powerplant powerplant ();
 
     /**
-     * Determine whether this reactor requires periodic <i>keep-alive</i> <code>crank()</code> invocations.
+     * Set the powerplant that will power the reactor.
      *
-     * @return true, if any of the underlying reactions require keep-alive execution.
+     * <p>
+     * This method can be called after the reactor has started.
+     * </p>
+     *
+     * @param plant will power the reactor whenever needed.
+     * @return this.
      */
-    public boolean isKeepAliveRequired ();
+    public Reactor poweredBy (Powerplant plant);
 
     /**
      * Cause this reactor to be scheduled for execution by the powerplant.
@@ -160,5 +213,4 @@ public interface Reactor
      * @return true, if meaningful work was performed.
      */
     public boolean crank ();
-
 }

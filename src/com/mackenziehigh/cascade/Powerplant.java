@@ -32,7 +32,7 @@ public interface Powerplant
      * @param meta can be freely used by the powerplant for
      * storing information related to the reactor.
      */
-    public void onStart (Reactor reactor,
+    public void onBind (Reactor reactor,
                          AtomicReference<Object> meta);
 
     /**
@@ -44,7 +44,7 @@ public interface Powerplant
      * @param meta can freely used by the powerplant for
      * storing information related to the reactor.
      */
-    public void onStop (Reactor reactor,
+    public void onUnbind (Reactor reactor,
                         AtomicReference<Object> meta);
 
     /**

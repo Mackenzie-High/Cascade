@@ -17,6 +17,7 @@ package com.mackenziehigh.cascade;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
  * An <code>Output</code> transmits messages from the enclosing
@@ -24,6 +25,26 @@ import java.util.UUID;
  */
 public interface Output<E>
 {
+    /**
+     * Specify a verification-check that will be performed
+     * whenever a message is via this output.
+     *
+     * <p>
+     * The verification-check will be performed by the sender
+     * on whatever thread the sender is executing on.
+     * Moreover, the verification-check may be executed concurrently
+     * by different senders given different messages.
+     * </p>
+     *
+     * <p>
+     * The verification-check will never receive null as a message.
+     * </p>
+     *
+     * @param condition must be true given the outgoing message.
+     * @return this.
+     */
+    public Output<E> verify (Predicate<E> condition);
+
     /**
      * Retrieve a UUID that uniquely identifies this output in space-time.
      *
@@ -39,6 +60,14 @@ public interface Output<E>
     public String name ();
 
     /**
+     * Specify the name of the output.
+     *
+     * @param name will be the name of the output.
+     * @return this.
+     */
+    public Output<E> named (String name);
+
+    /**
      * Retrieve the type of messages that can be transmitted via this output.
      *
      * @return the type of messages that this output can send.
@@ -48,10 +77,9 @@ public interface Output<E>
     /**
      * Retrieve the reactor that this output is a part of.
      *
-     * @return the enclosing reactor, or empty,
-     * if the reactor is not fully constructed yet.
+     * @return the enclosing reactor.
      */
-    public Optional<Reactor> reactor ();
+    public Reactor reactor ();
 
     /**
      * Connect this output to the given put.
@@ -121,5 +149,17 @@ public interface Output<E>
      * @return <code>capacity() - size()</code>
      */
     public int remainingCapacity ();
+
+    /**
+     * Send a message via this output to the connected input, if any.
+     *
+     * <p>
+     * This method is a no-op, if this output is not connected.
+     * </p>
+     *
+     * @param value is the message to send.
+     * @return this.
+     */
+    public Output<E> send (E value);
 
 }
