@@ -1,0 +1,386 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>InternalInput.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.internal.cascade</a> &gt; <span class="el_source">InternalInput.java</span></div><h1>InternalInput.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2018 Michael Mackenzie High
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.mackenziehigh.internal.cascade;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Verify;
+import com.mackenziehigh.cascade.Input;
+import com.mackenziehigh.cascade.Output;
+import com.mackenziehigh.cascade.OverflowPolicy;
+import com.mackenziehigh.cascade.Reactor;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
+
+/**
+ * Array-based &lt;code&gt;Input&lt;/code&gt;.
+ *
+ * TODO: Default capacity should not be zero!!!
+ */
+final class InternalInput&lt;E&gt;
+        implements Input&lt;E&gt;
+{
+<span class="fc" id="L42">    private final Object lock = new Object();</span>
+
+    private final Reactor reactor;
+
+<span class="fc" id="L46">    private final UUID uuid = UUID.randomUUID();</span>
+
+<span class="fc" id="L48">    private volatile String name = uuid.toString();</span>
+
+    private final Class&lt;E&gt; type;
+
+    private final Deque&lt;E&gt; queue;
+
+    private final OverflowHandler&lt;E&gt; overflowHandler;
+
+<span class="fc" id="L56">    private volatile UnaryOperator&lt;E&gt; verifications = UnaryOperator.identity();</span>
+
+<span class="fc" id="L58">    private volatile Optional&lt;Output&lt;E&gt;&gt; connection = Optional.empty();</span>
+
+    private InternalInput (final Reactor reactor,
+                           final Class&lt;E&gt; type,
+                           final Deque&lt;E&gt; queue,
+                           final OverflowHandler&lt;E&gt; handler)
+<span class="fc" id="L64">    {</span>
+<span class="fc" id="L65">        this.reactor = Objects.requireNonNull(reactor, &quot;reactor&quot;);</span>
+<span class="fc" id="L66">        this.type = Objects.requireNonNull(type, &quot;type&quot;);</span>
+<span class="fc" id="L67">        this.queue = queue;</span>
+<span class="fc" id="L68">        this.overflowHandler = handler;</span>
+<span class="fc" id="L69">    }</span>
+
+    public static &lt;T&gt; InternalInput&lt;T&gt; newArrayInput (final Reactor reactor,
+                                                      final Class&lt;T&gt; type,
+                                                      final int capacity,
+                                                      final OverflowPolicy policy)
+    {
+<span class="nc" id="L76">        final Deque&lt;T&gt; queue = new ArrayDeque&lt;&gt;(capacity);</span>
+<span class="nc" id="L77">        final OverflowHandler&lt;T&gt; handler = new OverflowHandler&lt;&gt;(queue, capacity, policy);</span>
+<span class="nc" id="L78">        return new InternalInput&lt;&gt;(reactor, type, queue, handler);</span>
+    }
+
+    public static &lt;T&gt; InternalInput&lt;T&gt; newLinkedInput (final Reactor reactor,
+                                                       final Class&lt;T&gt; type,
+                                                       final int capacity,
+                                                       final OverflowPolicy policy)
+    {
+<span class="fc" id="L86">        final Deque&lt;T&gt; queue = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L87">        final OverflowHandler&lt;T&gt; handler = new OverflowHandler&lt;&gt;(queue, capacity, policy);</span>
+<span class="fc" id="L88">        return new InternalInput&lt;&gt;(reactor, type, queue, handler);</span>
+    }
+
+    private void pingInputs ()
+    {
+<span class="fc" id="L93">        synchronized (lock)</span>
+        {
+<span class="fc bfc" id="L95" title="All 2 branches covered.">            if (connection.isPresent())</span>
+            {
+<span class="fc" id="L97">                connection.get().reactor().ping();</span>
+            }
+<span class="pc" id="L99">        }</span>
+<span class="fc" id="L100">    }</span>
+
+    private boolean offer (final E value)
+    {
+<span class="fc" id="L104">        synchronized (lock)</span>
+        {
+<span class="fc" id="L106">            return overflowHandler.offer(value);</span>
+<span class="nc" id="L107">        }</span>
+    }
+
+    @Override
+    public Class&lt;E&gt; type ()
+    {
+<span class="fc" id="L113">        return type;</span>
+    }
+
+    @Override
+    public OverflowPolicy overflowPolicy ()
+    {
+<span class="fc" id="L119">        return overflowHandler.policy;</span>
+    }
+
+    @Override
+    public InternalInput&lt;E&gt; clear ()
+    {
+<span class="fc" id="L125">        synchronized (lock)</span>
+        {
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">            if (queue != null)</span>
+            {
+<span class="fc" id="L129">                queue.clear();</span>
+            }
+<span class="fc" id="L131">            return this;</span>
+<span class="nc" id="L132">        }</span>
+    }
+
+    @Override
+    public E peekOrDefault (final E defaultValue)
+    {
+<span class="fc" id="L138">        synchronized (lock)</span>
+        {
+<span class="pc bpc" id="L140" title="1 of 2 branches missed.">            if (queue != null)</span>
+            {
+<span class="fc" id="L142">                final E head = queue.peek();</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">                return head == null ? defaultValue : head;</span>
+            }
+            else
+            {
+<span class="nc" id="L147">                return defaultValue;</span>
+            }
+<span class="nc" id="L149">        }</span>
+    }
+
+    @Override
+    public E pollOrDefault (final E defaultValue)
+    {
+<span class="fc" id="L155">        synchronized (lock)</span>
+        {
+<span class="pc bpc" id="L157" title="1 of 2 branches missed.">            if (queue != null)</span>
+            {
+<span class="fc" id="L159">                final E head = queue.poll();</span>
+<span class="fc" id="L160">                pingInputs();</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">                return head == null ? defaultValue : head;</span>
+            }
+            else
+            {
+<span class="nc" id="L165">                return defaultValue;</span>
+            }
+<span class="nc" id="L167">        }</span>
+    }
+
+    @Override
+    public int capacity ()
+    {
+<span class="fc" id="L173">        return overflowHandler.capacity;</span>
+    }
+
+    @Override
+    public int size ()
+    {
+<span class="fc" id="L179">        synchronized (lock)</span>
+        {
+<span class="fc" id="L181">            final int size = queue.size();</span>
+<span class="fc" id="L182">            return size;</span>
+<span class="nc" id="L183">        }</span>
+    }
+
+    @Override
+    public boolean isEmpty ()
+    {
+<span class="fc bfc" id="L189" title="All 2 branches covered.">        return size() == 0;</span>
+    }
+
+    @Override
+    public boolean isFull ()
+    {
+<span class="fc bfc" id="L195" title="All 2 branches covered.">        return size() == capacity();</span>
+    }
+
+    @Override
+    public InternalInput&lt;E&gt; forEach (final Consumer&lt;E&gt; functor)
+    {
+<span class="fc" id="L201">        Preconditions.checkNotNull(functor, &quot;functor&quot;);</span>
+
+<span class="fc" id="L203">        synchronized (lock)</span>
+        {
+<span class="pc bpc" id="L205" title="1 of 2 branches missed.">            if (queue != null)</span>
+            {
+<span class="fc" id="L207">                queue.forEach(functor);</span>
+            }
+<span class="fc" id="L209">            return this;</span>
+<span class="nc" id="L210">        }</span>
+    }
+
+    @Override
+    public int remainingCapacity ()
+    {
+<span class="nc" id="L216">        synchronized (lock)</span>
+        {
+<span class="nc" id="L218">            final int cap = capacity() - size();</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">            Verify.verify(cap &gt;= 0);</span>
+<span class="nc" id="L220">            return cap;</span>
+<span class="nc" id="L221">        }</span>
+    }
+
+    @Override
+    public E peekOrNull ()
+    {
+<span class="nc" id="L227">        return peekOrDefault(null);</span>
+    }
+
+    @Override
+    public Optional&lt;E&gt; peek ()
+    {
+<span class="fc" id="L233">        return Optional.ofNullable(queue.peek());</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Input&lt;E&gt; named (final String name)
+    {
+<span class="fc" id="L242">        synchronized (lock)</span>
+        {
+<span class="fc" id="L244">            this.name = Objects.requireNonNull(name, &quot;name&quot;);</span>
+<span class="fc" id="L245">            return this;</span>
+<span class="nc" id="L246">        }</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Input&lt;E&gt; verify (final Predicate&lt;E&gt; condition)
+    {
+<span class="nc" id="L255">        synchronized (lock)</span>
+        {
+<span class="nc" id="L257">            final UnaryOperator&lt;E&gt; checker = x -&gt;</span>
+            {
+<span class="nc" id="L259">                final boolean test = condition.test(x);</span>
+<span class="nc" id="L260">                Verify.verify(test); // TODO: Correct exception type?</span>
+<span class="nc" id="L261">                return x;</span>
+            };
+
+<span class="nc" id="L264">            final UnaryOperator&lt;E&gt; op = verifications;</span>
+<span class="nc" id="L265">            verifications = x -&gt; checker.apply(op.apply(x));</span>
+<span class="nc" id="L266">            return this;</span>
+<span class="nc" id="L267">        }</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public UUID uuid ()
+    {
+<span class="fc" id="L276">        return uuid;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String name ()
+    {
+<span class="fc" id="L285">        return name;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Reactor reactor ()
+    {
+<span class="fc" id="L294">        return reactor;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Input&lt;E&gt; connect (final Output&lt;E&gt; output)
+    {
+<span class="fc" id="L303">        Preconditions.checkNotNull(output, &quot;output&quot;);</span>
+
+<span class="fc" id="L305">        synchronized (lock)</span>
+        {
+<span class="pc bpc" id="L307" title="1 of 2 branches missed.">            if (connection.map(x -&gt; x.equals(output)).orElse(false))</span>
+            {
+<span class="nc" id="L309">                return this;</span>
+            }
+<span class="pc bpc" id="L311" title="1 of 2 branches missed.">            else if (connection.isPresent())</span>
+            {
+<span class="nc" id="L313">                throw new IllegalStateException(&quot;Alreayd Connected!&quot;);</span>
+            }
+            else
+            {
+<span class="fc" id="L317">                connection = Optional.of(output);</span>
+<span class="fc" id="L318">                output.connect(this);</span>
+<span class="fc" id="L319">                pingInputs();</span>
+<span class="fc" id="L320">                reactor.ping();</span>
+            }
+<span class="fc" id="L322">            return this;</span>
+<span class="nc" id="L323">        }</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Input&lt;E&gt; disconnect ()
+    {
+<span class="fc" id="L332">        synchronized (lock)</span>
+        {
+<span class="fc" id="L334">            final Output&lt;E&gt; output = connection.orElse(null);</span>
+<span class="fc" id="L335">            connection = Optional.empty();</span>
+<span class="pc bpc" id="L336" title="1 of 2 branches missed.">            if (output != null)</span>
+            {
+<span class="fc" id="L338">                output.disconnect();</span>
+<span class="fc" id="L339">                pingInputs();</span>
+<span class="fc" id="L340">                reactor.ping();</span>
+            }
+<span class="fc" id="L342">            return this;</span>
+<span class="nc" id="L343">        }</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Optional&lt;Output&lt;E&gt;&gt; connection ()
+    {
+<span class="nc" id="L352">        return connection;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Input&lt;E&gt; send (final E value)
+    {
+<span class="fc bfc" id="L361" title="All 2 branches covered.">        if (value == null)</span>
+        {
+<span class="fc" id="L363">            throw new NullPointerException(&quot;Refusing to send() null!&quot;);</span>
+        }
+
+<span class="fc" id="L366">        final E transformed = verifications.apply(value);</span>
+<span class="pc bpc" id="L367" title="1 of 4 branches missed.">        final boolean inserted = transformed != null &amp;&amp; offer(transformed);</span>
+
+<span class="fc bfc" id="L369" title="All 2 branches covered.">        if (inserted)</span>
+        {
+<span class="fc" id="L371">            reactor.ping();</span>
+        }
+
+<span class="fc" id="L374">        return this;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String toString ()
+    {
+<span class="nc" id="L383">        return name;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>

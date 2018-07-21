@@ -1,14 +1,55 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>Input.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade</a> &gt; <span class="el_source">Input.java</span></div><h1>Input.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade;
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>Input.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade</a> &gt; <span class="el_source">Input.java</span></div><h1>Input.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2018 Michael Mackenzie High
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.mackenziehigh.cascade;
 
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
+ * An &lt;code&gt;Input&lt;/code&gt; queues messages that are destined for the enclosing &lt;code&gt;Reactor&lt;/code&gt;.
  *
+ * &lt;p&gt;
+ * An &lt;code&gt;Input&lt;/code&gt; can be connected to one &lt;code&gt;Output&lt;/code&gt; at a time.
+ * The &lt;code&gt;Output&lt;/code&gt; will send messages to the &lt;code&gt;Input&lt;/code&gt;.
+ * &lt;/p&gt;
  */
-public interface Input&lt;T&gt;
+public interface Input&lt;E&gt;
 {
+    /**
+     * Specify a verification-check that will be performed
+     * whenever a message is enqueued in this input.
+     *
+     * &lt;p&gt;
+     * The verification-check will be performed by the sender
+     * on whatever thread the sender is executing on.
+     * Moreover, the verification-check may be executed concurrently
+     * by different senders given different messages.
+     * &lt;/p&gt;
+     *
+     * &lt;p&gt;
+     * The verification-check will never receive null as a message.
+     * &lt;/p&gt;
+     *
+     * @param condition must be true given the incoming message.
+     * @return this.
+     */
+    public Input&lt;E&gt; verify (Predicate&lt;E&gt; condition);
+
     /**
      * Retrieve a UUID that uniquely identifies this input in space-time.
      *
@@ -16,17 +57,41 @@ public interface Input&lt;T&gt;
      */
     public UUID uuid ();
 
-    public Class&lt;T&gt; type ();
+    /**
+     * Retrieve the type of the messages that are enqueued in this object.
+     *
+     * @return the type of the messages herein.
+     */
+    public Class&lt;E&gt; type ();
 
+    /**
+     * Get the policy that dictates what happens, if this queue overflows.
+     *
+     * @return the overflow-policy of this input.
+     */
+    public OverflowPolicy overflowPolicy ();
+
+    /**
+     * Retrieve the name of this input.
+     *
+     * @return the name of this input.
+     */
     public String name ();
+
+    /**
+     * Specify the name of the input.
+     *
+     * @param name will be the name of the input.
+     * @return this.
+     */
+    public Input&lt;E&gt; named (String name);
 
     /**
      * Retrieve the reactor that this input is a part of.
      *
-     * @return the enclosing reactor, or empty,
-     * if the reactor is not fully constructed yet.
+     * @return the enclosing reactor.
      */
-    public Optional&lt;Reactor&gt; reactor ();
+    public Reactor reactor ();
 
     /**
      * Connect this input to the given output.
@@ -38,31 +103,150 @@ public interface Input&lt;T&gt;
      * @param output will subsequently be connected hereto.
      * @return this.
      */
-    public Input&lt;T&gt; connect (Output&lt;T&gt; output);
+    public Input&lt;E&gt; connect (Output&lt;E&gt; output);
 
-    public Input&lt;T&gt; disconnect ();
+    /**
+     * Disconnect this input from the output that it is connected-to.
+     *
+     * &lt;p&gt;
+     * This method is a no-op, if the connection already exists.
+     * &lt;/p&gt;
+     *
+     * @return this.
+     */
+    public Input&lt;E&gt; disconnect ();
 
-    public Optional&lt;Output&lt;T&gt;&gt; connection ();
+    /**
+     * Retrieve the output that feeds messages to this input,
+     * if this input is currently connected to an output.
+     *
+     * @return the connected output, if connected; otherwise, return empty.
+     */
+    public Optional&lt;Output&lt;E&gt;&gt; connection ();
 
+    /**
+     * Retrieve the maximum number of messages that can
+     * be enqueued in this input at a single time.
+     *
+     * @return the capacity of this input.
+     */
     public int capacity ();
 
+    /**
+     * Retrieve the number of messages currently enqueued herein.
+     *
+     * @return the number of enqueued messages.
+     */
     public int size ();
 
+    /**
+     * Calculate the number of messages that can be enqueued herein
+     * before the maximum capacity of this input is reached.
+     *
+     * @return &lt;code&gt;capacity() - size()&lt;/code&gt;
+     */
+    public int remainingCapacity ();
+
+    /**
+     * Determine whether any messages are currently enqueued herein.
+     *
+     * @return &lt;code&gt;size() &gt; 0&lt;/code&gt;
+     */
     public boolean isEmpty ();
 
+    /**
+     * Determine whether the maximum number of messages that can
+     * be simultaneously enqueued in this input are enqueued.
+     *
+     * @return &lt;code&gt;size() == capacity()&lt;/code&gt;
+     */
     public boolean isFull ();
 
-    public T peekOrDefault (T defaultValue);
+    /**
+     * Retrieve, but do not remove, the message that has
+     * been enqueued in this input for the longest time.
+     *
+     * @return the first element in the FIFO queue,
+     * or null, if the queue is empty.
+     */
+    public E peekOrNull ();
 
-    public default Optional&lt;T&gt; peek ()
+    /**
+     * Retrieve, but do not remove, the message that has
+     * been enqueued in this input for the longest time.
+     *
+     * @param defaultValue will be returned, if the queue is empty.
+     * @return the first element in the FIFO queue,
+     * or the default value, if the queue is empty.
+     */
+    public E peekOrDefault (E defaultValue);
+
+    /**
+     * Retrieve, but do not remove, the message that has
+     * been enqueued in this input for the longest time.
+     *
+     * @return the first element in the FIFO queue,
+     * or empty, if the queue is empty.
+     */
+    public Optional&lt;E&gt; peek ();
+
+    /**
+     * Remove all enqueued messages from this input.
+     *
+     * @return this.
+     */
+    public Input&lt;E&gt; clear ();
+
+    /**
+     * Retrieve and remove the message that has been
+     * enqueued in this input for the longest time.
+     *
+     * @return the first element in the FIFO queue,
+     * or null, if the queue is empty.
+     */
+    public default E pollOrNull ()
     {
-<span class="fc" id="L59">        final T head = peekOrDefault(null);</span>
-<span class="fc" id="L60">        return Optional.ofNullable(head);</span>
+<span class="nc" id="L209">        return pollOrDefault(null);</span>
     }
 
-    public Input&lt;T&gt; forEach (Consumer&lt;T&gt; functor);
+    /**
+     * Retrieve and remove the message that has been
+     * enqueued in this input for the longest time.
+     *
+     * @param defaultValue will returned, if the queue is empty.
+     * @return the first element in the FIFO queue,
+     * or the default value, if the queue is empty.
+     */
+    public E pollOrDefault (E defaultValue);
 
-    public Input&lt;T&gt; send (T value);
+    /**
+     * Retrieve and remove the message that has been
+     * enqueued in this input for the longest time.
+     *
+     * @return the first element in the FIFO queue,
+     * or empty, if the queue is empty.
+     */
+    public default Optional&lt;E&gt; poll ()
+    {
+<span class="fc" id="L231">        final E head = pollOrDefault(null);</span>
+<span class="fc" id="L232">        return Optional.ofNullable(head);</span>
+    }
+
+    /**
+     * Apply the given function to each message enqueued in this input.
+     *
+     * @param functor will be executed given each message herein.
+     * @return this.
+     */
+    public Input&lt;E&gt; forEach (Consumer&lt;E&gt; functor);
+
+    /**
+     * Send the given message to this input.
+     *
+     * @param value is the message to send.
+     * @return this.
+     */
+    public Input&lt;E&gt; send (E value);
 
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>
