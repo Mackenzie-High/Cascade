@@ -65,8 +65,15 @@ public final class ExecutorPowerplant
 
         if (flag.compareAndSet(false, true))
         {
-            // TODO: Catch excpetions???
-            service.submit(() -> run(reactor));
+            try
+            {
+                // TODO: Catch excpetions???
+                service.submit(() -> run(reactor));
+            }
+            finally
+            {
+                flag.set(false);
+            }
         }
     }
 
