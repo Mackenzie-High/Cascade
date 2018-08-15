@@ -15,25 +15,21 @@
  */
 package com.mackenziehigh.internal.cascade;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.mackenziehigh.cascade.Input;
-import com.mackenziehigh.cascade.Output;
-import com.mackenziehigh.cascade.OverflowPolicy;
 import com.mackenziehigh.cascade.Powerplant;
-import com.mackenziehigh.cascade.Reaction;
 import com.mackenziehigh.cascade.Reactor;
-import com.mackenziehigh.cascade.powerplants.NopPowerplant;
+import com.mackenziehigh.internal.cascade.powerplants.NopPowerplant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Combined Implementation of <code>ReactorBuilder</code> and <code>Reactor</code>.
+ * Implementation of <code>Reactor</code>.
  */
 public final class InternalReactor
         implements Reactor
@@ -48,17 +44,13 @@ public final class InternalReactor
 
     private volatile Powerplant powerplant = new NopPowerplant();
 
-    private final Object lock = new Object();
-
     private final Semaphore runLock = new Semaphore(1);
 
-    private final List<InternalReaction> reactionsList = Lists.newCopyOnWriteArrayList();
+    private final CopyOnWriteArrayList<InternalReaction> reactions = new CopyOnWriteArrayList<>();
 
-    private final Set<Input<?>> inputs = Sets.newCopyOnWriteArraySet();
+    private final Set<Input<?>> inputs = new CopyOnWriteArraySet<>();
 
-    private final Set<Output<?>> outputs = Sets.newCopyOnWriteArraySet();
-
-    private final List<Reaction> reactions = Lists.newCopyOnWriteArrayList();
+    private final Set<Output<?>> outputs = new CopyOnWriteArraySet<>();
 
     private final Set<Input<?>> unmodInputs = Collections.unmodifiableSet(inputs);
 
@@ -70,98 +62,67 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public Reactor named (final String name)
+    public synchronized Reactor named (final String name)
     {
-        synchronized (lock)
-        {
-            this.name = Objects.requireNonNull(name, "name");
-            return this;
-        }
+        this.name = Objects.requireNonNull(name, "name");
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Reactor poweredBy (final Powerplant executor)
+    public synchronized Reactor poweredBy (final Powerplant executor)
     {
         Objects.requireNonNull(executor, "executor");
-
-        synchronized (lock)
-        {
-            powerplant.onUnbind(this, meta);
-            powerplant = executor;
-            powerplant.onBind(this, meta);
-            ping();
-            return this;
-        }
+        powerplant.onUnbind(this, meta);
+        powerplant = executor;
+        powerplant.onBind(this, meta);
+        signal();
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Reaction newReaction ()
+    public synchronized <T> Input<T> newInput (final Class<T> type)
     {
-        synchronized (lock)
-        {
-            final InternalReaction builder = new InternalReaction(this);
-            reactionsList.add(builder);
-            return builder;
-        }
+        Objects.requireNonNull(type, "type");
+        final Input<T> input = new InternalInput<>(this, type);
+        inputs.add(input);
+        return input;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public <T> Input newArrayInput (final Class<T> type,
-                                    final int capacity,
-                                    final OverflowPolicy policy)
+    public synchronized <T> Output<T> newOutput (final Class<T> type)
     {
-        synchronized (lock)
-        {
-            final InternalInput<T> input = InternalInput.newArrayInput(this, type, capacity, policy);
-            inputs.add(input);
-            return input;
-        }
+        Objects.requireNonNull(type, "type");
+        final Output<T> output = new InternalOutput<>(this, type);
+        outputs.add(output);
+        return output;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public <T> Input newLinkedInput (final Class<T> type,
-                                     final int capacity,
-                                     final OverflowPolicy policy)
+    public synchronized Reaction newReaction ()
     {
-        synchronized (lock)
-        {
-            final InternalInput<T> input = InternalInput.newLinkedInput(this, type, capacity, policy);
-            inputs.add(input);
-            return input;
-        }
+        final InternalReaction builder = new InternalReaction(this);
+        reactions.add(builder);
+        return builder;
+
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public <T> Output<T> newOutput (final Class<T> type)
-    {
-        synchronized (lock)
-        {
-            final Output<T> output = new InternalOutput<>(this, type);
-            outputs.add(output);
-            return output;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public UUID uuid ()
+    public synchronized UUID uuid ()
     {
         return uuid;
     }
@@ -170,7 +131,7 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public String name ()
+    public synchronized String name ()
     {
         return name;
     }
@@ -179,7 +140,7 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public Set<Input<?>> inputs ()
+    public synchronized Set<Input<?>> inputs ()
     {
         return unmodInputs;
     }
@@ -188,7 +149,7 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public Set<Output<?>> outputs ()
+    public synchronized Set<Output<?>> outputs ()
     {
         return unmodOutputs;
     }
@@ -197,7 +158,7 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public List<Reaction> reactions ()
+    public synchronized List<Reaction> reactions ()
     {
         return unmodReactions;
     }
@@ -206,14 +167,10 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public Reactor disconnect ()
+    public synchronized Reactor disconnect ()
     {
-        synchronized (lock)
-        {
-            inputs().forEach(x -> x.disconnect());
-            outputs().forEach(x -> x.disconnect());
-        }
-
+        inputs().forEach(x -> x.disconnect());
+        outputs().forEach(x -> x.disconnect());
         return this;
     }
 
@@ -221,7 +178,7 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public boolean isReacting ()
+    public synchronized boolean isReacting ()
     {
         return reacting;
     }
@@ -230,7 +187,7 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public Powerplant powerplant ()
+    public synchronized Powerplant powerplant ()
     {
         return powerplant;
     }
@@ -239,14 +196,31 @@ public final class InternalReactor
      * {@inheritDoc}
      */
     @Override
-    public InternalReactor ping ()
+    public synchronized String toString ()
     {
-        powerplant.onPing(this, meta);
+        return name;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * Do *not* make this method synchronized.
+     * </p>
+     */
+    @Override
+    public InternalReactor signal ()
+    {
+        powerplant.onSignal(this, meta);
         return this;
     }
 
     /**
      * {@inheritDoc}
+     *
+     * <p>
+     * Do *not* make this method synchronized.
+     * </p>
      */
     @Override
     public boolean crank ()
@@ -254,31 +228,35 @@ public final class InternalReactor
 
         boolean result = false;
 
-        /**
-         * The tryAquire prevents multi-threaded power-plants from inadvertently blocking multiple worker threads.
-         */
-        if (runLock.tryAcquire())
+        try
         {
-            try
+            /**
+             * The try-aquire prevents multi-threaded power-plants
+             * from inadvertently blocking multiple worker threads.
+             */
+            if (runLock.tryAcquire())
             {
-                reacting = true;
-
-                synchronized (lock)
+                try
                 {
-                    for (int i = 0; i < reactionsList.size(); i++)
+                    reacting = true;
+
+                    for (int i = 0; i < reactions.size(); i++)
                     {
-                        result |= reactionsList.get(i).crank();
+                        result |= reactions.get(i).crank();
                     }
                 }
+                finally
+                {
+                    reacting = false;
+                    runLock.release();
+                }
             }
-            finally
-            {
-                reacting = false;
-                runLock.release();
-            }
+        }
+        catch (Throwable ex)
+        {
+            // Pass, but never throw exceptions.
         }
 
         return result;
     }
-
 }

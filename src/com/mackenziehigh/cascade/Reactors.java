@@ -20,12 +20,12 @@ import com.mackenziehigh.internal.cascade.InternalReactor;
 /**
  * Factory.
  */
-public final class Cascade
+public final class Reactors
 {
     /**
      * Factory Method.
      *
-     * @return a builder that can create a new <code>Reactor</code>.
+     * @return a new <code>Reactor</code>.
      */
     public static Reactor newReactor ()
     {

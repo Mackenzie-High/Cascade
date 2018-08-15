@@ -13,24 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.mackenziehigh.cascade.powerplants;
+package com.mackenziehigh.internal.cascade.powerplants;
 
 import com.mackenziehigh.cascade.Powerplant;
 import com.mackenziehigh.cascade.Reactor;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * A powerplant that does nothing (no-op).
+ * A dangerous powerplant that should be used with great care.
  */
-public final class NopPowerplant
+public final class DirectPowerplant
         implements Powerplant
 {
+
     /**
      * {@inheritDoc}
      */
     @Override
     public void onBind (final Reactor reactor,
-                         final AtomicReference<Object> meta)
+                        final AtomicReference<Object> meta)
     {
         // Pass
     }
@@ -40,7 +41,7 @@ public final class NopPowerplant
      */
     @Override
     public void onUnbind (final Reactor reactor,
-                        final AtomicReference<Object> meta)
+                          final AtomicReference<Object> meta)
     {
         // Pass
     }
@@ -49,10 +50,10 @@ public final class NopPowerplant
      * {@inheritDoc}
      */
     @Override
-    public void onPing (final Reactor reactor,
+    public void onSignal (final Reactor reactor,
                         final AtomicReference<Object> meta)
     {
-        // Pass
+        reactor.crank();
     }
 
     /**
@@ -64,5 +65,4 @@ public final class NopPowerplant
     {
         // Pass
     }
-
 }

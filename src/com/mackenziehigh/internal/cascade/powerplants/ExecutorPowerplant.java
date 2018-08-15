@@ -13,18 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.mackenziehigh.cascade.powerplants;
+package com.mackenziehigh.internal.cascade.powerplants;
 
 import com.mackenziehigh.cascade.Powerplant;
 import com.mackenziehigh.cascade.Reactor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * A dangerous powerplant that should be used with great care.
+ * A powerplant this is based on a <code>ScheduledExecutorService</code>.
  */
-public final class DirectPowerplant
+public final class ExecutorPowerplant
         implements Powerplant
 {
+    private final ExecutorService service;
+
+    private ExecutorPowerplant (final ExecutorService service)
+    {
+        this.service = service;
+    }
 
     /**
      * {@inheritDoc}
@@ -33,7 +41,7 @@ public final class DirectPowerplant
     public void onBind (final Reactor reactor,
                         final AtomicReference<Object> meta)
     {
-        // Pass
+        meta.set(new AtomicBoolean());
     }
 
     /**
@@ -50,10 +58,23 @@ public final class DirectPowerplant
      * {@inheritDoc}
      */
     @Override
-    public void onPing (final Reactor reactor,
-                        final AtomicReference<Object> meta)
+    public void onSignal (final Reactor reactor,
+                          final AtomicReference<Object> meta)
     {
-        reactor.crank();
+        final AtomicBoolean flag = (AtomicBoolean) meta.get();
+
+        if (flag.compareAndSet(false, true))
+        {
+            try
+            {
+                // TODO: Catch excpetions???
+                service.submit(() -> run(reactor));
+            }
+            finally
+            {
+                flag.set(false);
+            }
+        }
     }
 
     /**
@@ -63,6 +84,19 @@ public final class DirectPowerplant
     public void close ()
             throws Exception
     {
-        // Pass
+        service.shutdown();
+    }
+
+    private void run (final Reactor reactor)
+    {
+        if (reactor.crank())
+        {
+            service.submit(() -> run(reactor));
+        }
+    }
+
+    public static ExecutorPowerplant from (final ExecutorService service)
+    {
+        return new ExecutorPowerplant(service);
     }
 }

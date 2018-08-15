@@ -15,37 +15,35 @@
  */
 package com.mackenziehigh.internal.cascade;
 
-import com.google.common.base.Preconditions;
-import com.mackenziehigh.cascade.Input;
-import com.mackenziehigh.cascade.Output;
 import com.mackenziehigh.cascade.Reactor;
+import com.mackenziehigh.cascade.Reactor.Input;
+import com.mackenziehigh.cascade.Reactor.Output;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 
 /**
- * Combined Implementation of <code>OutputBuilder</code> and <code>PrivateOutput</code>.
- *
- * TODO: Already built; locks.
+ * Implementation of <code>Output</code>.
  */
-final class InternalOutput<T>
-        implements Output<T>
+final class InternalOutput<E>
+        implements Output<E>
 {
     private final Reactor reactor;
 
     private final UUID uuid = UUID.randomUUID();
 
-    private final Class<T> type;
-
-    private final Object lock = new Object();
+    private final Class<E> type;
 
     private volatile String name = uuid.toString();
 
-    private volatile Optional<Input<T>> connection = Optional.empty();
+    private volatile Optional<Input<E>> connection = Optional.empty();
+
+    private volatile UnaryOperator<E> verifications = UnaryOperator.identity();
 
     public InternalOutput (final Reactor reactor,
-                           final Class<T> type)
+                           final Class<E> type)
     {
         this.reactor = Objects.requireNonNull(reactor, "reactor");
         this.type = Objects.requireNonNull(type, "type");
@@ -55,7 +53,7 @@ final class InternalOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public Class<T> type ()
+    public synchronized Class<E> type ()
     {
         return type;
     }
@@ -64,32 +62,36 @@ final class InternalOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public Output<T> named (final String name)
+    public synchronized Output<E> named (final String name)
     {
-        synchronized (lock)
-        {
-            this.name = Objects.requireNonNull(name, "name");
-            return this;
-        }
+        this.name = Objects.requireNonNull(name, "name");
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Output<T> verify (final Predicate<T> condition)
+    public synchronized Output<E> verify (final Predicate<E> condition)
     {
-        synchronized (lock)
+        final UnaryOperator<E> checker = x ->
         {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
+            final boolean test = condition.test(x);
+            Utils.verify(test); // TODO: Correct exception type?
+            return x;
+        };
+
+        final UnaryOperator<E> op = verifications;
+        verifications = x -> checker.apply(op.apply(x));
+        reactor.signal();
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public UUID uuid ()
+    public synchronized UUID uuid ()
     {
         return uuid;
     }
@@ -98,7 +100,7 @@ final class InternalOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public String name ()
+    public synchronized String name ()
     {
         return name;
     }
@@ -107,7 +109,7 @@ final class InternalOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public Reactor reactor ()
+    public synchronized Reactor reactor ()
     {
         return reactor;
     }
@@ -116,56 +118,50 @@ final class InternalOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public Output<T> connect (final Input<T> input)
+    public synchronized Output<E> connect (final Input<E> input)
     {
-        Preconditions.checkNotNull(input, "input");
+        Objects.requireNonNull(input, "input");
 
-        synchronized (lock)
+        if (connection.map(x -> x.equals(input)).orElse(false))
         {
-            if (connection.map(x -> x.equals(input)).orElse(false))
-            {
-                return this;
-            }
-            else if (connection.isPresent())
-            {
-                throw new IllegalStateException("Already Connected!");
-            }
-            else
-            {
-                connection = Optional.of(input);
-                input.connect(this);
-                reactor.ping();
-                input.reactor().ping();
-            }
             return this;
         }
+        else if (connection.isPresent())
+        {
+            throw new IllegalStateException("Already Connected!");
+        }
+        else
+        {
+            connection = Optional.of(input);
+            input.connect(this);
+            input.reactor().signal();
+            reactor.signal();
+        }
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Output<T> disconnect ()
+    public synchronized Output<E> disconnect ()
     {
-        synchronized (lock)
+        if (connection.isPresent())
         {
-            if (connection.isPresent())
-            {
-                final Input<T> input = connection.get();
-                connection = Optional.empty();
-                input.disconnect();
-                reactor.ping();
-                input.reactor().ping();
-            }
-            return this;
+            final Input<E> input = connection.get();
+            connection = Optional.empty();
+            input.disconnect();
+            input.reactor().signal();
+            reactor.signal();
         }
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Optional<Input<T>> connection ()
+    public synchronized Optional<Input<E>> connection ()
     {
         return connection;
     }
@@ -174,81 +170,70 @@ final class InternalOutput<T>
      * {@inheritDoc}
      */
     @Override
-    public boolean isFull ()
+    public synchronized boolean isFull ()
     {
-        synchronized (lock)
-        {
-            return connection.isPresent() ? remainingCapacity() == 0 : false;
-        }
+        return connection.isPresent() ? remainingCapacity() == 0 : false;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Output<T> send (final T value)
+    public synchronized Output<E> send (final E value)
     {
-        /**
-         * TODO: Should this *not* be synchronized???
-         * What if we eventually add Lock-Free Inputs?
-         * In that case, this is forcing synchronization which would defeat the lock-free gains.
-         */
-        synchronized (lock)
+        final Input<E> connectedInput = connection.orElse(null);
+
+        if (connectedInput != null)
         {
-            if (connection.isPresent())
-            {
-                connection.get().send(value);
-            }
-            return this;
+            connectedInput.send(value);
         }
+
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public boolean isEmpty ()
+    public synchronized boolean isEmpty ()
     {
-        synchronized (lock)
-        {
-            return connection.map(x -> x.isEmpty()).orElse(true);
-        }
+        return connection.map(x -> x.isEmpty()).orElse(true);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public int capacity ()
+    public synchronized int capacity ()
     {
-        synchronized (lock)
-        {
-            return connection.map(x -> x.capacity()).orElse(0);
-        }
+        return connection.map(x -> x.capacity()).orElse(0);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public int size ()
+    public synchronized int size ()
     {
-        synchronized (lock)
-        {
-            return connection.map(x -> x.size()).orElse(0);
-        }
+        return connection.map(x -> x.size()).orElse(0);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public int remainingCapacity ()
+    public synchronized int remainingCapacity ()
     {
-        synchronized (lock)
-        {
-            final int result = connection.isPresent() ? capacity() - connection.get().size() : 0;
-            return result;
-        }
+        final int result = connection.isPresent() ? capacity() - connection.get().size() : 0;
+        return result;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public synchronized String toString ()
+    {
+        return name;
     }
 }

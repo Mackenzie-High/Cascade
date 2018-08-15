@@ -33,7 +33,7 @@ public interface Powerplant
      * storing information related to the reactor.
      */
     public void onBind (Reactor reactor,
-                         AtomicReference<Object> meta);
+                        AtomicReference<Object> meta);
 
     /**
      * A reactor will invoke this event-handler in order
@@ -45,7 +45,7 @@ public interface Powerplant
      * storing information related to the reactor.
      */
     public void onUnbind (Reactor reactor,
-                        AtomicReference<Object> meta);
+                          AtomicReference<Object> meta);
 
     /**
      * A reactor will invoke this event-handler in order
@@ -60,8 +60,8 @@ public interface Powerplant
      * @param meta can freely used by the powerplant for
      * storing information related to the reactor.
      */
-    public void onPing (Reactor reactor,
-                        AtomicReference<Object> meta);
+    public void onSignal (Reactor reactor,
+                          AtomicReference<Object> meta);
 
     /**
      * Invoke the method in order to cause the powerplant to shutdown.

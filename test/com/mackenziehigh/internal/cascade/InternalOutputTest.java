@@ -1,21 +1,35 @@
+/*
+ * Copyright 2018 Michael Mackenzie High
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.mackenziehigh.internal.cascade;
 
-import com.mackenziehigh.cascade.Cascade;
-import com.mackenziehigh.cascade.Input;
 import com.mackenziehigh.cascade.Reactor;
+import com.mackenziehigh.cascade.Reactor.Input;
+import com.mackenziehigh.cascade.Reactors;
 import java.util.UUID;
 import static junit.framework.Assert.*;
 import org.junit.Test;
 
 /**
- *
- * TODO: Test pings
+ * Unit Test.
  */
 public final class InternalOutputTest
 {
-    private final Reactor reactor = Cascade.newReactor();
+    private final Reactor reactor = Reactors.newReactor();
 
-    private final Input<String> input = reactor.newLinkedInput(String.class);
+    private final Input<String> input = reactor.newInput(String.class);
 
     private final InternalOutput<String> output = new InternalOutput<>(reactor, String.class);
 
@@ -136,7 +150,7 @@ public final class InternalOutputTest
     @Test (expected = IllegalStateException.class)
     public void test20180527161624136215 ()
     {
-        final Input<String> otherInput = reactor.newLinkedInput(String.class);
+        final Input<String> otherInput = reactor.newInput(String.class);
         output.connect(input);
         output.connect(otherInput);
     }
@@ -247,7 +261,7 @@ public final class InternalOutputTest
     @Test
     public void test20180527134525242539 ()
     {
-        final Input<String> arrayInput = reactor.newLinkedInput(String.class, 3);
+        final Input<String> arrayInput = reactor.newInput(String.class).useLinkedInflowDeque(3);
         final InternalOutput<String> underTest = new InternalOutput<>(reactor, String.class);
         underTest.connect(arrayInput);
 

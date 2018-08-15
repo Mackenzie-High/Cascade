@@ -15,8 +15,7 @@
  */
 package com.mackenziehigh.internal.cascade;
 
-import com.google.common.base.Verify;
-import com.mackenziehigh.cascade.OverflowPolicy;
+import com.mackenziehigh.cascade.Reactor.Input.OverflowPolicy;
 import java.util.Deque;
 import java.util.Objects;
 
@@ -95,7 +94,7 @@ final class OverflowHandler<T>
         }
         else
         {
-            Verify.verify(policy == OverflowPolicy.UNSPECIFIED);
+            Utils.verify(policy == OverflowPolicy.UNSPECIFIED);
             return queue.offer(value);
         }
     }

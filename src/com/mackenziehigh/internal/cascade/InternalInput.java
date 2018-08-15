@@ -15,15 +15,9 @@
  */
 package com.mackenziehigh.internal.cascade;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Verify;
-import com.mackenziehigh.cascade.Input;
-import com.mackenziehigh.cascade.Output;
-import com.mackenziehigh.cascade.OverflowPolicy;
 import com.mackenziehigh.cascade.Reactor;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.LinkedList;
+import com.mackenziehigh.cascade.Reactor.Input;
+import com.mackenziehigh.cascade.Reactor.Output;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,14 +27,10 @@ import java.util.function.UnaryOperator;
 
 /**
  * Array-based <code>Input</code>.
- *
- * TODO: Default capacity should not be zero!!!
  */
 final class InternalInput<E>
         implements Input<E>
 {
-    private final Object lock = new Object();
-
     private final Reactor reactor;
 
     private final UUID uuid = UUID.randomUUID();
@@ -49,229 +39,191 @@ final class InternalInput<E>
 
     private final Class<E> type;
 
-    private final Deque<E> queue;
+    private volatile InflowDeque<E> inflowQueue;
 
-    private final OverflowHandler<E> overflowHandler;
+    private volatile OverflowHandler<E> overflowHandler;
 
     private volatile UnaryOperator<E> verifications = UnaryOperator.identity();
 
     private volatile Optional<Output<E>> connection = Optional.empty();
 
-    private InternalInput (final Reactor reactor,
-                           final Class<E> type,
-                           final Deque<E> queue,
-                           final OverflowHandler<E> handler)
+    public InternalInput (final Reactor reactor,
+                          final Class<E> type)
     {
         this.reactor = Objects.requireNonNull(reactor, "reactor");
         this.type = Objects.requireNonNull(type, "type");
-        this.queue = queue;
-        this.overflowHandler = handler;
+        this.inflowQueue = new LinkedInflowDeque<>(Integer.MAX_VALUE, OverflowPolicy.DROP_INCOMING);
+        this.overflowHandler = new OverflowHandler<>(inflowQueue, inflowQueue.capacity(), inflowQueue.overflowPolicy());
     }
 
-    public static <T> InternalInput<T> newArrayInput (final Reactor reactor,
-                                                      final Class<T> type,
-                                                      final int capacity,
-                                                      final OverflowPolicy policy)
-    {
-        final Deque<T> queue = new ArrayDeque<>(capacity);
-        final OverflowHandler<T> handler = new OverflowHandler<>(queue, capacity, policy);
-        return new InternalInput<>(reactor, type, queue, handler);
-    }
-
-    public static <T> InternalInput<T> newLinkedInput (final Reactor reactor,
-                                                       final Class<T> type,
-                                                       final int capacity,
-                                                       final OverflowPolicy policy)
-    {
-        final Deque<T> queue = new LinkedList<>();
-        final OverflowHandler<T> handler = new OverflowHandler<>(queue, capacity, policy);
-        return new InternalInput<>(reactor, type, queue, handler);
-    }
-
-    private void pingInputs ()
-    {
-        synchronized (lock)
-        {
-            if (connection.isPresent())
-            {
-                connection.get().reactor().ping();
-            }
-        }
-    }
-
-    private boolean offer (final E value)
-    {
-        synchronized (lock)
-        {
-            return overflowHandler.offer(value);
-        }
-    }
-
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public Class<E> type ()
+    public synchronized Input<E> useInflowDeque (final InflowDeque<E> queue)
+    {
+        Objects.requireNonNull(queue, "queue");
+
+        /**
+         * The new queue should contain the old messages, if possible.
+         */
+        final OverflowHandler<E> handler = new OverflowHandler<>(queue, queue.capacity(), queue.overflowPolicy());
+        queue.forEach(x -> handler.offer(x));
+
+        /**
+         * The new queue is now officially the new queue.
+         */
+        inflowQueue = queue;
+        overflowHandler = handler;
+
+        /**
+         * Notify the interested reactors that the queue changed.
+         */
+        signalInput();
+        reactor.signal();
+
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public synchronized Class<E> type ()
     {
         return type;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public OverflowPolicy overflowPolicy ()
+    public synchronized OverflowPolicy overflowPolicy ()
     {
         return overflowHandler.policy;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public InternalInput<E> clear ()
+    public synchronized InternalInput<E> clear ()
     {
-        synchronized (lock)
-        {
-            if (queue != null)
-            {
-                queue.clear();
-            }
-            return this;
-        }
+        inflowQueue.clear();
+        signalInput();
+        return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public E peekOrDefault (final E defaultValue)
+    public synchronized E peekOrDefault (final E defaultValue)
     {
-        synchronized (lock)
-        {
-            if (queue != null)
-            {
-                final E head = queue.peek();
-                return head == null ? defaultValue : head;
-            }
-            else
-            {
-                return defaultValue;
-            }
-        }
+        final E head = inflowQueue.peek();
+        return head == null ? defaultValue : head;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public E pollOrDefault (final E defaultValue)
+    public synchronized E pollOrDefault (final E defaultValue)
     {
-        synchronized (lock)
-        {
-            if (queue != null)
-            {
-                final E head = queue.poll();
-                pingInputs();
-                return head == null ? defaultValue : head;
-            }
-            else
-            {
-                return defaultValue;
-            }
-        }
+        final E head = inflowQueue.poll();
+        signalInput();
+        return head == null ? defaultValue : head;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public int capacity ()
+    public synchronized int capacity ()
     {
         return overflowHandler.capacity;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public int size ()
+    public synchronized int size ()
     {
-        synchronized (lock)
+        final int size = inflowQueue.size();
+        return size;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public synchronized boolean isFull ()
+    {
+        return size() >= capacity();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public synchronized InternalInput<E> forEach (final Consumer<E> functor)
+    {
+        Objects.requireNonNull(functor, "functor");
+        inflowQueue.forEach(functor);
+        return this;
+
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public synchronized int remainingCapacity ()
+    {
+        final int cap = capacity() - size();
+        Utils.verify(cap >= 0);
+        return cap;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public synchronized Input<E> named (final String name)
+    {
+        this.name = Objects.requireNonNull(name, "name");
+        reactor.signal();
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public synchronized Input<E> verify (final Predicate<E> condition)
+    {
+        final UnaryOperator<E> checker = x ->
         {
-            final int size = queue.size();
-            return size;
-        }
-    }
-
-    @Override
-    public boolean isEmpty ()
-    {
-        return size() == 0;
-    }
-
-    @Override
-    public boolean isFull ()
-    {
-        return size() == capacity();
-    }
-
-    @Override
-    public InternalInput<E> forEach (final Consumer<E> functor)
-    {
-        Preconditions.checkNotNull(functor, "functor");
-
-        synchronized (lock)
-        {
-            if (queue != null)
+            final boolean test = condition.test(x);
+            if (test == false)
             {
-                queue.forEach(functor);
+                throw new IllegalArgumentException();
             }
-            return this;
-        }
-    }
+            return x;
+        };
 
-    @Override
-    public int remainingCapacity ()
-    {
-        synchronized (lock)
-        {
-            final int cap = capacity() - size();
-            Verify.verify(cap >= 0);
-            return cap;
-        }
-    }
-
-    @Override
-    public E peekOrNull ()
-    {
-        return peekOrDefault(null);
-    }
-
-    @Override
-    public Optional<E> peek ()
-    {
-        return Optional.ofNullable(queue.peek());
+        final UnaryOperator<E> op = verifications;
+        verifications = x -> checker.apply(op.apply(x));
+        reactor.signal();
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Input<E> named (final String name)
-    {
-        synchronized (lock)
-        {
-            this.name = Objects.requireNonNull(name, "name");
-            return this;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Input<E> verify (final Predicate<E> condition)
-    {
-        synchronized (lock)
-        {
-            final UnaryOperator<E> checker = x ->
-            {
-                final boolean test = condition.test(x);
-                Verify.verify(test); // TODO: Correct exception type?
-                return x;
-            };
-
-            final UnaryOperator<E> op = verifications;
-            verifications = x -> checker.apply(op.apply(x));
-            return this;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public UUID uuid ()
+    public synchronized UUID uuid ()
     {
         return uuid;
     }
@@ -280,7 +232,7 @@ final class InternalInput<E>
      * {@inheritDoc}
      */
     @Override
-    public String name ()
+    public synchronized String name ()
     {
         return name;
     }
@@ -289,7 +241,7 @@ final class InternalInput<E>
      * {@inheritDoc}
      */
     @Override
-    public Reactor reactor ()
+    public synchronized Reactor reactor ()
     {
         return reactor;
     }
@@ -298,56 +250,50 @@ final class InternalInput<E>
      * {@inheritDoc}
      */
     @Override
-    public Input<E> connect (final Output<E> output)
+    public synchronized Input<E> connect (final Output<E> output)
     {
-        Preconditions.checkNotNull(output, "output");
+        Objects.requireNonNull(output, "output");
 
-        synchronized (lock)
+        if (connection.map(x -> x.equals(output)).orElse(false))
         {
-            if (connection.map(x -> x.equals(output)).orElse(false))
-            {
-                return this;
-            }
-            else if (connection.isPresent())
-            {
-                throw new IllegalStateException("Alreayd Connected!");
-            }
-            else
-            {
-                connection = Optional.of(output);
-                output.connect(this);
-                pingInputs();
-                reactor.ping();
-            }
             return this;
         }
+        else if (connection.isPresent())
+        {
+            throw new IllegalStateException("Already Connected!");
+        }
+        else
+        {
+            connection = Optional.of(output);
+            output.connect(this);
+            signalInput();
+            reactor.signal();
+        }
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Input<E> disconnect ()
+    public synchronized Input<E> disconnect ()
     {
-        synchronized (lock)
+        final Output<E> output = connection.orElse(null);
+        connection = Optional.empty();
+        if (output != null)
         {
-            final Output<E> output = connection.orElse(null);
-            connection = Optional.empty();
-            if (output != null)
-            {
-                output.disconnect();
-                pingInputs();
-                reactor.ping();
-            }
-            return this;
+            output.disconnect();
+            signalInput();
+            reactor.signal();
         }
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Optional<Output<E>> connection ()
+    public synchronized Optional<Output<E>> connection ()
     {
         return connection;
     }
@@ -356,7 +302,7 @@ final class InternalInput<E>
      * {@inheritDoc}
      */
     @Override
-    public Input<E> send (final E value)
+    public synchronized Input<E> send (final E value)
     {
         if (value == null)
         {
@@ -368,7 +314,7 @@ final class InternalInput<E>
 
         if (inserted)
         {
-            reactor.ping();
+            reactor.signal();
         }
 
         return this;
@@ -378,8 +324,26 @@ final class InternalInput<E>
      * {@inheritDoc}
      */
     @Override
-    public String toString ()
+    public synchronized String toString ()
     {
         return name;
+    }
+
+    private void signalInput ()
+    {
+        if (connection.isPresent())
+        {
+            connection.get().reactor().signal();
+        }
+    }
+
+    private boolean offer (final E value)
+    {
+        return overflowHandler.offer(value);
+    }
+
+    public InflowDeque<?> inflowQueue ()
+    {
+        return inflowQueue;
     }
 }

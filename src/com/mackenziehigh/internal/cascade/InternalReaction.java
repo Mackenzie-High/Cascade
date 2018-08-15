@@ -15,33 +15,27 @@
  */
 package com.mackenziehigh.internal.cascade;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.mackenziehigh.cascade.Input;
-import com.mackenziehigh.cascade.Output;
-import com.mackenziehigh.cascade.Reaction;
 import com.mackenziehigh.cascade.Reactor;
+import com.mackenziehigh.cascade.Reactor.Reaction;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
-import java.util.function.Predicate;
 
 /**
- * Combined Implementation of <code>ReactionBuilder</code> and <code>Reaction</code>.
+ * Implementation of <code>Reaction</code>.
  */
 final class InternalReaction
         implements Reaction
 {
-    private final Object lock = new Object();
-
     private final Reactor reactor;
 
     private final UUID uuid = UUID.randomUUID();
 
     private volatile String name = uuid.toString();
 
-    private final List<BooleanSupplier> requirements = Lists.newCopyOnWriteArrayList();
+    private final List<BooleanSupplier> requirements = new CopyOnWriteArrayList<>();
 
     private volatile ReactionTask onTrue = () ->
     {
@@ -49,8 +43,9 @@ final class InternalReaction
     };
 
     // TODO: NOP instead????
-    private volatile ReactionTask onError = () ->
+    private volatile ErrorHandlerTask onError = ex ->
     {
+        // Pass.
     };
 
     public InternalReaction (final Reactor reactor)
@@ -58,9 +53,14 @@ final class InternalReaction
         this.reactor = Objects.requireNonNull(reactor, "reactor");
     }
 
-    private Reaction doRequire (final BooleanSupplier condition)
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public synchronized Reaction named (final String name)
     {
-        requirements.add(condition);
+        this.name = Objects.requireNonNull(name, "name");
+        reactor.signal();
         return this;
     }
 
@@ -68,106 +68,44 @@ final class InternalReaction
      * {@inheritDoc}
      */
     @Override
-    public Reaction named (final String name)
+    public synchronized Reaction require (final BooleanSupplier condition)
     {
-        synchronized (lock)
-        {
-            this.name = Objects.requireNonNull(name, "name");
-            return this;
-        }
+        Objects.requireNonNull(condition, "condition");
+        requirements.add(condition);
+        reactor.signal();
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Reaction require (final Input<?> input,
-                             final int count)
+    public synchronized Reaction onMatch (final ReactionTask task)
     {
-        Preconditions.checkNotNull(input, "input");
-        Preconditions.checkArgument(count >= 0, "count < 0");
-        synchronized (lock)
-        {
-            return doRequire(() -> input.size() >= count);
-        }
+        Objects.requireNonNull(task, "task");
+        onTrue = onTrue.andThen(task);
+        reactor.signal();
+        return this;
+
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public <T> Reaction require (final Input<T> input,
-                                 final Predicate<T> head)
+    public synchronized Reaction onError (final ErrorHandlerTask handler)
     {
-        Preconditions.checkNotNull(input, "input");
-        Preconditions.checkNotNull(head, "head");
-        synchronized (lock)
-        {
-            return doRequire(() -> head.test(input.peekOrDefault(null)));
-        }
+        Objects.requireNonNull(handler, "handler");
+        onError = onError.andThen(handler);
+        reactor.signal();
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Reaction require (final Output<?> output,
-                             final int count)
-    {
-        Preconditions.checkNotNull(output, "output");
-        Preconditions.checkArgument(count >= 0, "count < 0");
-        synchronized (lock)
-        {
-            return doRequire(() -> !output.connection().isPresent() || output.remainingCapacity() >= count);
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Reaction require (final BooleanSupplier condition)
-    {
-        Preconditions.checkNotNull(condition, "condition");
-        synchronized (lock)
-        {
-            return doRequire(condition);
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Reaction onMatch (final ReactionTask task)
-    {
-        Preconditions.checkNotNull(task, "task");
-        synchronized (lock)
-        {
-            onTrue = onTrue.andThen(task);
-            return this;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Reaction onError (final ReactionTask handler)
-    {
-        Preconditions.checkNotNull(handler, "handler");
-        synchronized (lock)
-        {
-            onError = onError.andThen(handler);
-            return this;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public UUID uuid ()
+    public synchronized UUID uuid ()
     {
         return uuid;
     }
@@ -176,7 +114,7 @@ final class InternalReaction
      * {@inheritDoc}
      */
     @Override
-    public String name ()
+    public synchronized String name ()
     {
         return name;
     }
@@ -185,24 +123,21 @@ final class InternalReaction
      * {@inheritDoc}
      */
     @Override
-    public Reactor reactor ()
+    public synchronized Reactor reactor ()
     {
         return reactor;
     }
 
-    public boolean isReady ()
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public synchronized String toString ()
     {
-        boolean condition = true;
-
-        for (int i = 0; condition && i < requirements.size(); i++)
-        {
-            condition &= requirements.get(i).getAsBoolean();
-        }
-
-        return condition;
+        return name;
     }
 
-    public boolean crank ()
+    public synchronized boolean crank ()
     {
         final boolean condition = isReady();
 
@@ -214,22 +149,53 @@ final class InternalReaction
         return condition;
     }
 
+    public synchronized boolean isReady ()
+    {
+        boolean condition = true;
+
+        for (int i = 0; condition && i < requirements.size(); i++)
+        {
+            try
+            {
+                condition &= requirements.get(i).getAsBoolean();
+            }
+            catch (Throwable ex1)
+            {
+                /**
+                 * The condition threw an exception; therefore, we do not know for
+                 * sure that all of the *necessary* preconditions have been met.
+                 */
+                condition = false;
+
+                try
+                {
+                    onError.accept(ex1);
+                }
+                catch (Throwable ex2)
+                {
+                    // Pass.
+                }
+            }
+        }
+
+        return condition;
+    }
+
     private void crankOnTrue ()
     {
         try
         {
-            onTrue.run();
+            onTrue.execute();
         }
         catch (Throwable ex1)
         {
             try
             {
-                onError.run();
+                onError.accept(ex1);
             }
             catch (Throwable ex2)
             {
-                // TODO
-                ex1.printStackTrace(System.err);
+                // Pass.
             }
         }
     }
