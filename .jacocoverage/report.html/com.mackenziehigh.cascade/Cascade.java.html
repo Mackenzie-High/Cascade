@@ -1,36 +1,914 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>Cascade.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade</a> &gt; <span class="el_source">Cascade.java</span></div><h1>Cascade.java</h1><pre class="source lang-java linenums">/*
- * Copyright 2018 Michael Mackenzie High
- *
- * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-package com.mackenziehigh.cascade;
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>Cascade.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JaCoCoverage analysis of project &quot;Cascade&quot; (powered by JaCoCo from EclEmma)</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade</a> &gt; <span class="el_source">Cascade.java</span></div><h1>Cascade.java</h1><pre class="source lang-java linenums">package com.mackenziehigh.cascade;
 
-import com.mackenziehigh.internal.cascade.InternalReactor;
+import com.mackenziehigh.cascade.Cascade.AbstractStage.ActorTask;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 /**
- * Factory.
+ * Micro Actor Framework.
  */
-<span class="nc" id="L23">public final class Cascade</span>
+public interface Cascade
 {
     /**
-     * Factory Method.
-     *
-     * @return a builder that can create a new &lt;code&gt;Reactor&lt;/code&gt;.
+     * A group of &lt;code&gt;Actor&lt;/code&gt;s with a common power supply.
      */
-    public static Reactor newReactor ()
+    public interface Stage
     {
-<span class="fc" id="L32">        return new InternalReactor();</span>
+        /**
+         * Actor.
+         *
+         * @param &lt;I&gt; is the type of objects the actor will consume.
+         * @param &lt;O&gt; is the type of objects the actor will produce.
+         */
+        public interface Actor&lt;I, O&gt;
+                extends Consumer&lt;I&gt;
+        {
+            /**
+             * Actor Builder.
+             *
+             * @param &lt;I&gt; is the type of objects the actor will consume.
+             * @param &lt;O&gt; is the type of objects the actor will produce.
+             */
+            public interface Builder&lt;I, O&gt;
+            {
+                /**
+                 * Define the normal behavior of the actor.
+                 *
+                 * @param &lt;X&gt; is the type of objects the actor will consume.
+                 * @param &lt;Y&gt; is the type of objects the actor will produce.
+                 * @param script defines the message-handling behavior of the actor.
+                 * @return a modified copy of this builder.
+                 */
+                public &lt;X, Y&gt; Builder&lt;X, Y&gt; withScript (Script&lt;X, Y&gt; script);
+
+                /**
+                 * Define the normal behavior of the actor.
+                 *
+                 * @param &lt;X&gt; is the type of objects the actor will consume.
+                 * @param script defines the message-handling behavior of the actor.
+                 * @return a modified copy of this builder.
+                 */
+                public default &lt;X&gt; Builder&lt;X, X&gt; withScript (ConsumerScript&lt;X&gt; script)
+                {
+<span class="nc" id="L71">                    return withScript(x -&gt;</span>
+                    {
+<span class="nc" id="L73">                        script.execute(x);</span>
+<span class="nc" id="L74">                        return null;</span>
+                    });
+                }
+
+                /**
+                 * Define how the actor responds to unhandled exceptions.
+                 *
+                 * @param script defines the error-handling behavior of the actor.
+                 * @return a modified copy of this builder.
+                 */
+                public Builder&lt;I, O&gt; withErrorHandler (Consumer&lt;Throwable&gt; script);
+
+                /**
+                 * Cause the actor to use the given queue to store incoming messages.
+                 *
+                 * &lt;p&gt;
+                 * &lt;b&gt;Warning:&lt;/b&gt; The queue must ensure thread-safety.
+                 * &lt;/p&gt;
+                 *
+                 * @param queue will store incoming messages as they await processing.
+                 * @return a modified copy of this builder.
+                 */
+                public Builder&lt;I, O&gt; withInflowQueue (Queue&lt;I&gt; queue);
+
+                /**
+                 * Cause the actor to use a &lt;code&gt;ConcurrentLinkedQueue&lt;/code&gt; to store incoming messages.
+                 *
+                 * @return this.
+                 */
+                public default Builder&lt;I, O&gt; withConcurrentInflowQueue ()
+                {
+<span class="nc" id="L105">                    return withInflowQueue(new ConcurrentLinkedQueue&lt;&gt;());</span>
+                }
+
+                /**
+                 * Cause the actor to use a &lt;code&gt;LinkedBlockingQueue&lt;/code&gt; to store incoming messages.
+                 *
+                 * @return a modified copy of this builder.
+                 */
+                public default Builder&lt;I, O&gt; withLinkedInflowQueue ()
+                {
+<span class="nc" id="L115">                    return withInflowQueue(new LinkedBlockingQueue&lt;&gt;());</span>
+                }
+
+                /**
+                 * Cause the actor to use a &lt;code&gt;LinkedBlockingQueue&lt;/code&gt; to store incoming messages.
+                 *
+                 * @param capacity is the maximum number of simultaneously pending messages.
+                 * @return a modified copy of this builder.
+                 */
+                public default Builder&lt;I, O&gt; withLinkedInflowQueue (int capacity)
+                {
+<span class="nc" id="L126">                    return withInflowQueue(new LinkedBlockingQueue&lt;&gt;(capacity));</span>
+                }
+
+                /**
+                 * Cause the actor to use a &lt;code&gt;ArrayBlockingQueue&lt;/code&gt; to store incoming messages.
+                 *
+                 * @param capacity is the maximum number of simultaneously pending messages.
+                 * @return a modified copy of this builder.
+                 */
+                public default Builder&lt;I, O&gt; withArrayInflowQueue (int capacity)
+                {
+<span class="nc" id="L137">                    return withInflowQueue(new ArrayBlockingQueue&lt;&gt;(capacity));</span>
+                }
+
+                /**
+                 * Construct the actor and add it to the stage.
+                 *
+                 * @return the newly created actor.
+                 */
+                public Actor&lt;I, O&gt; create ();
+            }
+
+            /**
+             * Input to an Actor.
+             *
+             * @param &lt;T&gt; is the type of objects that the actor will consume.
+             */
+            public interface Input&lt;T&gt;
+            {
+
+                /**
+                 * Get the actor that this input pertains to.
+                 *
+                 * @return the enclosing actor.
+                 */
+                public Actor&lt;T, ?&gt; actor ();
+
+                /**
+                 * Connect this input to the given output of another actor.
+                 *
+                 * &lt;p&gt;
+                 * This method is a no-op, if the connection already exists.
+                 * &lt;/p&gt;
+                 *
+                 * @param output will send messages to this input.
+                 * @return this.
+                 */
+                public Input&lt;T&gt; connect (Output&lt;T&gt; output);
+
+                /**
+                 * Disconnect this input from the given output.
+                 *
+                 * &lt;p&gt;
+                 * This method is a no-op, if the connection does not exist.
+                 * &lt;/p&gt;
+                 *
+                 * @param output will no longer be connected.
+                 * @return this.
+                 */
+                public Input&lt;T&gt; disconnect (Output&lt;T&gt; output);
+
+                /**
+                 * Get the current incoming connections.
+                 *
+                 * @return the current connections as an immutable &lt;code&gt;Set&lt;/code&gt;.
+                 */
+                public Set&lt;Output&lt;T&gt;&gt; connections ();
+
+                /**
+                 * Send a message to the actor via this input.
+                 *
+                 * @param message will be processed by the actor, eventually,
+                 * if the message is not dropped due to capacity restrictions.
+                 * @return this.
+                 */
+                public Input&lt;T&gt; send (T message);
+
+            }
+
+            /**
+             * Output to an Actor.
+             *
+             * @param &lt;T&gt; is the type of objects that the actor will produce.
+             */
+            public interface Output&lt;T&gt;
+            {
+                /**
+                 * Get the actor that this input pertains to.
+                 *
+                 * @return the enclosing actor.
+                 */
+                public Actor&lt;?, T&gt; actor ();
+
+                /**
+                 * Connect this output to the given input of another actor.
+                 *
+                 * &lt;p&gt;
+                 * This method is a no-op, if the connection already exists.
+                 * &lt;/p&gt;
+                 *
+                 * @param input will be sent messages from this output.
+                 * @return this.
+                 */
+                public Output&lt;T&gt; connect (Input&lt;T&gt; input);
+
+                /**
+                 * Disconnect this output from the given input.
+                 *
+                 * &lt;p&gt;
+                 * This method is a no-op, if the connection does not exist.
+                 * &lt;/p&gt;
+                 *
+                 * @param input will no longer be connected.
+                 * @return this.
+                 */
+                public Output&lt;T&gt; disconnect (Input&lt;T&gt; input);
+
+                /**
+                 * Get the current outgoing connections.
+                 *
+                 * @return the current connections as an immutable &lt;code&gt;Set&lt;/code&gt;.
+                 */
+                public Set&lt;Input&lt;T&gt;&gt; connections ();
+
+            }
+
+            /**
+             * Actor Behavior.
+             *
+             * @param &lt;I&gt; is the type of objects that the actor will consume.
+             * @param &lt;O&gt; is the type of objects that the actor will produce.
+             */
+            @FunctionalInterface
+            public interface Script&lt;I, O&gt;
+            {
+                public O execute (I input)
+                        throws Throwable;
+            }
+
+            /**
+             * Actor Behavior.
+             *
+             * @param &lt;I&gt; is the type of objects that the actor will consume.
+             */
+            @FunctionalInterface
+            public interface ConsumerScript&lt;I&gt;
+            {
+                public void execute (I input)
+                        throws Throwable;
+            }
+
+            /**
+             * Get the &lt;code&gt;Stage&lt;/code&gt; that contains this actor.
+             *
+             * @return the enclosing stage.
+             */
+            public Stage stage ();
+
+            /**
+             * Get the &lt;code&gt;Input&lt;/code&gt; that supplies messages to this actor.
+             *
+             * @return the input to the actor.
+             */
+            public Input&lt;I&gt; input ();
+
+            /**
+             * Get the &lt;code&gt;Output&lt;/code&gt; that receives messages from this actor.
+             *
+             * @return the output from the actor.
+             */
+            public Output&lt;O&gt; output ();
+
+        }
+
+        /**
+         * Set the default error-handler that will handle unhandled exceptions,
+         * if no other more specific error-handler is available.
+         *
+         * @param handler will be used to handle unhandled exceptions.
+         * @return this.
+         */
+        public Stage setErrorHandler (Consumer&lt;Throwable&gt; handler);
+
+        /**
+         * Create a builder that can be used to add a new actor to this stage.
+         *
+         * @param &lt;I&gt; is the type of objects that the actor will consume.
+         * @param &lt;O&gt; is the type of objects that the actor will produce.
+         * @return the new builder.
+         */
+        public &lt;I, O&gt; Actor.Builder&lt;I, O&gt; newActor ();
+
+        /**
+         * Asynchronously shutdown this stage, as soon as reasonably possible.
+         */
+        public void close ();
     }
 
+    /////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * Partial Implementation of &lt;code&gt;Stage&lt;/code&gt;.
+     */
+<span class="fc" id="L330">    public abstract class AbstractStage</span>
+            implements Cascade.Stage
+    {
+<span class="fc" id="L333">        private final Stage STAGE = this;</span>
+
+<span class="fc" id="L335">        private final Object stageLock = new Object();</span>
+
+<span class="fc" id="L337">        private final AtomicBoolean stageClosed = new AtomicBoolean(false);</span>
+
+<span class="fc" id="L339">        private volatile Consumer&lt;Throwable&gt; stageErrorHandler = ex -&gt;</span>
+        {
+<span class="nc" id="L341">            ex.printStackTrace(System.err);</span>
+<span class="nc" id="L342">        };</span>
+
+        /**
+         * This method will be invoked whenever an actor needs executed.
+         *
+         * &lt;p&gt;
+         * This method will not be re-invoked, until the actor finishes
+         * being executed, even if the actor determines that it needs
+         * to be executed again. Rather, the actor will invoke this
+         * method again, if needed, at the end of its execution.
+         * This strategy helps ensure that no two threads will
+         * ever power the actor concurrently. Moreover,
+         * this strategy lessons the amount of memory used
+         * by some implementations in order to schedule actors.
+         * &lt;/p&gt;
+         *
+         * @param state provides the methods needed to execute an actor.
+         */
+        protected abstract void onActorSubmit (ActorTask state);
+
+        /**
+         * This method will be invoked when this stage closes.
+         */
+        protected abstract void onStageClose ();
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public final &lt;I, O&gt; Stage.Actor.Builder&lt;I, O&gt; newActor ()
+        {
+<span class="fc" id="L373">            synchronized (stageLock)</span>
+            {
+<span class="fc" id="L375">                requireOpenStage();</span>
+<span class="fc" id="L376">                return new ActorBuilder&lt;&gt;();</span>
+<span class="nc" id="L377">            }</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public final Stage setErrorHandler (final Consumer&lt;Throwable&gt; handler)
+        {
+<span class="nc" id="L386">            Objects.requireNonNull(handler, &quot;handler&quot;);</span>
+
+<span class="nc" id="L388">            final Consumer&lt;Throwable&gt; safeConsumer = ex -&gt;</span>
+            {
+                try
+                {
+<span class="nc" id="L392">                    handler.accept(ex);</span>
+                }
+<span class="nc" id="L394">                catch (Throwable ignored)</span>
+                {
+                    // Pass.
+<span class="nc" id="L397">                }</span>
+<span class="nc" id="L398">            };</span>
+
+<span class="nc" id="L400">            synchronized (stageLock)</span>
+            {
+<span class="nc" id="L402">                requireOpenStage();</span>
+<span class="nc" id="L403">                stageErrorHandler = safeConsumer;</span>
+<span class="nc" id="L404">                return this;</span>
+<span class="nc" id="L405">            }</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public final void close ()
+        {
+<span class="nc" id="L414">            synchronized (stageLock)</span>
+            {
+<span class="nc bnc" id="L416" title="All 2 branches missed.">                if (stageClosed.compareAndSet(false, true))</span>
+                {
+<span class="nc" id="L418">                    onStageClose();</span>
+                }
+<span class="nc" id="L420">            }</span>
+<span class="nc" id="L421">        }</span>
+
+        private void requireOpenStage ()
+        {
+<span class="pc bpc" id="L425" title="1 of 2 branches missed.">            checkState(stageClosed.get() == false, &quot;This stage was already closed!&quot;);</span>
+<span class="fc" id="L426">        }</span>
+
+        /**
+         * An instance of this class facilitates executing an actor.
+         *
+         * &lt;p&gt;
+         * A (meta) object is stored herein, which is intended
+         * for use by implementing sub-classes, so that they
+         * can store actor specific information.
+         * &lt;/p&gt;
+         */
+        protected final class ActorTask
+        {
+            private final InternalActor&lt;?, ?&gt; actor;
+
+            private volatile Object meta;
+
+            private ActorTask (final InternalActor&lt;?, ?&gt; actor)
+<span class="fc" id="L444">            {</span>
+<span class="fc" id="L445">                this.actor = actor;</span>
+<span class="fc" id="L446">            }</span>
+
+            public Stage.Actor&lt;?, ?&gt; actor ()
+            {
+<span class="nc" id="L450">                return actor;</span>
+            }
+
+            public Object meta ()
+            {
+<span class="nc" id="L455">                return meta;</span>
+            }
+
+            public void meta (final Object value)
+            {
+<span class="nc" id="L460">                meta = value;</span>
+<span class="nc" id="L461">            }</span>
+
+            public void crank ()
+            {
+<span class="nc" id="L465">                actor.run();</span>
+<span class="nc" id="L466">            }</span>
+        }
+
+        private final class ActorBuilder&lt;I, O&gt;
+                implements Cascade.Stage.Actor.Builder&lt;I, O&gt;
+        {
+            private final Queue&lt;I&gt; inputQueue;
+
+            private final Stage.Actor.Script&lt;I, O&gt; script;
+
+            private final Consumer&lt;Throwable&gt; errorHandler;
+
+            private ActorBuilder ()
+<span class="fc" id="L479">            {</span>
+<span class="fc" id="L480">                this.inputQueue = new ConcurrentLinkedQueue&lt;&gt;();</span>
+<span class="pc" id="L481">                this.script = (I x) -&gt; null;</span>
+<span class="pc" id="L482">                this.errorHandler = ex -&gt; stageErrorHandler.accept(ex);</span>
+<span class="fc" id="L483">            }</span>
+
+            private ActorBuilder (final Queue&lt;I&gt; inputQueue,
+                                  final Stage.Actor.Script&lt;I, O&gt; script,
+                                  final Consumer&lt;Throwable&gt; errorHandler)
+<span class="fc" id="L488">            {</span>
+<span class="fc" id="L489">                this.inputQueue = inputQueue;</span>
+<span class="fc" id="L490">                this.script = script;</span>
+<span class="fc" id="L491">                this.errorHandler = errorHandler;</span>
+<span class="fc" id="L492">            }</span>
+
+            @Override
+            public &lt;X, Y&gt; Stage.Actor.Builder&lt;X, Y&gt; withScript (final Stage.Actor.Script&lt;X, Y&gt; script)
+            {
+<span class="fc" id="L497">                Objects.requireNonNull(script, &quot;script&quot;);</span>
+<span class="fc" id="L498">                return new ActorBuilder(inputQueue, script, errorHandler);</span>
+            }
+
+            @Override
+            public Stage.Actor.Builder&lt;I, O&gt; withErrorHandler (final Consumer&lt;Throwable&gt; handler)
+            {
+<span class="nc" id="L504">                Objects.requireNonNull(handler, &quot;handler&quot;);</span>
+
+<span class="nc" id="L506">                final Consumer&lt;Throwable&gt; safeConsumer = ex -&gt;</span>
+                {
+                    try
+                    {
+<span class="nc" id="L510">                        handler.accept(ex);</span>
+                    }
+<span class="nc" id="L512">                    catch (Throwable ignored)</span>
+                    {
+                        // Pass.
+<span class="nc" id="L515">                    }</span>
+<span class="nc" id="L516">                };</span>
+
+<span class="nc" id="L518">                return new ActorBuilder(inputQueue, script, safeConsumer);</span>
+            }
+
+            @Override
+            public Stage.Actor.Builder&lt;I, O&gt; withInflowQueue (final Queue&lt;I&gt; queue)
+            {
+<span class="nc" id="L524">                Objects.requireNonNull(queue, &quot;queue&quot;);</span>
+<span class="nc" id="L525">                return new ActorBuilder(queue, script, errorHandler);</span>
+            }
+
+            @Override
+            public Stage.Actor&lt;I, O&gt; create ()
+            {
+<span class="fc" id="L531">                synchronized (stageLock)</span>
+                {
+<span class="fc" id="L533">                    requireOpenStage();</span>
+<span class="fc" id="L534">                    final InternalActor&lt;I, O&gt; actor = new InternalActor&lt;&gt;(this);</span>
+<span class="fc" id="L535">                    return actor;</span>
+<span class="nc" id="L536">                }</span>
+            }
+
+        }
+
+        private final class InternalActor&lt;I, O&gt;
+                implements Cascade.Stage.Actor&lt;I, O&gt;
+        {
+<span class="fc" id="L544">            private final Stage.Actor&lt;I, O&gt; ACTOR = this;</span>
+
+            private final ActorBuilder&lt;I, O&gt; builder;
+
+            private final Script&lt;I, O&gt; script;
+
+<span class="fc" id="L550">            private final InternalInput input = new InternalInput();</span>
+
+<span class="fc" id="L552">            private final InternalOutput output = new InternalOutput();</span>
+
+<span class="fc" id="L554">            private final ActorTask state = new ActorTask(this);</span>
+
+<span class="fc" id="L556">            private final AtomicLong pendingCranks = new AtomicLong();</span>
+
+<span class="fc" id="L558">            private final AtomicBoolean inProgress = new AtomicBoolean(false);</span>
+
+            private InternalActor (final ActorBuilder&lt;I, O&gt; builder)
+<span class="fc" id="L561">            {</span>
+<span class="fc" id="L562">                this.builder = builder;</span>
+<span class="fc" id="L563">                this.script = builder.script;</span>
+<span class="fc" id="L564">            }</span>
+
+            private void run ()
+            {
+<span class="nc bnc" id="L568" title="All 2 branches missed.">                if (inProgress.compareAndSet(false, true) == false)</span>
+                {
+<span class="nc" id="L570">                    throw new IllegalStateException(&quot;concurrent run()&quot;);</span>
+                }
+
+                try
+                {
+<span class="nc" id="L575">                    processMessage();</span>
+                }
+<span class="nc" id="L577">                catch (Throwable ex1)</span>
+                {
+<span class="nc" id="L579">                    builder.errorHandler.accept(ex1);</span>
+                }
+                finally
+                {
+<span class="nc" id="L583">                    inProgress.set(false);</span>
+
+<span class="nc bnc" id="L585" title="All 6 branches missed.">                    if (pendingCranks.decrementAndGet() != 0)</span>
+                    {
+<span class="nc" id="L587">                        onActorSubmit(state);</span>
+                    }
+<span class="nc" id="L589">                }</span>
+<span class="nc" id="L590">            }</span>
+
+            private void processMessage ()
+                    throws Throwable
+            {
+<span class="nc" id="L595">                final I msgIn = builder.inputQueue.poll();</span>
+<span class="nc" id="L596">                final O msgOut = script.execute(msgIn);</span>
+
+<span class="nc bnc" id="L598" title="All 2 branches missed.">                if (msgOut != null)</span>
+                {
+<span class="nc" id="L600">                    final List&lt;Stage.Actor.Input&lt;O&gt;&gt; outputs = output.connectionList;</span>
+<span class="nc" id="L601">                    final int length = outputs.size();</span>
+
+<span class="nc bnc" id="L603" title="All 2 branches missed.">                    for (int i = 0; i &lt; length; i++)</span>
+                    {
+<span class="nc" id="L605">                        outputs.get(i).send(msgOut);</span>
+                    }
+                }
+<span class="nc" id="L608">            }</span>
+
+            private void submit ()
+            {
+<span class="nc bnc" id="L612" title="All 2 branches missed.">                if (pendingCranks.incrementAndGet() == 1)</span>
+                {
+<span class="nc" id="L614">                    onActorSubmit(state);</span>
+                }
+<span class="nc" id="L616">            }</span>
+
+            @Override
+            public Cascade.Stage stage ()
+            {
+<span class="nc" id="L621">                return STAGE;</span>
+            }
+
+            @Override
+            public Stage.Actor.Input&lt;I&gt; input ()
+            {
+<span class="fc" id="L627">                return input;</span>
+            }
+
+            @Override
+            public Stage.Actor.Output&lt;O&gt; output ()
+            {
+<span class="fc" id="L633">                return output;</span>
+            }
+
+            @Override
+            public void accept (final I message)
+            {
+<span class="nc" id="L639">                input().send(message);</span>
+<span class="nc" id="L640">            }</span>
+
+<span class="fc" id="L642">            private final class InternalInput</span>
+                    implements Cascade.Stage.Actor.Input&lt;I&gt;
+            {
+<span class="fc" id="L645">                private final Object inputLock = new Object();</span>
+
+<span class="fc" id="L647">                private volatile Set&lt;Stage.Actor.Output&lt;I&gt;&gt; connections = newImmutableSet(Collections.EMPTY_LIST);</span>
+
+                @Override
+                public Stage.Actor&lt;I, ?&gt; actor ()
+                {
+<span class="fc" id="L652">                    return ACTOR;</span>
+                }
+
+                @Override
+                public Stage.Actor.Input&lt;I&gt; connect (final Stage.Actor.Output&lt;I&gt; output)
+                {
+                    /**
+                     * Only state within this input is accessed in the critical-section;
+                     * otherwise, dead-lock could theoretically occur.
+                     */
+<span class="fc" id="L662">                    synchronized (inputLock)</span>
+                    {
+<span class="fc bfc" id="L664" title="All 2 branches covered.">                        if (connections.contains(output))</span>
+                        {
+<span class="fc" id="L666">                            return this;</span>
+                        }
+                        else
+                        {
+<span class="fc" id="L670">                            final Set&lt;Stage.Actor.Output&lt;I&gt;&gt; modified = new CopyOnWriteArraySet&lt;&gt;(connections);</span>
+<span class="fc" id="L671">                            modified.add(output);</span>
+<span class="fc" id="L672">                            connections = newImmutableSet(modified);</span>
+                        }
+<span class="pc" id="L674">                    }</span>
+
+                    /**
+                     * Do not perform this in the critical-section.
+                     */
+<span class="fc" id="L679">                    output.connect(this);</span>
+<span class="fc" id="L680">                    return this;</span>
+                }
+
+                @Override
+                public Stage.Actor.Input&lt;I&gt; disconnect (final Stage.Actor.Output&lt;I&gt; output)
+                {
+                    /**
+                     * Only state within this input is accessed in the critical-section;
+                     * otherwise, dead-lock could theoretically occur.
+                     */
+<span class="fc" id="L690">                    synchronized (inputLock)</span>
+                    {
+<span class="fc bfc" id="L692" title="All 2 branches covered.">                        if (connections.contains(output))</span>
+                        {
+<span class="fc" id="L694">                            final Set&lt;Stage.Actor.Output&lt;I&gt;&gt; modified = new CopyOnWriteArraySet&lt;&gt;(connections);</span>
+<span class="fc" id="L695">                            modified.remove(output);</span>
+<span class="fc" id="L696">                            connections = newImmutableSet(modified);</span>
+<span class="fc" id="L697">                        }</span>
+                        else
+                        {
+<span class="fc" id="L700">                            return this;</span>
+                        }
+<span class="pc" id="L702">                    }</span>
+
+                    /**
+                     * Do not perform this in the critical-section.
+                     */
+<span class="fc" id="L707">                    output.disconnect(this);</span>
+<span class="fc" id="L708">                    return this;</span>
+                }
+
+                @Override
+                public Set&lt;Stage.Actor.Output&lt;I&gt;&gt; connections ()
+                {
+<span class="fc" id="L714">                    return connections;</span>
+                }
+
+                @Override
+                public Stage.Actor.Input&lt;I&gt; send (final I message)
+                {
+<span class="nc" id="L720">                    Objects.requireNonNull(message, &quot;message&quot;);</span>
+<span class="nc" id="L721">                    builder.inputQueue.offer(message);</span>
+<span class="nc" id="L722">                    submit();</span>
+<span class="nc" id="L723">                    return this;</span>
+                }
+            }
+
+<span class="fc" id="L727">            private final class InternalOutput</span>
+                    implements Cascade.Stage.Actor.Output&lt;O&gt;
+            {
+<span class="fc" id="L730">                private final Object outputLock = new Object();</span>
+
+<span class="fc" id="L732">                private volatile List&lt;Stage.Actor.Input&lt;O&gt;&gt; connectionList = newImmutableList(Collections.EMPTY_LIST);</span>
+
+<span class="fc" id="L734">                private volatile Set&lt;Stage.Actor.Input&lt;O&gt;&gt; connectionSet = newImmutableSet(Collections.EMPTY_LIST);</span>
+
+                @Override
+                public Stage.Actor&lt;?, O&gt; actor ()
+                {
+<span class="fc" id="L739">                    return ACTOR;</span>
+                }
+
+                @Override
+                public Stage.Actor.Output&lt;O&gt; connect (final Stage.Actor.Input&lt;O&gt; input)
+                {
+                    /**
+                     * Only state within this output is accessed in the critical-section;
+                     * otherwise, dead-lock could theoretically occur.
+                     */
+<span class="fc" id="L749">                    synchronized (outputLock)</span>
+                    {
+<span class="fc bfc" id="L751" title="All 2 branches covered.">                        if (connectionSet.contains(input))</span>
+                        {
+<span class="fc" id="L753">                            return this;</span>
+                        }
+                        else
+                        {
+<span class="fc" id="L757">                            final List&lt;Stage.Actor.Input&lt;O&gt;&gt; modified = new ArrayList&lt;&gt;(connectionSet);</span>
+<span class="fc" id="L758">                            modified.add(input);</span>
+<span class="fc" id="L759">                            connectionList = newImmutableList(modified);</span>
+<span class="fc" id="L760">                            connectionSet = newImmutableSet(modified);</span>
+                        }
+<span class="pc" id="L762">                    }</span>
+
+                    /**
+                     * Do not perform this in the critical-section.
+                     */
+<span class="fc" id="L767">                    input.connect(this);</span>
+<span class="fc" id="L768">                    return this;</span>
+                }
+
+                @Override
+                public Stage.Actor.Output&lt;O&gt; disconnect (final Stage.Actor.Input&lt;O&gt; input)
+                {
+                    /**
+                     * Only state within this output is accessed in the critical-section;
+                     * otherwise, dead-lock could theoretically occur.
+                     */
+<span class="fc" id="L778">                    synchronized (outputLock)</span>
+                    {
+<span class="fc bfc" id="L780" title="All 2 branches covered.">                        if (connectionSet.contains(input))</span>
+                        {
+<span class="fc" id="L782">                            final List&lt;Stage.Actor.Input&lt;O&gt;&gt; modified = new ArrayList&lt;&gt;(connectionSet);</span>
+<span class="fc" id="L783">                            modified.remove(input);</span>
+<span class="fc" id="L784">                            connectionList = newImmutableList(modified);</span>
+<span class="fc" id="L785">                            connectionSet = newImmutableSet(modified);</span>
+<span class="fc" id="L786">                        }</span>
+                        else
+                        {
+<span class="fc" id="L789">                            return this;</span>
+                        }
+<span class="pc" id="L791">                    }</span>
+
+                    /**
+                     * Do not perform this in the critical-section.
+                     */
+<span class="fc" id="L796">                    input.disconnect(this);</span>
+<span class="fc" id="L797">                    return this;</span>
+                }
+
+                @Override
+                public Set&lt;Stage.Actor.Input&lt;O&gt;&gt; connections ()
+                {
+<span class="fc" id="L803">                    return connectionSet;</span>
+                }
+            }
+        }
+
+        private static &lt;T&gt; List&lt;T&gt; newImmutableList (final Collection&lt;T&gt; collection)
+        {
+<span class="fc" id="L810">            return Collections.unmodifiableList(new CopyOnWriteArrayList&lt;&gt;(collection));</span>
+        }
+
+        private static &lt;T&gt; Set&lt;T&gt; newImmutableSet (final Collection&lt;T&gt; collection)
+        {
+<span class="fc" id="L815">            return Collections.unmodifiableSet(new CopyOnWriteArraySet&lt;&gt;(collection));</span>
+        }
+
+        private static void checkState (final boolean condition,
+                                        final String message,
+                                        final Object... args)
+        {
+<span class="pc bpc" id="L822" title="1 of 2 branches missed.">            if (condition == false)</span>
+            {
+<span class="nc" id="L824">                final String text = String.format(message, args);</span>
+<span class="nc" id="L825">                throw new IllegalStateException(text);</span>
+            }
+<span class="fc" id="L827">        }</span>
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////
+    public static Stage newStage ()
+    {
+<span class="fc" id="L835">        final ExecutorService service = Executors.newSingleThreadExecutor();</span>
+<span class="fc" id="L836">        return newExecutorStage(service);</span>
+    }
+
+    public static Stage newStage (final int threadCount)
+    {
+<span class="nc" id="L841">        final ExecutorService service = Executors.newFixedThreadPool(threadCount);</span>
+<span class="nc" id="L842">        return newExecutorStage(service);</span>
+    }
+
+    public static Stage newExecutorStage (final ExecutorService service)
+    {
+<span class="fc" id="L847">        return new AbstractStage()</span>
+<span class="fc" id="L848">        {</span>
+            @Override
+            protected void onActorSubmit (final AbstractStage.ActorTask actor)
+            {
+<span class="nc" id="L852">                service.submit(() -&gt; actor.crank());</span>
+<span class="nc" id="L853">            }</span>
+
+            @Override
+            protected void onStageClose ()
+            {
+<span class="nc" id="L858">                service.shutdown();</span>
+<span class="nc" id="L859">            }</span>
+        };
+    }
+
+    public static Stage newPooledStage (final ThreadFactory factory,
+                                        final int threadCount,
+                                        final BlockingQueue&lt;ActorTask&gt; taskQueue)
+    {
+<span class="nc" id="L867">        final AtomicBoolean stop = new AtomicBoolean(false);</span>
+
+<span class="nc" id="L869">        final Runnable mainLoop = () -&gt;</span>
+        {
+<span class="nc bnc" id="L871" title="All 2 branches missed.">            while (stop.get() == false)</span>
+            {
+                try
+                {
+<span class="nc" id="L875">                    final ActorTask task = taskQueue.poll(1, TimeUnit.SECONDS);</span>
+
+<span class="nc bnc" id="L877" title="All 2 branches missed.">                    if (task != null)</span>
+                    {
+<span class="nc" id="L879">                        task.crank();</span>
+                    }
+                }
+<span class="nc" id="L882">                catch (Throwable ex)</span>
+                {
+                    // Pass.
+<span class="nc" id="L885">                }</span>
+            }
+<span class="nc" id="L887">        };</span>
+
+        /**
+         * Create the threads.
+         */
+<span class="nc bnc" id="L892" title="All 2 branches missed.">        for (int i = 0; i &lt; threadCount; i++)</span>
+        {
+<span class="nc" id="L894">            final Thread thread = factory.newThread(mainLoop);</span>
+<span class="nc" id="L895">            thread.start();</span>
+        }
+
+<span class="nc" id="L898">        return new AbstractStage()</span>
+<span class="nc" id="L899">        {</span>
+            @Override
+            protected void onActorSubmit (final AbstractStage.ActorTask state)
+            {
+<span class="nc" id="L903">                taskQueue.add(state);</span>
+<span class="nc" id="L904">            }</span>
+
+            @Override
+            protected void onStageClose ()
+            {
+<span class="nc" id="L909">                stop.set(true);</span>
+<span class="nc" id="L910">            }</span>
+        };
+    }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.6.201602180812</span></div></body></html>
