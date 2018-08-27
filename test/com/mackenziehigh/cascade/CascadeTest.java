@@ -501,6 +501,51 @@ public final class CascadeTest
      * Test: 20180826010008846278
      *
      * <p>
+     * Case: Throughput through a chain of actors.
+     * </p>
+     */
+    @Test
+    public void test20180827022013426538 ()
+    {
+        final List<String> log = new LinkedList<>();
+
+        final Actor<String, String> actor1 = stage
+                .newActor()
+                .withScript((String x) -> String.format("(X %s)", x))
+                .create();
+
+        final Actor<String, String> actor2 = stage
+                .newActor()
+                .withScript((String y) -> String.format("(Y %s)", y))
+                .create();
+
+        final Actor<String, Boolean> actor3 = stage
+                .newActor()
+                .withScript((String z) -> log.add(String.format("(Z %s)", z)))
+                .create();
+
+        actor1.output().connect(actor2.input());
+        actor2.output().connect(actor3.input());
+
+        actor1.accept("A");
+        actor1.accept("B");
+        actor1.accept("C");
+
+        for (int i = 0; i < 100; i++)
+        {
+            stage.crank();
+        }
+
+        assertEquals(3, log.size());
+        assertEquals("(Z (Y (X A)))", log.get(0));
+        assertEquals("(Z (Y (X B)))", log.get(1));
+        assertEquals("(Z (Y (X C)))", log.get(2));
+    }
+
+    /**
+     * Test: 20180826010008846278
+     *
+     * <p>
      * Class: <code>Output</code>
      * </p>
      *
@@ -799,4 +844,28 @@ public final class CascadeTest
         assertEquals("CLOSE", stage.whatHappened.get(0).getKey());
     }
 
+    /**
+     * Test: 20180826010008846278
+     *
+     * <p>
+     * Class: <code>Stage</code>
+     * </p>
+     *
+     * <p>
+     * Method: <code>close</code>
+     * </p>
+     *
+     * <p>
+     * Case: Duplicate Close.
+     * </p>
+     */
+    @Test
+    public void test20180827024427414111 ()
+    {
+        stage.close();
+        stage.close();
+
+        assertEquals(1, stage.whatHappened.size());
+        assertEquals("CLOSE", stage.whatHappened.get(0).getKey());
+    }
 }

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -833,18 +834,35 @@ public interface Cascade
     /////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * Create a new single-threaded stage.
+     *
+     * @return the new stage.
+     */
     public static Stage newStage ()
     {
         final ExecutorService service = Executors.newSingleThreadExecutor();
         return newExecutorStage(service);
     }
 
+    /**
+     * Create a new multi-threaded stage.
+     *
+     * @param threadCount is the number of worker threads that the stage will use.
+     * @return the new stage.
+     */
     public static Stage newStage (final int threadCount)
     {
         final ExecutorService service = Executors.newFixedThreadPool(threadCount);
         return newExecutorStage(service);
     }
 
+    /**
+     * Create a new stage based on a given <code>ExecutorService</code>.
+     *
+     * @param service will power the new stage.
+     * @return the new stage.
+     */
     public static Stage newExecutorStage (final ExecutorService service)
     {
         return new AbstractStage()
@@ -863,6 +881,35 @@ public interface Cascade
         };
     }
 
+    /**
+     * Create a new stage based on a fixed-size pool of threads.
+     *
+     * @param threadCount is the number of threads in the pool.
+     * @return the new stage.
+     */
+    public static Stage newPooledStage (final int threadCount)
+    {
+        final ThreadFactory factory = (final Runnable task) ->
+        {
+            final String name = String.format("newPooledStage-%d-%s", threadCount, UUID.randomUUID().toString());
+            final Thread thread = new Thread(task, name);
+            thread.setDaemon(true);
+            return thread;
+        };
+
+        final LinkedBlockingQueue<ActorTask> queue = new LinkedBlockingQueue<>();
+
+        return newPooledStage(factory, threadCount, queue);
+    }
+
+    /**
+     * Create a new stage based on a fixed-size pool of threads.
+     *
+     * @param factory will be used to create the threads in the pool.
+     * @param threadCount is the number of threads in the pool.
+     * @param taskQueue will be used to feed tasks to the threads in the pool.
+     * @return the new stage.
+     */
     public static Stage newPooledStage (final ThreadFactory factory,
                                         final int threadCount,
                                         final BlockingQueue<ActorTask> taskQueue)
