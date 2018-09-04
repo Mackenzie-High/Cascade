@@ -13,8 +13,10 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 import org.junit.Test;
 
@@ -116,12 +118,28 @@ public final class CascadeTest
      * <p>
      * Method: <code>withErrorHandler(Consumer)</code>
      * </p>
+     *
+     * @throws java.lang.InterruptedException
      */
     @Test
     public void test20180826232927857314 ()
+            throws InterruptedException
     {
-        System.out.println("Test: 20180826232927857314");
-        fail();
+        final BlockingQueue<Throwable> errors = new LinkedBlockingQueue<>();
+
+        final Actor<Integer, Integer> actor = stage
+                .newActor()
+                .withScript((Integer x) -> x / 0)
+                .withErrorHandler(ex -> errors.add(ex))
+                .create();
+
+        actor.input().send(1);
+
+        stage.crank();
+
+        final Throwable error = errors.poll(5, TimeUnit.SECONDS);
+
+        assertTrue(error instanceof ArithmeticException);
     }
 
     /**
