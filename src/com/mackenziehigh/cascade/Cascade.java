@@ -16,11 +16,14 @@
 package com.mackenziehigh.cascade;
 
 import com.mackenziehigh.cascade.Cascade.AbstractStage.ActorTask;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
@@ -73,7 +76,7 @@ public interface Cascade
                  * @param script defines the message-handling behavior of the actor.
                  * @return a modified copy of this builder.
                  */
-                public <X, Y> Builder<X, Y> withScript (Script<X, Y> script);
+                public <X, Y> Builder<X, Y> withScript (FunctionScript<X, Y> script);
 
                 /**
                  * Define the normal behavior of the actor.
@@ -186,7 +189,12 @@ public interface Cascade
                  * @param output will send messages to this input.
                  * @return this.
                  */
-                public Input<T> connect (Output<T> output);
+                public default Input<T> connect (final Output<T> output)
+                {
+                    Objects.requireNonNull(output, "output");
+                    output.connect(this);
+                    return this;
+                }
 
                 /**
                  * Disconnect this input from the given output.
@@ -198,23 +206,46 @@ public interface Cascade
                  * @param output will no longer be connected.
                  * @return this.
                  */
-                public Input<T> disconnect (Output<T> output);
+                public default Input<T> disconnect (final Output<T> output)
+                {
+                    Objects.requireNonNull(output, "output");
+                    output.disconnect(this);
+                    return this;
+                }
 
                 /**
-                 * Get the current incoming connections.
+                 * Send a message to the actor via this input, silently dropping the message,
+                 * if this input is does not have sufficient capacity to enqueue the message.
                  *
-                 * @return the current connections as an immutable <code>Set</code>.
+                 * @param message will be processed by the actor, eventually,
+                 * if the message is not dropped due to capacity restrictions.
+                 * @return true, if the message was enqueued.
                  */
-                public Set<Output<T>> connections ();
+                public boolean offer (T message);
 
                 /**
                  * Send a message to the actor via this input.
                  *
                  * @param message will be processed by the actor, eventually,
-                 * if the message is not dropped due to capacity restrictions.
+                 * if the message was not dropped due to capacity restrictions.
                  * @return this.
                  */
-                public Input<T> send (T message);
+                public default Input<T> send (T message)
+                {
+                    offer(message);
+                    return this;
+                }
+
+                /**
+                 * Determine whether this input is connected to the given output.
+                 *
+                 * @param output may be connected to this input.
+                 * @return true, if this input is currently connected to the output.
+                 */
+                public default boolean isConnected (final Output<?> output)
+                {
+                    return output.isConnected(this);
+                }
 
             }
 
@@ -257,12 +288,12 @@ public interface Cascade
                 public Output<T> disconnect (Input<T> input);
 
                 /**
-                 * Get the current outgoing connections.
+                 * Determine whether this output is connected to the given input.
                  *
-                 * @return the current connections as an immutable <code>Set</code>.
+                 * @param input may be connected to this output.
+                 * @return true, if this output is currently connected to the input.
                  */
-                public Set<Input<T>> connections ();
-
+                public boolean isConnected (final Input<?> input);
             }
 
             /**
@@ -272,7 +303,7 @@ public interface Cascade
              * @param <O> is the type of objects that the actor will produce.
              */
             @FunctionalInterface
-            public interface Script<I, O>
+            public interface FunctionScript<I, O>
             {
                 public O execute (I input)
                         throws Throwable;
@@ -314,13 +345,13 @@ public interface Cascade
         }
 
         /**
-         * Set the default error-handler that will handle unhandled exceptions,
+         * Add a default error-handler that will receive unhandled exceptions,
          * if no other more specific error-handler is available.
          *
          * @param handler will be used to handle unhandled exceptions.
          * @return this.
          */
-        public Stage setErrorHandler (Consumer<Throwable> handler);
+        public Stage addErrorHandler (Consumer<Throwable> handler);
 
         /**
          * Create a builder that can be used to add a new actor to this stage.
@@ -337,9 +368,6 @@ public interface Cascade
         public void close ();
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////
     /**
      * Partial Implementation of <code>Stage</code>.
      */
@@ -348,14 +376,9 @@ public interface Cascade
     {
         private final Stage STAGE = this;
 
-        private final Object stageLock = new Object();
-
         private final AtomicBoolean stageClosed = new AtomicBoolean(false);
 
-        private volatile Consumer<Throwable> stageErrorHandler = ex ->
-        {
-            ex.printStackTrace(System.err);
-        };
+        private final Set<Consumer<Throwable>> stageErrorHandlers = new CopyOnWriteArraySet<>();
 
         /**
          * This method will be invoked whenever an actor needs executed.
@@ -373,7 +396,7 @@ public interface Cascade
          *
          * @param state provides the methods needed to execute an actor.
          */
-        protected abstract void onActorSubmit (ActorTask state);
+        protected abstract void onSubmit (ActorTask state);
 
         /**
          * This method will be invoked when this stage closes.
@@ -386,18 +409,14 @@ public interface Cascade
         @Override
         public final <I, O> Stage.Actor.Builder<I, O> newActor ()
         {
-            synchronized (stageLock)
-            {
-                requireOpenStage();
-                return new ActorBuilder<>();
-            }
+            return new ActorBuilder<>();
         }
 
         /**
          * {@inheritDoc}
          */
         @Override
-        public final Stage setErrorHandler (final Consumer<Throwable> handler)
+        public final Stage addErrorHandler (final Consumer<Throwable> handler)
         {
             Objects.requireNonNull(handler, "handler");
 
@@ -413,12 +432,8 @@ public interface Cascade
                 }
             };
 
-            synchronized (stageLock)
-            {
-                requireOpenStage();
-                stageErrorHandler = safeConsumer;
-                return this;
-            }
+            stageErrorHandlers.add(safeConsumer);
+            return this;
         }
 
         /**
@@ -427,18 +442,10 @@ public interface Cascade
         @Override
         public final void close ()
         {
-            synchronized (stageLock)
+            if (stageClosed.compareAndSet(false, true))
             {
-                if (stageClosed.compareAndSet(false, true))
-                {
-                    onStageClose();
-                }
+                onStageClose();
             }
-        }
-
-        private void requireOpenStage ()
-        {
-            checkState(stageClosed.get() == false, "This stage was already closed!");
         }
 
         /**
@@ -451,6 +458,7 @@ public interface Cascade
          * </p>
          */
         protected final class ActorTask
+                implements Runnable
         {
             private final InternalActor<?, ?> actor;
 
@@ -476,7 +484,8 @@ public interface Cascade
                 meta = value;
             }
 
-            public void crank ()
+            @Override
+            public void run ()
             {
                 actor.run();
             }
@@ -485,33 +494,33 @@ public interface Cascade
         private final class ActorBuilder<I, O>
                 implements Cascade.Stage.Actor.Builder<I, O>
         {
-            private final Queue<I> inputQueue;
+            private final Queue<I> mailbox;
 
-            private final Stage.Actor.Script<I, O> script;
+            private final Stage.Actor.FunctionScript<I, O> script;
 
             private final Consumer<Throwable> errorHandler;
 
             private ActorBuilder ()
             {
-                this.inputQueue = new ConcurrentLinkedQueue<>();
+                this.mailbox = new ConcurrentLinkedQueue<>();
                 this.script = (I x) -> null;
-                this.errorHandler = ex -> stageErrorHandler.accept(ex);
+                this.errorHandler = ex -> stageErrorHandlers.forEach(x -> x.accept(ex));
             }
 
-            private ActorBuilder (final Queue<I> inputQueue,
-                                  final Stage.Actor.Script<I, O> script,
+            private ActorBuilder (final Queue<I> mailbox,
+                                  final Stage.Actor.FunctionScript<I, O> script,
                                   final Consumer<Throwable> errorHandler)
             {
-                this.inputQueue = inputQueue;
+                this.mailbox = mailbox;
                 this.script = script;
                 this.errorHandler = errorHandler;
             }
 
             @Override
-            public <X, Y> Stage.Actor.Builder<X, Y> withScript (final Stage.Actor.Script<X, Y> script)
+            public <X, Y> Stage.Actor.Builder<X, Y> withScript (final Stage.Actor.FunctionScript<X, Y> script)
             {
                 Objects.requireNonNull(script, "script");
-                return new ActorBuilder(inputQueue, script, errorHandler);
+                return new ActorBuilder(mailbox, script, errorHandler);
             }
 
             @Override
@@ -531,27 +540,41 @@ public interface Cascade
                     }
                 };
 
-                return new ActorBuilder(inputQueue, script, safeConsumer);
+                return new ActorBuilder(mailbox, script, safeConsumer);
             }
 
             @Override
             public Stage.Actor.Builder<I, O> withInflowQueue (final Queue<I> queue)
             {
                 Objects.requireNonNull(queue, "queue");
+
+                /**
+                 * Prevent common mistakes.
+                 * None of these types of queues are thread-safe.
+                 * Therefore, they break the contract of this method.
+                 */
+                if (queue.getClass().equals(ArrayDeque.class))
+                {
+                    throw new IllegalArgumentException("The ArrayDeque class is not thread-safe!");
+                }
+                else if (queue.getClass().equals(LinkedList.class))
+                {
+                    throw new IllegalArgumentException("The LinkedList class is not thread-safe!");
+                }
+                else if (queue.getClass().equals(PriorityQueue.class))
+                {
+                    throw new IllegalArgumentException("The PriorityQueue class is not thread-safe!");
+                }
+
                 return new ActorBuilder(queue, script, errorHandler);
             }
 
             @Override
             public Stage.Actor<I, O> create ()
             {
-                synchronized (stageLock)
-                {
-                    requireOpenStage();
-                    final InternalActor<I, O> actor = new InternalActor<>(this);
-                    return actor;
-                }
+                final InternalActor<I, O> actor = new InternalActor<>(this);
+                return actor;
             }
-
         }
 
         private final class InternalActor<I, O>
@@ -563,7 +586,7 @@ public interface Cascade
 
             private final Queue<I> mailbox;
 
-            private final Script<I, O> script;
+            private final FunctionScript<I, O> script;
 
             private final InternalInput input = new InternalInput();
 
@@ -579,7 +602,7 @@ public interface Cascade
             {
                 this.builder = builder;
                 this.script = builder.script;
-                this.mailbox = builder.inputQueue;
+                this.mailbox = builder.mailbox;
             }
 
             private void run ()
@@ -603,7 +626,7 @@ public interface Cascade
 
                     if (pendingCranks.decrementAndGet() != 0)
                     {
-                        onActorSubmit(state);
+                        onSubmit(state);
                     }
                 }
             }
@@ -630,7 +653,7 @@ public interface Cascade
             {
                 if (pendingCranks.incrementAndGet() == 1)
                 {
-                    onActorSubmit(state);
+                    onSubmit(state);
                 }
             }
 
@@ -661,10 +684,6 @@ public interface Cascade
             private final class InternalInput
                     implements Cascade.Stage.Actor.Input<I>
             {
-                private final Object inputLock = new Object();
-
-                private volatile Set<Stage.Actor.Output<I>> connections = newImmutableSet(Collections.EMPTY_LIST);
-
                 @Override
                 public Stage.Actor<I, ?> actor ()
                 {
@@ -672,74 +691,18 @@ public interface Cascade
                 }
 
                 @Override
-                public Stage.Actor.Input<I> connect (final Stage.Actor.Output<I> output)
-                {
-                    /**
-                     * Only state within this input is accessed in the critical-section;
-                     * otherwise, dead-lock could theoretically occur.
-                     */
-                    synchronized (inputLock)
-                    {
-                        if (connections.contains(output))
-                        {
-                            return this;
-                        }
-                        else
-                        {
-                            final Set<Stage.Actor.Output<I>> modified = new CopyOnWriteArraySet<>(connections);
-                            modified.add(output);
-                            connections = newImmutableSet(modified);
-                        }
-                    }
-
-                    /**
-                     * Do not perform this in the critical-section.
-                     */
-                    output.connect(this);
-                    return this;
-                }
-
-                @Override
-                public Stage.Actor.Input<I> disconnect (final Stage.Actor.Output<I> output)
-                {
-                    /**
-                     * Only state within this input is accessed in the critical-section;
-                     * otherwise, dead-lock could theoretically occur.
-                     */
-                    synchronized (inputLock)
-                    {
-                        if (connections.contains(output))
-                        {
-                            final Set<Stage.Actor.Output<I>> modified = new CopyOnWriteArraySet<>(connections);
-                            modified.remove(output);
-                            connections = newImmutableSet(modified);
-                        }
-                        else
-                        {
-                            return this;
-                        }
-                    }
-
-                    /**
-                     * Do not perform this in the critical-section.
-                     */
-                    output.disconnect(this);
-                    return this;
-                }
-
-                @Override
-                public Set<Stage.Actor.Output<I>> connections ()
-                {
-                    return connections;
-                }
-
-                @Override
-                public Stage.Actor.Input<I> send (final I message)
+                public boolean offer (final I message)
                 {
                     Objects.requireNonNull(message, "message");
-                    builder.inputQueue.offer(message);
-                    submit();
-                    return this;
+                    if (builder.mailbox.offer(message))
+                    {
+                        submit();
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
             }
 
@@ -750,8 +713,6 @@ public interface Cascade
 
                 private volatile List<Stage.Actor.Input<O>> connectionList = newImmutableList(Collections.EMPTY_LIST);
 
-                private volatile Set<Stage.Actor.Input<O>> connectionSet = newImmutableSet(Collections.EMPTY_LIST);
-
                 @Override
                 public Stage.Actor<?, O> actor ()
                 {
@@ -761,65 +722,43 @@ public interface Cascade
                 @Override
                 public Stage.Actor.Output<O> connect (final Stage.Actor.Input<O> input)
                 {
-                    /**
-                     * Only state within this output is accessed in the critical-section;
-                     * otherwise, dead-lock could theoretically occur.
-                     */
+                    Objects.requireNonNull(input, "input");
+
                     synchronized (outputLock)
                     {
-                        if (connectionSet.contains(input))
+                        if (isConnected(input) == false)
                         {
-                            return this;
-                        }
-                        else
-                        {
-                            final List<Stage.Actor.Input<O>> modified = new ArrayList<>(connectionSet);
+                            final List<Stage.Actor.Input<O>> modified = new ArrayList<>(connectionList);
                             modified.add(input);
                             connectionList = newImmutableList(modified);
-                            connectionSet = newImmutableSet(modified);
                         }
                     }
 
-                    /**
-                     * Do not perform this in the critical-section.
-                     */
-                    input.connect(this);
                     return this;
                 }
 
                 @Override
                 public Stage.Actor.Output<O> disconnect (final Stage.Actor.Input<O> input)
                 {
-                    /**
-                     * Only state within this output is accessed in the critical-section;
-                     * otherwise, dead-lock could theoretically occur.
-                     */
+                    Objects.requireNonNull(input, "input");
+
                     synchronized (outputLock)
                     {
-                        if (connectionSet.contains(input))
+                        if (isConnected(input))
                         {
-                            final List<Stage.Actor.Input<O>> modified = new ArrayList<>(connectionSet);
+                            final List<Stage.Actor.Input<O>> modified = new ArrayList<>(connectionList);
                             modified.remove(input);
                             connectionList = newImmutableList(modified);
-                            connectionSet = newImmutableSet(modified);
-                        }
-                        else
-                        {
-                            return this;
                         }
                     }
 
-                    /**
-                     * Do not perform this in the critical-section.
-                     */
-                    input.disconnect(this);
                     return this;
                 }
 
                 @Override
-                public Set<Stage.Actor.Input<O>> connections ()
+                public boolean isConnected (final Input<?> input)
                 {
-                    return connectionSet;
+                    return connectionList.contains(input);
                 }
             }
         }
@@ -828,27 +767,8 @@ public interface Cascade
         {
             return Collections.unmodifiableList(new CopyOnWriteArrayList<>(collection));
         }
-
-        private static <T> Set<T> newImmutableSet (final Collection<T> collection)
-        {
-            return Collections.unmodifiableSet(new CopyOnWriteArraySet<>(collection));
-        }
-
-        private static void checkState (final boolean condition,
-                                        final String message,
-                                        final Object... args)
-        {
-            if (condition == false)
-            {
-                final String text = String.format(message, args);
-                throw new IllegalStateException(text);
-            }
-        }
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////
     /**
      * Create a new single-threaded stage.
      *
@@ -880,12 +800,14 @@ public interface Cascade
      */
     public static Stage newExecutorStage (final ExecutorService service)
     {
+        Objects.requireNonNull(service, "service");
+
         return new AbstractStage()
         {
             @Override
-            protected void onActorSubmit (final AbstractStage.ActorTask actor)
+            protected void onSubmit (final AbstractStage.ActorTask task)
             {
-                service.submit(() -> actor.crank());
+                service.submit(task);
             }
 
             @Override
@@ -902,7 +824,7 @@ public interface Cascade
      * @param threadCount is the number of threads in the pool.
      * @return the new stage.
      */
-    public static Stage newPooledStage (final int threadCount)
+    public static Stage newFixedPoolStage (final int threadCount)
     {
         final ThreadFactory factory = (final Runnable task) ->
         {
@@ -914,21 +836,24 @@ public interface Cascade
 
         final LinkedBlockingQueue<ActorTask> queue = new LinkedBlockingQueue<>();
 
-        return newPooledStage(factory, threadCount, queue);
+        return newFixedPoolStage(factory, threadCount, queue);
     }
 
     /**
      * Create a new stage based on a fixed-size pool of threads.
      *
-     * @param factory will be used to create the threads in the pool.
+     * @param threadFactory will be used to create the threads in the pool.
      * @param threadCount is the number of threads in the pool.
      * @param taskQueue will be used to feed tasks to the threads in the pool.
      * @return the new stage.
      */
-    public static Stage newPooledStage (final ThreadFactory factory,
-                                        final int threadCount,
-                                        final BlockingQueue<ActorTask> taskQueue)
+    public static Stage newFixedPoolStage (final ThreadFactory threadFactory,
+                                           final int threadCount,
+                                           final BlockingQueue<ActorTask> taskQueue)
     {
+        Objects.requireNonNull(threadFactory, "threadFactory");
+        Objects.requireNonNull(taskQueue, "taskQueue");
+
         final AtomicBoolean stop = new AtomicBoolean(false);
 
         final Runnable mainLoop = () ->
@@ -941,12 +866,12 @@ public interface Cascade
 
                     if (task != null)
                     {
-                        task.crank();
+                        task.run();
                     }
                 }
                 catch (Throwable ex)
                 {
-                    // Pass.
+                    ex.printStackTrace(System.err);
                 }
             }
         };
@@ -956,14 +881,14 @@ public interface Cascade
          */
         for (int i = 0; i < threadCount; i++)
         {
-            final Thread thread = factory.newThread(mainLoop);
+            final Thread thread = threadFactory.newThread(mainLoop);
             thread.start();
         }
 
         return new AbstractStage()
         {
             @Override
-            protected void onActorSubmit (final AbstractStage.ActorTask state)
+            protected void onSubmit (final AbstractStage.ActorTask state)
             {
                 taskQueue.add(state);
             }
