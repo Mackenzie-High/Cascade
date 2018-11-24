@@ -2,11 +2,9 @@
 
 Cascade is an embeddable actor framework contained within a single Java source-file. 
 
-*This library is still undergoing alpha development. The API may evolve without notice.*
+**Latest JavaDoc**: https://tinyurl.com/y7pxnwv5
 
-**JavaDoc**: http://www.mackenziehigh.com/content/cascade/javadoc/latest/
+**Source Code**: https://tinyurl.com/y9h36mnb
 
-**Source Code**: https://github.com/Mackenzie-High/Cascade/blob/master/src/main/java/com/mackenziehigh/cascade/Cascade.java
-
-**Code Coverage**: http://www.mackenziehigh.com/content/cascade/coverage/report.html
+**Detailed Code Coverage**: https://tinyurl.com/y8s5gbmy
 
