@@ -8,6 +8,20 @@ Cascade is an embeddable actor framework contained within a single Java source-f
 
 **Detailed Code Coverage**: https://tinyurl.com/y8s5gbmy
 
+## Actors
+
+An actor is an object that has: (1) an input connector, (2) an input queue, (3) an output connector, (4) a function that transforms input messages into output messages.
+
+Actors can be connected to one another by connecting their input/output connectors to one another. Each actor can be connected to an arbitrary number of inputs and/or outputs. 
+
+## Example - Simple Pipeline
+
+**Description**
+
+In this example, there are four actor objects arranged into a data processing pipeline. The actors manipulate String messages. 
+
+**Code**
+
 ```java
 package com.mackenziehigh.dev;
 
@@ -15,11 +29,11 @@ import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.Cascade.Stage;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor;
 
-public final class Example01
+public final class Example
 {
     public static void main (String[] args)
     {
-        final Example01 main = new Example01();
+        final Example main = new Example();
         main.demo();
     }
 
@@ -65,4 +79,11 @@ public final class Example01
         System.out.println(message);
     }
 }
+```
+
+**Standard Output**
+```
+(Z = (Y = (X = A)))
+(Z = (Y = (X = B)))
+(Z = (Y = (X = C)))
 ```
