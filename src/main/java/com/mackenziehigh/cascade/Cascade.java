@@ -48,6 +48,7 @@ import java.util.function.Consumer;
  */
 public interface Cascade
 {
+
     /**
      * A creator of <code>Actor</code> objects.
      */
@@ -76,6 +77,7 @@ public interface Cascade
     public interface Stage
             extends ActorFactory
     {
+
         /**
          * Actor.
          *
@@ -83,7 +85,7 @@ public interface Cascade
          * @param <O> is the type of objects the actor will produce.
          */
         public interface Actor<I, O>
-                extends Consumer<I>
+                extends java.util.function.Consumer<I>
         {
             /**
              * Actor Builder.
@@ -556,6 +558,20 @@ public interface Cascade
              */
             public Output<O> output ();
 
+            /**
+             * Send the given message to this actor.
+             *
+             * <p>
+             * Equivalent: <code>input().send(message)</code>
+             * </p>
+             *
+             * @param message will be sent to this actor.
+             */
+            @Override
+            public default void accept (final I message)
+            {
+                input().send(message);
+            }
         }
 
         /**
@@ -791,11 +807,11 @@ public interface Cascade
         {
             private final Stage.Actor<I, O> ACTOR = this;
 
-            private final ActorBuilder<I, O> builder;
-
             private final Mailbox<I> mailbox;
 
             private final ContextScript<I, O> script;
+
+            private final Consumer<Throwable> errorHandler;
 
             private final InternalInput input = new InternalInput();
 
@@ -837,9 +853,9 @@ public interface Cascade
 
             private InternalActor (final ActorBuilder<I, O> builder)
             {
-                this.builder = builder;
-                this.script = builder.script;
+                this.errorHandler = builder.errorHandler;
                 this.mailbox = builder.mailbox;
+                this.script = builder.script;
             }
 
             private void run ()
@@ -855,7 +871,7 @@ public interface Cascade
                 }
                 catch (Throwable ex1)
                 {
-                    builder.errorHandler.accept(ex1);
+                    errorHandler.accept(ex1);
                 }
                 finally
                 {
@@ -909,12 +925,6 @@ public interface Cascade
             public Stage.Actor.Output<O> output ()
             {
                 return output;
-            }
-
-            @Override
-            public void accept (final I message)
-            {
-                input().send(message);
             }
 
             private final class InternalInput
