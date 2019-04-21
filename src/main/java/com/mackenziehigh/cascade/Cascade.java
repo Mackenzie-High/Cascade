@@ -16,27 +16,29 @@
 package com.mackenziehigh.cascade;
 
 import com.mackenziehigh.cascade.Cascade.AbstractStage.ActorTask;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.Builder;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.Context;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.ContextScript;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.Mailbox;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -47,9 +49,32 @@ import java.util.function.Consumer;
 public interface Cascade
 {
     /**
+     * A creator of <code>Actor</code> objects.
+     */
+    @FunctionalInterface
+    public interface ActorFactory
+    {
+        /**
+         * Create a builder that can build new <code>Actor</code> object(s).
+         *
+         * <p>
+         * This method returns a builder, rather than an actor itself,
+         * so that further configuration of the actor can be performed,
+         * if the calling code so desires.
+         * </p>
+         *
+         * @param <I> is the type of objects the actor(s) will consume.
+         * @param <O> is the type of objects the actor(s) will produce.
+         * @return a new builder of actors.
+         */
+        public <I, O> Stage.Actor.Builder<I, O> newActor ();
+    }
+
+    /**
      * A group of <code>Actor</code>s with a common power supply.
      */
     public interface Stage
+            extends ActorFactory
     {
         /**
          * Actor.
@@ -76,7 +101,17 @@ public interface Cascade
                  * @param script defines the message-handling behavior of the actor.
                  * @return a modified copy of this builder.
                  */
-                public <X, Y> Builder<X, Y> withScript (FunctionScript<X, Y> script);
+                public <X, Y> Builder<X, Y> withContextScript (ContextScript<X, Y> script);
+
+                /**
+                 * Define the normal behavior of the actor.
+                 *
+                 * @param <X> is the type of objects the actor will consume.
+                 * @param <Y> is the type of objects the actor will produce.
+                 * @param script defines the message-handling behavior of the actor.
+                 * @return a modified copy of this builder.
+                 */
+                public <X, Y> Builder<X, Y> withFunctionScript (FunctionScript<X, Y> script);
 
                 /**
                  * Define the normal behavior of the actor.
@@ -85,9 +120,9 @@ public interface Cascade
                  * @param script defines the message-handling behavior of the actor.
                  * @return a modified copy of this builder.
                  */
-                public default <X> Builder<X, X> withScript (ConsumerScript<X> script)
+                public default <X> Builder<X, X> withConsumerScript (ConsumerScript<X> script)
                 {
-                    return withScript(x ->
+                    return withFunctionScript(x ->
                     {
                         script.execute(x);
                         return null;
@@ -103,6 +138,18 @@ public interface Cascade
                 public Builder<I, O> withErrorHandler (Consumer<Throwable> script);
 
                 /**
+                 * Cause the actor to use the given mailbox to store incoming messages.
+                 *
+                 * <p>
+                 * <b>Warning:</b> The mailbox must ensure thread-safety.
+                 * </p>
+                 *
+                 * @param queue will store incoming messages as they await processing.
+                 * @return a modified copy of this builder.
+                 */
+                public Builder<I, O> withMailbox (Mailbox<I> queue);
+
+                /**
                  * Cause the actor to use the given queue to store incoming messages.
                  *
                  * <p>
@@ -112,16 +159,54 @@ public interface Cascade
                  * @param queue will store incoming messages as they await processing.
                  * @return a modified copy of this builder.
                  */
-                public Builder<I, O> withInflowQueue (Queue<I> queue);
+                public default Builder<I, O> withMailbox (final Queue<I> queue)
+                {
+                    Objects.requireNonNull(queue, "queue");
+
+                    /**
+                     * Prevent common mistakes.
+                     * None of these types of queues are thread-safe.
+                     * Therefore, they break the contract of this method.
+                     */
+                    if (queue.getClass().equals(ArrayDeque.class))
+                    {
+                        throw new IllegalArgumentException("The ArrayDeque class is not thread-safe!");
+                    }
+                    else if (queue.getClass().equals(LinkedList.class))
+                    {
+                        throw new IllegalArgumentException("The LinkedList class is not thread-safe!");
+                    }
+                    else if (queue.getClass().equals(PriorityQueue.class))
+                    {
+                        throw new IllegalArgumentException("The PriorityQueue class is not thread-safe!");
+                    }
+
+                    final Mailbox<I> mailbox = new Mailbox<I>()
+                    {
+                        @Override
+                        public boolean offer (final I message)
+                        {
+                            return queue.offer(message);
+                        }
+
+                        @Override
+                        public I poll ()
+                        {
+                            return queue.poll();
+                        }
+                    };
+
+                    return withMailbox(mailbox);
+                }
 
                 /**
                  * Cause the actor to use a <code>ConcurrentLinkedQueue</code> to store incoming messages.
                  *
                  * @return this.
                  */
-                public default Builder<I, O> withConcurrentInflowQueue ()
+                public default Builder<I, O> withConcurrentMailbox ()
                 {
-                    return withInflowQueue(new ConcurrentLinkedQueue<>());
+                    return withMailbox(new ConcurrentLinkedQueue<>());
                 }
 
                 /**
@@ -129,9 +214,9 @@ public interface Cascade
                  *
                  * @return a modified copy of this builder.
                  */
-                public default Builder<I, O> withLinkedInflowQueue ()
+                public default Builder<I, O> withLinkedMailbox ()
                 {
-                    return withInflowQueue(new LinkedBlockingQueue<>());
+                    return withMailbox(new LinkedBlockingQueue<>());
                 }
 
                 /**
@@ -140,9 +225,9 @@ public interface Cascade
                  * @param capacity is the maximum number of simultaneously pending messages.
                  * @return a modified copy of this builder.
                  */
-                public default Builder<I, O> withLinkedInflowQueue (int capacity)
+                public default Builder<I, O> withLinkedMailbox (int capacity)
                 {
-                    return withInflowQueue(new LinkedBlockingQueue<>(capacity));
+                    return withMailbox(new LinkedBlockingQueue<>(capacity));
                 }
 
                 /**
@@ -151,9 +236,22 @@ public interface Cascade
                  * @param capacity is the maximum number of simultaneously pending messages.
                  * @return a modified copy of this builder.
                  */
-                public default Builder<I, O> withArrayInflowQueue (int capacity)
+                public default Builder<I, O> withArrayMailbox (int capacity)
                 {
-                    return withInflowQueue(new ArrayBlockingQueue<>(capacity));
+                    return withMailbox(new ArrayBlockingQueue<>(capacity));
+                }
+
+                /**
+                 * Cause the actor to use a <code>PriorityBlockingQueue</code> to store incoming messages.
+                 *
+                 * @param initialCapacity is the initial size of the backing data-structure.
+                 * @param ordering imposes a total ordering on the incoming messages.
+                 * @return a modified copy of this builder.
+                 */
+                public default Builder<I, O> withPriorityMailbox (int initialCapacity,
+                                                                  Comparator<I> ordering)
+                {
+                    return withMailbox(new PriorityBlockingQueue<>(initialCapacity, ordering));
                 }
 
                 /**
@@ -162,6 +260,42 @@ public interface Cascade
                  * @return the newly created actor.
                  */
                 public Actor<I, O> create ();
+            }
+
+            /**
+             * A queue-like data-structure that stores incoming messages.
+             *
+             * @param <I> is the type of objects that the actor will consume.
+             */
+            public interface Mailbox<I>
+            {
+                /**
+                 * Add a message to the mailbox.
+                 *
+                 * @param message will be added to the mailbox, if possible.
+                 * @return true, if the message was in-fact added to the mailbox.
+                 */
+                public boolean offer (I message);
+
+                /**
+                 * Remove a message from the mailbox.
+                 *
+                 * <p>
+                 * If any message is in the mailbox, then this method <b>must</b> return non-null.
+                 * In other words, a mailbox <b>cannot</b> choose to delay the removal
+                 * of a message by forcing the caller to call this method again at a later time.
+                 * </p>
+                 *
+                 * <p>
+                 * A mailbox can choose to unilaterally drop messages.
+                 * In other words, a message that was successfully <code>offer()</code>-ed
+                 * to this mailbox may never be returned by <code>poll()</code>,
+                 * at the sole discretion of the mailbox itself.
+                 * </p>
+                 *
+                 * @return the message that was removed, or null, if no message was available.
+                 */
+                public I poll ();
             }
 
             /**
@@ -297,6 +431,79 @@ public interface Cascade
             }
 
             /**
+             * Script Execution Context.
+             *
+             * @param <I> is the type of objects that the enclosing actor consumes.
+             * @param <O> is the type of objects that the enclosing actor produces.
+             */
+            public interface Context<I, O>
+            {
+                /**
+                 * Get the enclosing actor.
+                 *
+                 * @return the actor that owns this context.
+                 */
+                public Actor<I, O> actor ();
+
+                /**
+                 * Offer a message <b>to</b> the enclosing actor.
+                 *
+                 * @param message is the message to send.
+                 * @return true, if the message was enqueued.
+                 */
+                public default boolean offerTo (I message)
+                {
+                    return actor().input().offer(message);
+                }
+
+                /**
+                 * Offer a message <b>from</b> the enclosing actor.
+                 *
+                 * @param message is the message to send.
+                 * @return true, if the message was enqueued in every connected output.
+                 */
+                public boolean offerFrom (O message);
+
+                /**
+                 * Send a message <b>to</b> the enclosing actor.
+                 *
+                 * @param message is the message to send.
+                 * @return this.
+                 */
+                public default Context<I, O> sendTo (I message)
+                {
+                    offerTo(message);
+                    return this;
+                }
+
+                /**
+                 * Send a message <b>from</b> the enclosing actor.
+                 *
+                 * @param message is the message to send.
+                 * @return this.
+                 */
+                public default Context<I, O> sendFrom (O message)
+                {
+                    offerFrom(message);
+                    return this;
+                }
+            }
+
+            /**
+             * Actor Behavior.
+             *
+             * @param <I> is the type of objects that the actor will consume.
+             * @param <O> is the type of objects that the actor will produce.
+             */
+            @FunctionalInterface
+            public interface ContextScript<I, O>
+            {
+                public void execute (Context<I, O> context,
+                                     I input)
+                        throws Throwable;
+            }
+
+            /**
              * Actor Behavior.
              *
              * @param <I> is the type of objects that the actor will consume.
@@ -327,6 +534,13 @@ public interface Cascade
              * @return the enclosing stage.
              */
             public Stage stage ();
+
+            /**
+             * Get the <code>Context</code> that is passed into <code>ContextScript</code>s.
+             *
+             * @return the context used when executing scripts.
+             */
+            public Context context ();
 
             /**
              * Get the <code>Input</code> that supplies messages to this actor.
@@ -360,6 +574,7 @@ public interface Cascade
          * @param <O> is the type of objects that the actor will produce.
          * @return the new builder.
          */
+        @Override
         public <I, O> Actor.Builder<I, O> newActor ();
 
         /**
@@ -409,7 +624,12 @@ public interface Cascade
         @Override
         public final <I, O> Stage.Actor.Builder<I, O> newActor ()
         {
-            return new ActorBuilder<>();
+            final Stage.Actor.Builder<I, O> builder = new ActorBuilder<>()
+                    .withConcurrentMailbox()
+                    .withErrorHandler(ex -> stageErrorHandlers.forEach(x -> x.accept(ex)))
+                    .withFunctionScript(msg -> null);
+
+            return builder;
         }
 
         /**
@@ -494,21 +714,21 @@ public interface Cascade
         private final class ActorBuilder<I, O>
                 implements Cascade.Stage.Actor.Builder<I, O>
         {
-            private final Queue<I> mailbox;
+            private final Mailbox<I> mailbox;
 
-            private final Stage.Actor.FunctionScript<I, O> script;
+            private final Stage.Actor.ContextScript<I, O> script;
 
             private final Consumer<Throwable> errorHandler;
 
             private ActorBuilder ()
             {
-                this.mailbox = new ConcurrentLinkedQueue<>();
-                this.script = (I x) -> null;
-                this.errorHandler = ex -> stageErrorHandlers.forEach(x -> x.accept(ex));
+                this.errorHandler = null;
+                this.script = null;
+                this.mailbox = null;
             }
 
-            private ActorBuilder (final Queue<I> mailbox,
-                                  final Stage.Actor.FunctionScript<I, O> script,
+            private ActorBuilder (final Mailbox<I> mailbox,
+                                  final Stage.Actor.ContextScript<I, O> script,
                                   final Consumer<Throwable> errorHandler)
             {
                 this.mailbox = mailbox;
@@ -517,10 +737,18 @@ public interface Cascade
             }
 
             @Override
-            public <X, Y> Stage.Actor.Builder<X, Y> withScript (final Stage.Actor.FunctionScript<X, Y> script)
+            public <X, Y> Stage.Actor.Builder<X, Y> withContextScript (final Stage.Actor.ContextScript<X, Y> script)
             {
                 Objects.requireNonNull(script, "script");
                 return new ActorBuilder(mailbox, script, errorHandler);
+            }
+
+            @Override
+            public <X, Y> Stage.Actor.Builder<X, Y> withFunctionScript (final Stage.Actor.FunctionScript<X, Y> script)
+            {
+                Objects.requireNonNull(script, "script");
+                final ContextScript<X, Y> wrapper = (ctx, msg) -> ctx.sendFrom(script.execute(msg));
+                return new ActorBuilder(mailbox, wrapper, errorHandler);
             }
 
             @Override
@@ -544,29 +772,10 @@ public interface Cascade
             }
 
             @Override
-            public Stage.Actor.Builder<I, O> withInflowQueue (final Queue<I> queue)
+            public Stage.Actor.Builder<I, O> withMailbox (final Mailbox<I> mailbox)
             {
-                Objects.requireNonNull(queue, "queue");
-
-                /**
-                 * Prevent common mistakes.
-                 * None of these types of queues are thread-safe.
-                 * Therefore, they break the contract of this method.
-                 */
-                if (queue.getClass().equals(ArrayDeque.class))
-                {
-                    throw new IllegalArgumentException("The ArrayDeque class is not thread-safe!");
-                }
-                else if (queue.getClass().equals(LinkedList.class))
-                {
-                    throw new IllegalArgumentException("The LinkedList class is not thread-safe!");
-                }
-                else if (queue.getClass().equals(PriorityQueue.class))
-                {
-                    throw new IllegalArgumentException("The PriorityQueue class is not thread-safe!");
-                }
-
-                return new ActorBuilder(queue, script, errorHandler);
+                Objects.requireNonNull(mailbox, "mailbox");
+                return new ActorBuilder(mailbox, script, errorHandler);
             }
 
             @Override
@@ -584,9 +793,9 @@ public interface Cascade
 
             private final ActorBuilder<I, O> builder;
 
-            private final Queue<I> mailbox;
+            private final Mailbox<I> mailbox;
 
-            private final FunctionScript<I, O> script;
+            private final ContextScript<I, O> script;
 
             private final InternalInput input = new InternalInput();
 
@@ -597,6 +806,34 @@ public interface Cascade
             private final AtomicLong pendingCranks = new AtomicLong();
 
             private final AtomicBoolean inProgress = new AtomicBoolean(false);
+
+            private final Context<I, O> context = new Context<I, O>()
+            {
+                @Override
+                public Actor<I, O> actor ()
+                {
+                    return ACTOR;
+                }
+
+                @Override
+                public boolean offerFrom (final O message)
+                {
+                    boolean sentToAll = true;
+
+                    if (message != null)
+                    {
+                        final List<Stage.Actor.Input<O>> outputs = output.connectionList;
+                        final int length = outputs.size();
+
+                        for (int i = 0; i < length; i++)
+                        {
+                            sentToAll &= outputs.get(i).offer(message);
+                        }
+                    }
+
+                    return sentToAll;
+                }
+            };
 
             private InternalActor (final ActorBuilder<I, O> builder)
             {
@@ -635,17 +872,10 @@ public interface Cascade
                     throws Throwable
             {
                 final I msgIn = mailbox.poll();
-                final O msgOut = script.execute(msgIn);
 
-                if (msgOut != null)
+                if (msgIn != null)
                 {
-                    final List<Stage.Actor.Input<O>> outputs = output.connectionList;
-                    final int length = outputs.size();
-
-                    for (int i = 0; i < length; i++)
-                    {
-                        outputs.get(i).send(msgOut);
-                    }
+                    script.execute(context, msgIn);
                 }
             }
 
@@ -661,6 +891,12 @@ public interface Cascade
             public Cascade.Stage stage ()
             {
                 return STAGE;
+            }
+
+            @Override
+            public Stage.Actor.Context<I, O> context ()
+            {
+                return context;
             }
 
             @Override
@@ -694,7 +930,8 @@ public interface Cascade
                 public boolean offer (final I message)
                 {
                     Objects.requireNonNull(message, "message");
-                    if (builder.mailbox.offer(message))
+
+                    if (mailbox.offer(message))
                     {
                         submit();
                         return true;
@@ -777,7 +1014,7 @@ public interface Cascade
     public static Stage newStage ()
     {
         final ExecutorService service = Executors.newSingleThreadExecutor();
-        return newExecutorStage(service);
+        return newStage(service);
     }
 
     /**
@@ -789,7 +1026,7 @@ public interface Cascade
     public static Stage newStage (final int threadCount)
     {
         final ExecutorService service = Executors.newFixedThreadPool(threadCount);
-        return newExecutorStage(service);
+        return newStage(service);
     }
 
     /**
@@ -798,7 +1035,7 @@ public interface Cascade
      * @param service will power the new stage.
      * @return the new stage.
      */
-    public static Stage newExecutorStage (final ExecutorService service)
+    public static Stage newStage (final ExecutorService service)
     {
         Objects.requireNonNull(service, "service");
 
@@ -814,89 +1051,6 @@ public interface Cascade
             protected void onStageClose ()
             {
                 service.shutdown();
-            }
-        };
-    }
-
-    /**
-     * Create a new stage based on a fixed-size pool of threads.
-     *
-     * @param threadCount is the number of threads in the pool.
-     * @return the new stage.
-     */
-    public static Stage newFixedPoolStage (final int threadCount)
-    {
-        final ThreadFactory factory = (final Runnable task) ->
-        {
-            final String name = String.format("newPooledStage-%d-%s", threadCount, UUID.randomUUID().toString());
-            final Thread thread = new Thread(task, name);
-            thread.setDaemon(true);
-            return thread;
-        };
-
-        final LinkedBlockingQueue<ActorTask> queue = new LinkedBlockingQueue<>();
-
-        return newFixedPoolStage(factory, threadCount, queue);
-    }
-
-    /**
-     * Create a new stage based on a fixed-size pool of threads.
-     *
-     * @param threadFactory will be used to create the threads in the pool.
-     * @param threadCount is the number of threads in the pool.
-     * @param taskQueue will be used to feed tasks to the threads in the pool.
-     * @return the new stage.
-     */
-    public static Stage newFixedPoolStage (final ThreadFactory threadFactory,
-                                           final int threadCount,
-                                           final BlockingQueue<ActorTask> taskQueue)
-    {
-        Objects.requireNonNull(threadFactory, "threadFactory");
-        Objects.requireNonNull(taskQueue, "taskQueue");
-
-        final AtomicBoolean stop = new AtomicBoolean(false);
-
-        final Runnable mainLoop = () ->
-        {
-            while (stop.get() == false)
-            {
-                try
-                {
-                    final ActorTask task = taskQueue.poll(1, TimeUnit.SECONDS);
-
-                    if (task != null)
-                    {
-                        task.run();
-                    }
-                }
-                catch (Throwable ex)
-                {
-                    ex.printStackTrace(System.err);
-                }
-            }
-        };
-
-        /**
-         * Create the threads.
-         */
-        for (int i = 0; i < threadCount; i++)
-        {
-            final Thread thread = threadFactory.newThread(mainLoop);
-            thread.start();
-        }
-
-        return new AbstractStage()
-        {
-            @Override
-            protected void onSubmit (final AbstractStage.ActorTask state)
-            {
-                taskQueue.add(state);
-            }
-
-            @Override
-            protected void onStageClose ()
-            {
-                stop.set(true);
             }
         };
     }

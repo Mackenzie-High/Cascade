@@ -152,10 +152,10 @@ public final class CascadeTest
         final FunctionScript<Integer, Integer> exprScript = (Integer x) -> (x % 3 == 0) ? null : x;
         final ConsumerScript<Integer> sinkScript = (Integer x) -> results1.add(x);
         final ConsumerScript<Integer> bugScript = (Integer x) -> results2.add(x);
-        final Actor<Integer, Integer> source = stage.newActor().withScript(sourceScript).create();
-        final Actor<Integer, Integer> expr = stage.newActor().withScript(exprScript).create();
-        final Actor<Integer, Integer> sink = stage.newActor().withScript(sinkScript).create();
-        final Actor<Integer, Integer> bug = stage.newActor().withScript(bugScript).create();
+        final Actor<Integer, Integer> source = stage.newActor().withFunctionScript(sourceScript).create();
+        final Actor<Integer, Integer> expr = stage.newActor().withFunctionScript(exprScript).create();
+        final Actor<Integer, Integer> sink = stage.newActor().withConsumerScript(sinkScript).create();
+        final Actor<Integer, Integer> bug = stage.newActor().withConsumerScript(bugScript).create();
         source.output().connect(expr.input());
         expr.output().connect(sink.input());
         sink.output().connect(bug.input());
@@ -204,7 +204,8 @@ public final class CascadeTest
         /**
          * By default, the actor will use a script that always returns null.
          */
-        assertNull(getField(actor, "script", FunctionScript.class).execute(100));
+        fail();
+        //assertNull(getField(actor, "script", FunctionScript.class).execute(100));
     }
 
     /**
@@ -245,7 +246,7 @@ public final class CascadeTest
          */
         final Actor<Integer, Integer> actor = stage
                 .newActor()
-                .withScript((Integer x) -> x / 0) // div by zero
+                .withFunctionScript((Integer x) -> x / 0) // div by zero
                 .withErrorHandler(ex -> errors2.add(ex))
                 .create();
 
@@ -301,7 +302,7 @@ public final class CascadeTest
          */
         final Actor<Integer, Integer> actor = stage
                 .newActor()
-                .withScript((Integer x) -> (x / x) * x) // potential div by zero
+                .withFunctionScript((Integer x) -> (x / x) * x) // potential div by zero
                 .withErrorHandler(ex -> System.out.println(1 / 0)) // another div by zero
                 .create();
 
@@ -310,7 +311,7 @@ public final class CascadeTest
          * unless the previous actor experienced an exception.
          */
         final List<Integer> results = new LinkedList<>();
-        final Actor<Integer, ?> sink = stage.newActor().withScript((Integer x) -> results.add(x)).create();
+        final Actor<Integer, ?> sink = stage.newActor().withFunctionScript((Integer x) -> results.add(x)).create();
         actor.output().connect(sink.input());
 
         /**
@@ -366,7 +367,7 @@ public final class CascadeTest
          */
         final Actor<Integer, Integer> actor = stage
                 .newActor()
-                .withScript((Integer x) -> x / 0) // div by zero
+                .withFunctionScript((Integer x) -> x / 0) // div by zero
                 .create();
 
         /**
@@ -415,7 +416,7 @@ public final class CascadeTest
          */
         final Actor<Integer, Integer> actor = stage
                 .newActor()
-                .withScript((Integer x) -> (x / x) * x) // potential div by zero
+                .withFunctionScript((Integer x) -> (x / x) * x) // potential div by zero
                 .create();
 
         /**
@@ -423,7 +424,7 @@ public final class CascadeTest
          * unless the previous actor experienced an exception.
          */
         final List<Integer> results = new LinkedList<>();
-        final Actor<Integer, ?> sink = stage.newActor().withScript((Integer x) -> results.add(x)).create();
+        final Actor<Integer, ?> sink = stage.newActor().withFunctionScript((Integer x) -> results.add(x)).create();
         actor.output().connect(sink.input());
 
         /**
@@ -448,7 +449,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withInflowQueue(Queue)</code>
+     * Method: <code>withMailbox(Queue)</code>
      * </p>
      *
      * <p>
@@ -458,7 +459,7 @@ public final class CascadeTest
     @Test (expected = IllegalArgumentException.class)
     public void test20180908014307646248 ()
     {
-        stage.newActor().withInflowQueue(new ArrayDeque<>());
+        stage.newActor().withMailbox(new ArrayDeque<>());
     }
 
     /**
@@ -469,7 +470,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withInflowQueue(Queue)</code>
+     * Method: <code>withMailbox(Queue)</code>
      * </p>
      *
      * <p>
@@ -479,7 +480,7 @@ public final class CascadeTest
     @Test (expected = IllegalArgumentException.class)
     public void test20180908014307646316 ()
     {
-        stage.newActor().withInflowQueue(new LinkedList<>());
+        stage.newActor().withMailbox(new LinkedList<>());
     }
 
     /**
@@ -490,7 +491,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withInflowQueue(Queue)</code>
+     * Method: <code>withMailbox(Queue)</code>
      * </p>
      *
      * <p>
@@ -500,7 +501,7 @@ public final class CascadeTest
     @Test (expected = IllegalArgumentException.class)
     public void test20180908014307646340 ()
     {
-        stage.newActor().withInflowQueue(new PriorityQueue<>());
+        stage.newActor().withMailbox(new PriorityQueue<>());
     }
 
     /**
@@ -511,7 +512,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withInflowQueue(Queue)</code>
+     * Method: <code>withMailbox(Queue)</code>
      * </p>
      *
      * @throws java.lang.Exception
@@ -524,8 +525,8 @@ public final class CascadeTest
 
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
-                .withInflowQueue(queue)
+                .withFunctionScript((String x) -> x)
+                .withMailbox(queue)
                 .create();
 
         // Identity Equality
@@ -540,7 +541,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withConcurrentInflowQueue()</code>
+     * Method: <code>withConcurrentMailbox()</code>
      * </p>
      *
      * @throws java.lang.Exception
@@ -551,8 +552,8 @@ public final class CascadeTest
     {
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
-                .withConcurrentInflowQueue()
+                .withFunctionScript((String x) -> x)
+                .withConcurrentMailbox()
                 .create();
 
         final ConcurrentLinkedQueue<String> queue = getField(actor, "mailbox", ConcurrentLinkedQueue.class);
@@ -567,7 +568,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withLinkedInflowQueue()</code>
+     * Method: <code>withLinkedMailbox()</code>
      * </p>
      *
      * @throws java.lang.Exception
@@ -578,8 +579,8 @@ public final class CascadeTest
     {
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
-                .withLinkedInflowQueue()
+                .withFunctionScript((String x) -> x)
+                .withLinkedMailbox()
                 .create();
 
         final LinkedBlockingQueue<String> queue = getField(actor, "mailbox", LinkedBlockingQueue.class);
@@ -595,7 +596,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withLinkedInflowQueue(int)</code>
+     * Method: <code>withLinkedMailbox(int)</code>
      * </p>
      *
      * @throws java.lang.Exception
@@ -608,8 +609,8 @@ public final class CascadeTest
 
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
-                .withLinkedInflowQueue(capacity)
+                .withFunctionScript((String x) -> x)
+                .withLinkedMailbox(capacity)
                 .create();
 
         final LinkedBlockingQueue<String> queue = getField(actor, "mailbox", LinkedBlockingQueue.class);
@@ -625,7 +626,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withArrayInflowQueue(int)</code>
+     * Method: <code>withArrayMailbox(int)</code>
      * </p>
      *
      * @throws java.lang.Exception
@@ -638,8 +639,8 @@ public final class CascadeTest
 
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
-                .withArrayInflowQueue(capacity)
+                .withFunctionScript((String x) -> x)
+                .withArrayMailbox(capacity)
                 .create();
 
         final ArrayBlockingQueue<String> queue = getField(actor, "mailbox", ArrayBlockingQueue.class);
@@ -663,7 +664,7 @@ public final class CascadeTest
     {
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         assertEquals(actor, actor.input().actor());
@@ -685,17 +686,17 @@ public final class CascadeTest
     {
         final Actor<String, String> actor1 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor2 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor3 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -733,17 +734,17 @@ public final class CascadeTest
     {
         final Actor<String, String> actor1 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor2 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor3 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -792,7 +793,7 @@ public final class CascadeTest
 
         final Actor<String, Boolean> actor = stage
                 .newActor()
-                .withScript((String x) -> log.add(x))
+                .withFunctionScript((String x) -> log.add(x))
                 .create();
 
         final Queue<String> mailbox = getField(actor, "mailbox", Queue.class);
@@ -840,8 +841,8 @@ public final class CascadeTest
 
         final Actor<String, Boolean> actor = stage
                 .newActor()
-                .withLinkedInflowQueue(3)
-                .withScript((String x) -> log.add(x))
+                .withLinkedMailbox(3)
+                .withFunctionScript((String x) -> log.add(x))
                 .create();
 
         final Queue<String> mailbox = getField(actor, "mailbox", Queue.class);
@@ -885,17 +886,17 @@ public final class CascadeTest
 
         final Actor<String, String> actor1 = stage
                 .newActor()
-                .withScript((String x) -> String.format("(X %s)", x))
+                .withFunctionScript((String x) -> String.format("(X %s)", x))
                 .create();
 
         final Actor<String, String> actor2 = stage
                 .newActor()
-                .withScript((String y) -> String.format("(Y %s)", y))
+                .withFunctionScript((String y) -> String.format("(Y %s)", y))
                 .create();
 
         final Actor<String, Boolean> actor3 = stage
                 .newActor()
-                .withScript((String z) -> log.add(String.format("(Z %s)", z)))
+                .withFunctionScript((String z) -> log.add(String.format("(Z %s)", z)))
                 .create();
 
         actor1.output().connect(actor2.input());
@@ -932,7 +933,7 @@ public final class CascadeTest
     {
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         assertEquals(actor, actor.output().actor());
@@ -954,17 +955,17 @@ public final class CascadeTest
     {
         final Actor<String, String> actor1 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor2 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor3 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -1006,17 +1007,17 @@ public final class CascadeTest
     {
         final Actor<String, String> actor1 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor2 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor3 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -1064,17 +1065,17 @@ public final class CascadeTest
     {
         final Actor<String, String> actor1 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor2 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor3 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -1112,7 +1113,7 @@ public final class CascadeTest
     {
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -1138,7 +1139,7 @@ public final class CascadeTest
     {
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -1164,7 +1165,7 @@ public final class CascadeTest
     {
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -1196,7 +1197,7 @@ public final class CascadeTest
         /**
          * Create an actor.
          */
-        final Actor<Integer, Integer> actor = stage.newActor().withScript((Integer x) -> x).create();
+        final Actor<Integer, Integer> actor = stage.newActor().withFunctionScript((Integer x) -> x).create();
 
         /**
          * Send ten messages through the actor.
@@ -1279,31 +1280,10 @@ public final class CascadeTest
             throws InterruptedException
     {
         final ExecutorService service = Executors.newFixedThreadPool(4);
-        final Stage stageToTest = Cascade.newExecutorStage(service);
+        final Stage stageToTest = Cascade.newStage(service);
         assertFalse(service.isShutdown());
         testStage(stageToTest);
         assertTrue(service.isShutdown());
-    }
-
-    /**
-     * Test: 20180908003928729787
-     *
-     * <p>
-     * Method: <code>newFixedPoolStage(int)</code>
-     * </p>
-     *
-     * <p>
-     * Case: Throughput.
-     * </p>
-     *
-     * @throws java.lang.InterruptedException
-     */
-    @Test
-    public void test20180908003928729787 ()
-            throws InterruptedException
-    {
-        final Stage stageToTest = Cascade.newFixedPoolStage(4);
-        testStage(stageToTest);
     }
 
     /**
@@ -1372,11 +1352,11 @@ public final class CascadeTest
          * The term-actor decrements the latch that prevents the unit-test
          * thread from exiting this method before the test is complete.
          */
-        final Actor<Integer, Integer> source = stageToTest.newActor().withScript((Integer x) -> x).create();
-        final Actor<Integer, Integer> square = stageToTest.newActor().withScript((Integer x) -> 10301 + (x * x)).create();
-        final Actor<Integer, Integer> cube = stageToTest.newActor().withScript((Integer x) -> 12421 + (x * x * x)).create();
-        final Actor<Integer, Boolean> sink = stageToTest.newActor().withScript((Integer x) -> results.add(x)).create();
-        final Actor<Boolean, Boolean> term = stageToTest.newActor().withScript((Boolean x) -> permits.countDown()).create();
+        final Actor<Integer, Integer> source = stageToTest.newActor().withFunctionScript((Integer x) -> x).create();
+        final Actor<Integer, Integer> square = stageToTest.newActor().withFunctionScript((Integer x) -> 10301 + (x * x)).create();
+        final Actor<Integer, Integer> cube = stageToTest.newActor().withFunctionScript((Integer x) -> 12421 + (x * x * x)).create();
+        final Actor<Integer, Boolean> sink = stageToTest.newActor().withFunctionScript((Integer x) -> results.add(x)).create();
+        final Actor<Boolean, Boolean> term = stageToTest.newActor().withConsumerScript((Boolean x) -> permits.countDown()).create();
         source.output().connect(square.input());
         source.output().connect(cube.input());
         square.output().connect(sink.input());
