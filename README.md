@@ -110,3 +110,85 @@ public final class Example
 (Actor 3) received (Complete).
 (Actor 4) received (Complete).
 ```
+
+## The Six Ways to Define an Actor
+
+### Consumer Lambda
+
+**Code**
+
+```java
+package com.mackenziehigh.dev;
+
+import com.mackenziehigh.cascade.Cascade;
+import com.mackenziehigh.cascade.Cascade.Stage;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor;
+
+public final class Example
+{
+    public static void main (String[] args)
+    {
+        final Example main = new Example();
+        main.demo();
+    }
+
+    private void demo ()
+    {
+        // Create a single-threaded stage.
+        final Stage stage = Cascade.newStage(2);
+
+        // Create the actors.
+        final Actor<String, String> actor = stage
+                .newActor()
+                .withConsumerScript(this::actor)
+                .create();
+
+        actor.input().send("Hello");
+        actor.input().send("Goodbye");
+    }
+
+    private String actor (final String message)
+    {
+        System.out.println("Say " + message);
+        return message;
+    }
+}
+```
+
+**Example Output***
+
+```
+Say Hello
+Say Goodbye
+```
+
+### Function Lambda 
+
+**Code**
+
+**Example Output***
+
+### General Lambda
+
+**Code**
+
+**Example Output***
+
+### Consumer Class
+
+**Code**
+
+**Example Output***
+
+### Function Class
+
+**Code**
+
+**Example Output***
+
+### General Class
+
+**Code**
+
+**Example Output***
+
