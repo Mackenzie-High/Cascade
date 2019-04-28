@@ -25,11 +25,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
-import java.util.PriorityQueue;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -157,220 +154,6 @@ public interface Cascade
                 public Builder<I, O> withMailbox (Mailbox<I> queue);
 
                 /**
-                 * Cause the actor to use the given queue to store incoming messages.
-                 *
-                 * <p>
-                 * <b>Warning:</b> The queue must ensure thread-safety.
-                 * </p>
-                 *
-                 * @param queue will store incoming messages as they await processing.
-                 * @return a modified copy of this builder.
-                 */
-                public default Builder<I, O> withMailbox (final Queue<I> queue)
-                {
-                    Objects.requireNonNull(queue, "queue");
-
-                    /**
-                     * Prevent common mistakes.
-                     * None of these types of queues are thread-safe.
-                     * Therefore, they break the contract of this method.
-                     */
-                    if (queue.getClass().equals(ArrayDeque.class))
-                    {
-                        throw new IllegalArgumentException("The ArrayDeque class is not thread-safe!");
-                    }
-                    else if (queue.getClass().equals(LinkedList.class))
-                    {
-                        throw new IllegalArgumentException("The LinkedList class is not thread-safe!");
-                    }
-                    else if (queue.getClass().equals(PriorityQueue.class))
-                    {
-                        throw new IllegalArgumentException("The PriorityQueue class is not thread-safe!");
-                    }
-
-                    final Mailbox<I> mailbox = new Mailbox<I>()
-                    {
-                        private final Queue<I> mailQueue = queue; // Make Unit-Testing Easier
-
-                        @Override
-                        public boolean offer (final I message)
-                        {
-                            return mailQueue.offer(message);
-                        }
-
-                        @Override
-                        public I poll ()
-                        {
-                            return mailQueue.poll();
-                        }
-                    };
-
-                    return withMailbox(mailbox);
-                }
-
-                /**
-                 * Cause the actor to use a <code>ConcurrentLinkedQueue</code> to store incoming messages.
-                 *
-                 * @return this.
-                 */
-                public default Builder<I, O> withConcurrentLinkedQueueMailbox ()
-                {
-                    return withMailbox(new ConcurrentLinkedQueue<>());
-                }
-
-                /**
-                 * Cause the actor to use a <code>LinkedBlockingQueue</code> to store incoming messages.
-                 *
-                 * @return a modified copy of this builder.
-                 */
-                public default Builder<I, O> withLinkedBlockingQueueMailbox ()
-                {
-                    return withMailbox(new LinkedBlockingQueue<>());
-                }
-
-                /**
-                 * Cause the actor to use a <code>LinkedBlockingQueue</code> to store incoming messages.
-                 *
-                 * @param capacity is the maximum number of simultaneously pending messages.
-                 * @return a modified copy of this builder.
-                 */
-                public default Builder<I, O> withLinkedBlockingQueueMailbox (int capacity)
-                {
-                    return withMailbox(new LinkedBlockingQueue<>(capacity));
-                }
-
-                /**
-                 * Cause the actor to use a <code>ArrayBlockingQueue</code> to store incoming messages.
-                 *
-                 * @param capacity is the maximum number of simultaneously pending messages.
-                 * @return a modified copy of this builder.
-                 */
-                public default Builder<I, O> withArrayBlockingQueueMailbox (int capacity)
-                {
-                    return withMailbox(new ArrayBlockingQueue<>(capacity));
-                }
-
-                /**
-                 * Cause the actor to use a <code>ArrayDeque</code> to store incoming messages,
-                 * which can auto-resize to increase storage capacity up to the given limit.
-                 *
-                 * <p>
-                 * Normally, an <code>ArrayDeque</code> is <b>not</b> thread-safe;
-                 * however, this method add synchronization to ensure safety.
-                 * </p>
-                 *
-                 * @param initialCapacity is the initial capacity of the backing queue.
-                 * @param maximumCapacity is the maximum number of simultaneously pending messages, ever.
-                 * @return a modified copy of this builder.
-                 */
-                public default Builder<I, O> withArrayDequeMailbox (int initialCapacity,
-                                                                    int maximumCapacity)
-                {
-                    final ArrayDeque<I> queue = new ArrayDeque<>(initialCapacity);
-
-                    /**
-                     * Notice that the offer() and poll() methods are synchronized.
-                     * They are synchronized on the mailbox object itself.
-                     * The synchronization is required, since *ArrayDeque* is not thread-safe.
-                     */
-                    final Mailbox<I> mailbox = new Mailbox<I>()
-                    {
-                        @Override
-                        public synchronized boolean offer (final I message)
-                        {
-                            if (message == null)
-                            {
-                                throw new NullPointerException("null message");
-                            }
-                            else if (queue.size() < maximumCapacity)
-                            {
-                                queue.add(message);
-                                return true;
-                            }
-                            else
-                            {
-                                return false;
-                            }
-                        }
-
-                        @Override
-                        public synchronized I poll ()
-                        {
-                            return queue.poll();
-                        }
-                    };
-
-                    return withMailbox(mailbox);
-                }
-
-                /**
-                 * Cause the actor to use a <code>PriorityBlockingQueue</code> to store incoming messages.
-                 *
-                 * @param initialCapacity is the initial size of the backing data-structure.
-                 * @param ordering imposes a total ordering on the incoming messages.
-                 * @return a modified copy of this builder.
-                 */
-                public default Builder<I, O> withPriorityQueueMailbox (int initialCapacity,
-                                                                       Comparator<I> ordering)
-                {
-                    return withMailbox(new PriorityBlockingQueue<>(initialCapacity, ordering));
-                }
-
-                /**
-                 * Cause the actor to use a <b>circular</b> <code>ArrayList</code> to store incoming messages,
-                 * which will drop the oldest pending messages once the capacity is reached.
-                 *
-                 * @param capacity is the maximum number of simultaneously pending messages.
-                 * @return a modified copy of this builder.
-                 */
-                public default Builder<I, O> withCircularArrayDequeMailbox (int capacity)
-                {
-                    if (capacity == 0)
-                    {
-                        throw new IllegalStateException("capacity == 0");
-                    }
-
-                    final ArrayList<I> ring = new ArrayList<>(capacity);
-
-                    /**
-                     * Notice that the offer() and poll() methods are synchronized.
-                     * They are synchronized on the mailbox object itself.
-                     * The synchronization is required, since *ArrayList* is not thread-safe.
-                     */
-                    final Mailbox<I> mailbox = new Mailbox<I>()
-                    {
-                        int head = 0;
-
-                        int tail = 0;
-
-                        @Override
-                        public synchronized boolean offer (final I message)
-                        {
-                            if (message == null)
-                            {
-                                throw new NullPointerException("null message");
-                            }
-                            else
-                            {
-                                ring.set(head, message);
-                                head = (head + 1 >= capacity) ? 0 : head + 1;
-                                return true;
-                            }
-                        }
-
-                        @Override
-                        public synchronized I poll ()
-                        {
-                            final I message = (head == tail) ? null : ring.get(tail);
-                            tail = (tail + 1 >= capacity) ? 0 : tail + 1;
-                            return message;
-                        }
-                    };
-
-                    return withMailbox(mailbox);
-                }
-
-                /**
                  * Construct the actor and add it to the stage.
                  *
                  * @return the newly created actor.
@@ -480,7 +263,7 @@ public interface Cascade
                  * if the message was not dropped due to capacity restrictions.
                  * @return this.
                  */
-                public default Input<T> send (T message)
+                public default Input<T> send (final T message)
                 {
                     offer(message);
                     return this;
@@ -567,7 +350,7 @@ public interface Cascade
                  * @param message is the message to send.
                  * @return true, if the message was enqueued.
                  */
-                public default boolean offerTo (I message)
+                public default boolean offerTo (final I message)
                 {
                     return actor().input().offer(message);
                 }
@@ -578,7 +361,7 @@ public interface Cascade
                  * @param message is the message to send.
                  * @return true, if the message was enqueued in every connected output.
                  */
-                public boolean offerFrom (O message);
+                public boolean offerFrom (final O message);
 
                 /**
                  * Send a message <b>to</b> the enclosing actor.
@@ -586,7 +369,7 @@ public interface Cascade
                  * @param message is the message to send.
                  * @return this.
                  */
-                public default Context<I, O> sendTo (I message)
+                public default Context<I, O> sendTo (final I message)
                 {
                     offerTo(message);
                     return this;
@@ -598,7 +381,7 @@ public interface Cascade
                  * @param message is the message to send.
                  * @return this.
                  */
-                public default Context<I, O> sendFrom (O message)
+                public default Context<I, O> sendFrom (final O message)
                 {
                     offerFrom(message);
                     return this;
@@ -699,6 +482,340 @@ public interface Cascade
     }
 
     /**
+     * A <code>Mailbox</code> implementation based on a <code>ConcurrentLinkedQueue</code>.
+     *
+     * @param <I> is the type of messages that will be stored in the mailbox.
+     */
+    public static final class ConcurrentLinkedQueueMailbox<I>
+            implements Mailbox<I>
+    {
+        private final ConcurrentLinkedQueue<I> queue;
+
+        private ConcurrentLinkedQueueMailbox (final ConcurrentLinkedQueue<I> queue)
+        {
+            this.queue = queue;
+        }
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param <I> is the type of messages that will be stored in the mailbox.
+         * @return the new mailbox.
+         */
+        public static <I> Mailbox<I> create ()
+        {
+            return new ConcurrentLinkedQueueMailbox<>(new ConcurrentLinkedQueue<>());
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public boolean offer (final I message)
+        {
+            return queue.offer(message);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public I poll ()
+        {
+            return queue.poll();
+        }
+    }
+
+    /**
+     * A <code>Mailbox</code> implementation based on a <code>LinkedBlockingQueue</code>.
+     *
+     * @param <I> is the type of messages that will be stored in the mailbox.
+     */
+    public static final class LinkedBlockingQueueMailbox<I>
+            implements Mailbox<I>
+    {
+        private final LinkedBlockingQueue<I> queue;
+
+        private LinkedBlockingQueueMailbox (final LinkedBlockingQueue<I> queue)
+        {
+            this.queue = queue;
+        }
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param <I> is the type of messages that will be stored in the mailbox.
+         * @return the new mailbox.
+         */
+        public static <I> Mailbox<I> create ()
+        {
+            return new LinkedBlockingQueueMailbox<>(new LinkedBlockingQueue<>());
+        }
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param <I> is the type of messages that will be stored in the mailbox.
+         * @param capacity is the maximum number of messages that can be stored simultaneously.
+         * @return the new mailbox.
+         */
+        public static <I> Mailbox<I> create (final int capacity)
+        {
+            return new LinkedBlockingQueueMailbox<>(new LinkedBlockingQueue<>(capacity));
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public boolean offer (final I message)
+        {
+            return queue.offer(message);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public I poll ()
+        {
+            return queue.poll();
+        }
+    }
+
+    /**
+     * A <code>Mailbox</code> implementation based on a <code>ArrayBlockingQueue</code>.
+     *
+     * @param <I> is the type of messages that will be stored in the mailbox.
+     */
+    public static final class ArrayBlockingQueueMailbox<I>
+            implements Mailbox<I>
+    {
+        private final ArrayBlockingQueue<I> queue;
+
+        private ArrayBlockingQueueMailbox (final ArrayBlockingQueue<I> queue)
+        {
+            this.queue = queue;
+        }
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param <I> is the type of messages that will be stored in the mailbox.
+         * @param capacity is the maximum number of messages that can be stored simultaneously.
+         * @return the new mailbox.
+         */
+        public static <I> Mailbox<I> create (final int capacity)
+        {
+            return new ArrayBlockingQueueMailbox<>(new ArrayBlockingQueue<>(capacity));
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public boolean offer (final I message)
+        {
+            return queue.offer(message);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public I poll ()
+        {
+            return queue.poll();
+        }
+    }
+
+    /**
+     * A <code>Mailbox</code> implementation based on a <code>ArrayDeque</code>.
+     *
+     * @param <I> is the type of messages that will be stored in the mailbox.
+     */
+    public static final class ArrayDequeMailbox<I>
+            implements Mailbox<I>
+    {
+        private final ArrayDeque<I> queue;
+
+        private final int capacity;
+
+        private ArrayDequeMailbox (final ArrayDeque<I> queue,
+                                   final int capacity)
+        {
+            this.queue = queue;
+            this.capacity = capacity;
+        }
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param <I> is the type of messages that will be stored in the mailbox.
+         * @param initial is the initial size of the backing data-structure.
+         * @param capacity is the maximum number of messages that can be stored simultaneously.
+         * @return the new mailbox.
+         */
+        public static <I> Mailbox<I> create (final int initial,
+                                             final int capacity)
+        {
+            return new ArrayDequeMailbox<>(new ArrayDeque<>(initial), capacity);
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * <p>
+         * Notice that this method is synchronized.
+         * </p>
+         */
+        @Override
+        public synchronized boolean offer (final I message)
+        {
+            if (queue.size() == capacity)
+            {
+                return false;
+            }
+            else
+            {
+                return queue.offer(message);
+            }
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * <p>
+         * Notice that this method is synchronized.
+         * </p>
+         */
+        @Override
+        public synchronized I poll ()
+        {
+            return queue.poll();
+        }
+    }
+
+    /**
+     * A <code>Mailbox</code> implementation based on a <code>PriorityBlockingQueue</code>.
+     *
+     * @param <I> is the type of messages that will be stored in the mailbox.
+     */
+    public static final class PriorityBlockingQueueMailbox<I>
+            implements Mailbox<I>
+    {
+        private final PriorityBlockingQueue<I> queue;
+
+        private PriorityBlockingQueueMailbox (final PriorityBlockingQueue<I> queue)
+        {
+            this.queue = queue;
+        }
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param <I> is the type of messages that will be stored in the mailbox.
+         * @param initial is the initial size of the backing data-structure.
+         * @param ordering assigns priorities to messages in the mailbox.
+         * @return the new mailbox.
+         */
+        public static <I> Mailbox<I> create (final int initial,
+                                             final Comparator<I> ordering)
+        {
+            return new PriorityBlockingQueueMailbox<>(new PriorityBlockingQueue<>(initial, ordering));
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public boolean offer (final I message)
+        {
+            return queue.offer(message);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public I poll ()
+        {
+            return queue.poll();
+        }
+    }
+
+    /**
+     * A <code>Mailbox</code> implementation based on an <code>ArrayDeque</code>,
+     * which behaves like a ring-buffer data-structure.
+     *
+     * @param <I> is the type of messages that will be stored in the mailbox.
+     */
+    public static final class CircularArrayDequeMailbox<I>
+            implements Mailbox<I>
+    {
+        private final ArrayDeque<I> queue;
+
+        private final int capacity;
+
+        private CircularArrayDequeMailbox (final ArrayDeque<I> queue,
+                                           final int capacity)
+        {
+            this.queue = queue;
+            this.capacity = capacity;
+        }
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param <I> is the type of messages that will be stored in the mailbox.
+         * @param initial is the initial size of the backing data-structure.
+         * @param capacity is the maximum number of messages that can be stored simultaneously.
+         * @return the new mailbox.
+         */
+        public static <I> Mailbox<I> create (final int initial,
+                                             final int capacity)
+        {
+            return new CircularArrayDequeMailbox<>(new ArrayDeque<>(initial), capacity);
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * <p>
+         * Notice that this method is synchronized.
+         * </p>
+         */
+        @Override
+        public synchronized boolean offer (final I message)
+        {
+            if (queue.size() == capacity)
+            {
+                queue.poll();
+                queue.offer(message);
+                return true;
+            }
+            else
+            {
+                queue.offer(message);
+                return true;
+            }
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * <p>
+         * Notice that this method is synchronized.
+         * </p>
+         */
+        @Override
+        public synchronized I poll ()
+        {
+            return queue.poll();
+        }
+    }
+
+    /**
      * Partial Implementation of <code>Stage</code>.
      */
     public abstract class AbstractStage
@@ -740,7 +857,7 @@ public interface Cascade
         public final <I, O> Stage.Actor.Builder<I, O> newActor ()
         {
             final Stage.Actor.Builder<I, O> builder = new ActorBuilder<>()
-                    .withConcurrentLinkedQueueMailbox()
+                    .withMailbox(ConcurrentLinkedQueueMailbox.create())
                     .withErrorHandler(ex -> stageErrorHandlers.forEach(x -> x.accept(ex)))
                     .withFunctionScript(msg -> null);
 
