@@ -85,7 +85,6 @@ public interface Cascade
          * @param <O> is the type of objects the actor will produce.
          */
         public interface Actor<I, O>
-                extends java.util.function.Consumer<I>
         {
             /**
              * Actor Builder.
@@ -113,7 +112,13 @@ public interface Cascade
                  * @param script defines the message-handling behavior of the actor.
                  * @return a modified copy of this builder.
                  */
-                public <X, Y> Builder<X, Y> withFunctionScript (FunctionScript<X, Y> script);
+                public default <X, Y> Builder<X, Y> withFunctionScript (FunctionScript<X, Y> script)
+                {
+                    return withContextScript((ctx, input) ->
+                    {
+                        ctx.sendFrom(script.execute(input));
+                    });
+                }
 
                 /**
                  * Define the normal behavior of the actor.
@@ -185,16 +190,18 @@ public interface Cascade
 
                     final Mailbox<I> mailbox = new Mailbox<I>()
                     {
+                        private final Queue<I> mailQueue = queue; // Make Unit-Testing Easier
+
                         @Override
                         public boolean offer (final I message)
                         {
-                            return queue.offer(message);
+                            return mailQueue.offer(message);
                         }
 
                         @Override
                         public I poll ()
                         {
-                            return queue.poll();
+                            return mailQueue.poll();
                         }
                     };
 
@@ -206,7 +213,7 @@ public interface Cascade
                  *
                  * @return this.
                  */
-                public default Builder<I, O> withConcurrentMailbox ()
+                public default Builder<I, O> withConcurrentLinkedQueueMailbox ()
                 {
                     return withMailbox(new ConcurrentLinkedQueue<>());
                 }
@@ -216,7 +223,7 @@ public interface Cascade
                  *
                  * @return a modified copy of this builder.
                  */
-                public default Builder<I, O> withLinkedMailbox ()
+                public default Builder<I, O> withLinkedBlockingQueueMailbox ()
                 {
                     return withMailbox(new LinkedBlockingQueue<>());
                 }
@@ -227,7 +234,7 @@ public interface Cascade
                  * @param capacity is the maximum number of simultaneously pending messages.
                  * @return a modified copy of this builder.
                  */
-                public default Builder<I, O> withLinkedMailbox (int capacity)
+                public default Builder<I, O> withLinkedBlockingQueueMailbox (int capacity)
                 {
                     return withMailbox(new LinkedBlockingQueue<>(capacity));
                 }
@@ -238,9 +245,62 @@ public interface Cascade
                  * @param capacity is the maximum number of simultaneously pending messages.
                  * @return a modified copy of this builder.
                  */
-                public default Builder<I, O> withArrayMailbox (int capacity)
+                public default Builder<I, O> withArrayBlockingQueueMailbox (int capacity)
                 {
                     return withMailbox(new ArrayBlockingQueue<>(capacity));
+                }
+
+                /**
+                 * Cause the actor to use a <code>ArrayDeque</code> to store incoming messages,
+                 * which can auto-resize to increase storage capacity up to the given limit.
+                 *
+                 * <p>
+                 * Normally, an <code>ArrayDeque</code> is <b>not</b> thread-safe;
+                 * however, this method add synchronization to ensure safety.
+                 * </p>
+                 *
+                 * @param initialCapacity is the initial capacity of the backing queue.
+                 * @param maximumCapacity is the maximum number of simultaneously pending messages, ever.
+                 * @return a modified copy of this builder.
+                 */
+                public default Builder<I, O> withArrayDequeMailbox (int initialCapacity,
+                                                                    int maximumCapacity)
+                {
+                    final ArrayDeque<I> queue = new ArrayDeque<>(initialCapacity);
+
+                    /**
+                     * Notice that the offer() and poll() methods are synchronized.
+                     * They are synchronized on the mailbox object itself.
+                     * The synchronization is required, since *ArrayDeque* is not thread-safe.
+                     */
+                    final Mailbox<I> mailbox = new Mailbox<I>()
+                    {
+                        @Override
+                        public synchronized boolean offer (final I message)
+                        {
+                            if (message == null)
+                            {
+                                throw new NullPointerException("null message");
+                            }
+                            else if (queue.size() < maximumCapacity)
+                            {
+                                queue.add(message);
+                                return true;
+                            }
+                            else
+                            {
+                                return false;
+                            }
+                        }
+
+                        @Override
+                        public synchronized I poll ()
+                        {
+                            return queue.poll();
+                        }
+                    };
+
+                    return withMailbox(mailbox);
                 }
 
                 /**
@@ -250,10 +310,64 @@ public interface Cascade
                  * @param ordering imposes a total ordering on the incoming messages.
                  * @return a modified copy of this builder.
                  */
-                public default Builder<I, O> withPriorityMailbox (int initialCapacity,
-                                                                  Comparator<I> ordering)
+                public default Builder<I, O> withPriorityQueueMailbox (int initialCapacity,
+                                                                       Comparator<I> ordering)
                 {
                     return withMailbox(new PriorityBlockingQueue<>(initialCapacity, ordering));
+                }
+
+                /**
+                 * Cause the actor to use a <b>circular</b> <code>ArrayList</code> to store incoming messages,
+                 * which will drop the oldest pending messages once the capacity is reached.
+                 *
+                 * @param capacity is the maximum number of simultaneously pending messages.
+                 * @return a modified copy of this builder.
+                 */
+                public default Builder<I, O> withCircularArrayDequeMailbox (int capacity)
+                {
+                    if (capacity == 0)
+                    {
+                        throw new IllegalStateException("capacity == 0");
+                    }
+
+                    final ArrayList<I> ring = new ArrayList<>(capacity);
+
+                    /**
+                     * Notice that the offer() and poll() methods are synchronized.
+                     * They are synchronized on the mailbox object itself.
+                     * The synchronization is required, since *ArrayList* is not thread-safe.
+                     */
+                    final Mailbox<I> mailbox = new Mailbox<I>()
+                    {
+                        int head = 0;
+
+                        int tail = 0;
+
+                        @Override
+                        public synchronized boolean offer (final I message)
+                        {
+                            if (message == null)
+                            {
+                                throw new NullPointerException("null message");
+                            }
+                            else
+                            {
+                                ring.set(head, message);
+                                head = (head + 1 >= capacity) ? 0 : head + 1;
+                                return true;
+                            }
+                        }
+
+                        @Override
+                        public synchronized I poll ()
+                        {
+                            final I message = (head == tail) ? null : ring.get(tail);
+                            tail = (tail + 1 >= capacity) ? 0 : tail + 1;
+                            return message;
+                        }
+                    };
+
+                    return withMailbox(mailbox);
                 }
 
                 /**
@@ -557,21 +671,6 @@ public interface Cascade
              * @return the output from the actor.
              */
             public Output<O> output ();
-
-            /**
-             * Send the given message to this actor.
-             *
-             * <p>
-             * Equivalent: <code>input().send(message)</code>
-             * </p>
-             *
-             * @param message will be sent to this actor.
-             */
-            @Override
-            public default void accept (final I message)
-            {
-                input().send(message);
-            }
         }
 
         /**
@@ -641,7 +740,7 @@ public interface Cascade
         public final <I, O> Stage.Actor.Builder<I, O> newActor ()
         {
             final Stage.Actor.Builder<I, O> builder = new ActorBuilder<>()
-                    .withConcurrentMailbox()
+                    .withConcurrentLinkedQueueMailbox()
                     .withErrorHandler(ex -> stageErrorHandlers.forEach(x -> x.accept(ex)))
                     .withFunctionScript(msg -> null);
 
@@ -757,14 +856,6 @@ public interface Cascade
             {
                 Objects.requireNonNull(script, "script");
                 return new ActorBuilder(mailbox, script, errorHandler);
-            }
-
-            @Override
-            public <X, Y> Stage.Actor.Builder<X, Y> withFunctionScript (final Stage.Actor.FunctionScript<X, Y> script)
-            {
-                Objects.requireNonNull(script, "script");
-                final ContextScript<X, Y> wrapper = (ctx, msg) -> ctx.sendFrom(script.execute(msg));
-                return new ActorBuilder(mailbox, wrapper, errorHandler);
             }
 
             @Override

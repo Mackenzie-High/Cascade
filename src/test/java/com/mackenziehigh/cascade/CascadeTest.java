@@ -21,6 +21,7 @@ import com.mackenziehigh.cascade.Cascade.Stage;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.ConsumerScript;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.FunctionScript;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.Mailbox;
 import java.lang.reflect.Field;
 import java.util.AbstractMap;
 import java.util.ArrayDeque;
@@ -163,7 +164,7 @@ public final class CascadeTest
         /**
          * Send ten messages through the network of actors.
          */
-        IntStream.rangeClosed(1, 10).forEach(i -> source.accept(i));
+        IntStream.rangeClosed(1, 10).forEach(i -> source.context().sendTo(i));
 
         /**
          * Apply power, so the actors act.
@@ -185,7 +186,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Case: Defaults.
+     * Case: By default, the actor will use a ConcurrentLinkedQueue to store inputs.
      * </p>
      *
      * @throws java.lang.Throwable
@@ -196,16 +197,51 @@ public final class CascadeTest
     {
         final Actor<Object, Object> actor = stage.newActor().create();
 
-        /**
-         * By default, the actor will use a ConcurrentLinkedQueue to store inputs.
-         */
-        assertTrue(getField(actor, "mailbox", Queue.class) instanceof ConcurrentLinkedQueue);
+        assertTrue(getField(getField(actor, "mailbox", Mailbox.class), "mailQueue", Queue.class) instanceof ConcurrentLinkedQueue);
+    }
+
+    /**
+     * Test: 20190427204049214123
+     *
+     * <p>
+     * Class: <code>Builder</code>
+     * </p>
+     *
+     * <p>
+     * Case: By default, the actor will use a script that does not forward messages.
+     * </p>
+     */
+    @Test
+    public void test20190427204049214123 ()
+    {
+        final Queue<Object> queue = new LinkedBlockingQueue<>();
 
         /**
-         * By default, the actor will use a script that always returns null.
+         * This is the actor under test.
          */
-        fail();
-        //assertNull(getField(actor, "script", FunctionScript.class).execute(100));
+        final Actor<Object, Object> actor1 = stage.newActor().create();
+
+        /**
+         * If this actor does not receive any outputs from the previous actor,
+         * then the script did not forward any messages.
+         */
+        final Actor<Object, Object> actor2 = stage.newActor().withConsumerScript(x -> queue.add(x)).create();
+        actor1.output().connect(actor2.input());
+
+        /**
+         * Run Test.
+         */
+        actor2.input().offer("A");
+        stage.crank();
+        actor1.input().offer("B");
+        stage.crank();
+        actor2.input().offer("C");
+        stage.crank();
+
+        assertEquals(2, queue.size());
+        assertTrue(queue.contains("A"));
+        assertFalse(queue.contains("B"));
+        assertTrue(queue.contains("C"));
     }
 
     /**
@@ -530,7 +566,7 @@ public final class CascadeTest
                 .create();
 
         // Identity Equality
-        assertTrue(queue == getField(actor, "mailbox", Queue.class));
+        assertTrue(queue == getField(getField(actor, "mailbox", Mailbox.class), "mailQueue", Queue.class));
     }
 
     /**
@@ -541,7 +577,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withConcurrentMailbox()</code>
+     * Method: <code>withConcurrentLinkedMailbox()</code>
      * </p>
      *
      * @throws java.lang.Exception
@@ -553,10 +589,10 @@ public final class CascadeTest
         final Actor<String, String> actor = stage
                 .newActor()
                 .withFunctionScript((String x) -> x)
-                .withConcurrentMailbox()
+                .withConcurrentLinkedQueueMailbox()
                 .create();
 
-        final ConcurrentLinkedQueue<String> queue = getField(actor, "mailbox", ConcurrentLinkedQueue.class);
+        final ConcurrentLinkedQueue<String> queue = getField(getField(actor, "mailbox", Mailbox.class), "mailQueue", ConcurrentLinkedQueue.class);
         assertEquals(0, queue.size());
     }
 
@@ -580,10 +616,10 @@ public final class CascadeTest
         final Actor<String, String> actor = stage
                 .newActor()
                 .withFunctionScript((String x) -> x)
-                .withLinkedMailbox()
+                .withLinkedBlockingQueueMailbox()
                 .create();
 
-        final LinkedBlockingQueue<String> queue = getField(actor, "mailbox", LinkedBlockingQueue.class);
+        final LinkedBlockingQueue<String> queue = getField(getField(actor, "mailbox", Mailbox.class), "mailQueue", LinkedBlockingQueue.class);
         assertEquals(0, queue.size());
         assertEquals(Integer.MAX_VALUE, queue.remainingCapacity());
     }
@@ -610,10 +646,10 @@ public final class CascadeTest
         final Actor<String, String> actor = stage
                 .newActor()
                 .withFunctionScript((String x) -> x)
-                .withLinkedMailbox(capacity)
+                .withLinkedBlockingQueueMailbox(capacity)
                 .create();
 
-        final LinkedBlockingQueue<String> queue = getField(actor, "mailbox", LinkedBlockingQueue.class);
+        final LinkedBlockingQueue<String> queue = getField(getField(actor, "mailbox", Mailbox.class), "mailQueue", LinkedBlockingQueue.class);
         assertEquals(0, queue.size());
         assertEquals(capacity, queue.remainingCapacity());
     }
@@ -640,10 +676,10 @@ public final class CascadeTest
         final Actor<String, String> actor = stage
                 .newActor()
                 .withFunctionScript((String x) -> x)
-                .withArrayMailbox(capacity)
+                .withArrayBlockingQueueMailbox(capacity)
                 .create();
 
-        final ArrayBlockingQueue<String> queue = getField(actor, "mailbox", ArrayBlockingQueue.class);
+        final ArrayBlockingQueue<String> queue = getField(getField(actor, "mailbox", Mailbox.class), "mailQueue", ArrayBlockingQueue.class);
         assertEquals(0, queue.size());
         assertEquals(capacity, queue.remainingCapacity());
     }
@@ -796,7 +832,7 @@ public final class CascadeTest
                 .withFunctionScript((String x) -> log.add(x))
                 .create();
 
-        final Queue<String> mailbox = getField(actor, "mailbox", Queue.class);
+        final Queue<String> mailbox = getField(getField(actor, "mailbox", Mailbox.class), "mailQueue", Queue.class);
 
         assertTrue(mailbox.isEmpty());
 
@@ -841,11 +877,11 @@ public final class CascadeTest
 
         final Actor<String, Boolean> actor = stage
                 .newActor()
-                .withLinkedMailbox(3)
+                .withLinkedBlockingQueueMailbox(3)
                 .withFunctionScript((String x) -> log.add(x))
                 .create();
 
-        final Queue<String> mailbox = getField(actor, "mailbox", Queue.class);
+        final Queue<String> mailbox = getField(getField(actor, "mailbox", Mailbox.class), "mailQueue", Queue.class);
 
         assertTrue(mailbox.isEmpty());
 
@@ -902,9 +938,9 @@ public final class CascadeTest
         actor1.output().connect(actor2.input());
         actor2.output().connect(actor3.input());
 
-        actor1.accept("A");
-        actor1.accept("B");
-        actor1.accept("C");
+        actor1.input().send("A");
+        actor1.input().send("B");
+        actor1.input().send("C");
 
         for (int i = 0; i < 100; i++)
         {
@@ -1206,7 +1242,7 @@ public final class CascadeTest
          * The counter is stored in the "meta" slot contained in the actor object.
          * The usage of the "meta" slot is what we are trying to test here.
          */
-        IntStream.rangeClosed(1, 10).forEach(i -> actor.accept(i));
+        IntStream.rangeClosed(1, 10).forEach(i -> actor.input().send(i));
         IntStream.rangeClosed(1, 10).forEach(i -> stage.crank());
 
         /**
