@@ -1081,6 +1081,58 @@ public final class CascadeTest
     }
 
     /**
+     * Test: 20190428010710826349
+     *
+     * <p>
+     * Class: <code>Output</code>
+     * </p>
+     *
+     * <p>
+     * Case: Connection and Disconnection.
+     * </p>
+     */
+    @Test
+    public void test20190428010710826349 ()
+    {
+        final Actor<Object, Object> actor1 = stage.newActor().create();
+        final Actor<Object, Object> actor2 = stage.newActor().create();
+
+        /**
+         * Not connected.
+         */
+        assertFalse(actor1.output().isConnected(actor2.input()));
+        assertFalse(actor2.input().isConnected(actor1.output()));
+
+        /**
+         * Connect.
+         */
+        actor1.output().connect(actor2.input());
+        assertTrue(actor1.output().isConnected(actor2.input()));
+        assertTrue(actor2.input().isConnected(actor1.output()));
+
+        /**
+         * Connect (ignored).
+         */
+        actor1.output().connect(actor2.input());
+        assertTrue(actor1.output().isConnected(actor2.input()));
+        assertTrue(actor2.input().isConnected(actor1.output()));
+
+        /**
+         * Disconnect.
+         */
+        actor1.output().disconnect(actor2.input());
+        assertFalse(actor1.output().isConnected(actor2.input()));
+        assertFalse(actor2.input().isConnected(actor1.output()));
+
+        /**
+         * Disconnect (ignored).
+         */
+        actor1.output().disconnect(actor2.input());
+        assertFalse(actor1.output().isConnected(actor2.input()));
+        assertFalse(actor2.input().isConnected(actor1.output()));
+    }
+
+    /**
      * Test: 20180908014838917134
      *
      * <p>
