@@ -54,7 +54,7 @@ public final class Example
         actor3.output().connect(actor4.input());
         actor4.output().connect(actor1.input());
 
-        // Send a messagess through the pipeline.
+        // Send a messages through the pipeline and cause a cascade.
         actor1.input().send("Command 1");
     }
 
