@@ -40,50 +40,73 @@ public final class Example
     private void demo ()
     {
         // Create a single-threaded stage.
-        final Stage stage = Cascade.newStage(1);
+        final Stage stage = Cascade.newStage(2);
 
         // Create the actors.
-        final Actor<String, String> actor1 = stage.newActor().withScript(this::actor1).create();
-        final Actor<String, String> actor2 = stage.newActor().withScript(this::actor2).create();
-        final Actor<String, String> actor3 = stage.newActor().withScript(this::actor3).create();
-        final Actor<String, String> actor4 = stage.newActor().withScript(this::actor4).create();
+        final Actor<String, String> actor1 = stage.newActor().withFunctionScript(this::actor1).create();
+        final Actor<String, String> actor2 = stage.newActor().withFunctionScript(this::actor2).create();
+        final Actor<String, String> actor3 = stage.newActor().withFunctionScript(this::actor3).create();
+        final Actor<String, String> actor4 = stage.newActor().withFunctionScript(this::actor4).create();
 
-        // Connect Pipeline: actor1 -> actor2 -> actor3 -> actor4
+        // Connect Network: actor1 -> actor2 -> actor3 -> actor4 -> actor1
         actor1.output().connect(actor2.input());
         actor2.output().connect(actor3.input());
         actor3.output().connect(actor4.input());
+        actor4.output().connect(actor1.input());
 
-        // Send Messages Through Pipeline.
-        actor1.input().send("A");
-        actor1.input().send("B");
-        actor1.input().send("C");
+        // Send a messagess through the pipeline.
+        actor1.input().send("Command 1");
     }
 
     private String actor1 (final String message)
     {
-        return String.format("(X = %s)", message);
+        System.out.printf("(Actor 1) received (%s).\n", message);
+        return message;
     }
 
     private String actor2 (final String message)
     {
-        return String.format("(Y = %s)", message);
+        System.out.printf("(Actor 2) received (%s).\n", message);
+        return message;
     }
 
     private String actor3 (final String message)
     {
-        return String.format("(Z = %s)", message);
+        System.out.printf("(Actor 3) received (%s).\n", message);
+        return message;
     }
 
-    private void actor4 (final String message)
+    private String actor4 (final String message)
     {
-        System.out.println(message);
+        System.out.printf("(Actor 4) received (%s).\n\n", message);
+        String next = null;
+        next = "Command 1".equals(message) ? "Command 2" : next;
+        next = "Command 2".equals(message) ? "Command 3" : next;
+        next = "Command 3".equals(message) ? "Complete" : next;
+        return next;
     }
 }
 ```
 
 **Standard Output**
 ```
-(Z = (Y = (X = A)))
-(Z = (Y = (X = B)))
-(Z = (Y = (X = C)))
+(Actor 1) received (Command 1).
+(Actor 2) received (Command 1).
+(Actor 3) received (Command 1).
+(Actor 4) received (Command 1).
+
+(Actor 1) received (Command 2).
+(Actor 2) received (Command 2).
+(Actor 3) received (Command 2).
+(Actor 4) received (Command 2).
+
+(Actor 1) received (Command 3).
+(Actor 2) received (Command 3).
+(Actor 3) received (Command 3).
+(Actor 4) received (Command 3).
+
+(Actor 1) received (Complete).
+(Actor 2) received (Complete).
+(Actor 3) received (Complete).
+(Actor 4) received (Complete).
 ```
