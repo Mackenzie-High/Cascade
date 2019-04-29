@@ -17,13 +17,17 @@ package com.mackenziehigh.cascade;
 
 import com.mackenziehigh.cascade.Cascade.AbstractStage;
 import com.mackenziehigh.cascade.Cascade.AbstractStage.ActorTask;
+import com.mackenziehigh.cascade.Cascade.ArrayBlockingQueueMailbox;
+import com.mackenziehigh.cascade.Cascade.ArrayDequeMailbox;
+import com.mackenziehigh.cascade.Cascade.LinkedBlockingQueueMailbox;
+import com.mackenziehigh.cascade.Cascade.PriorityBlockingQueueMailbox;
 import com.mackenziehigh.cascade.Cascade.Stage;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.ConsumerScript;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.FunctionScript;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.Mailbox;
 import java.lang.reflect.Field;
 import java.util.AbstractMap;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -31,18 +35,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
@@ -113,6 +113,186 @@ public final class CascadeTest
     }
 
     /**
+     * Test: 20190428003635593065
+     *
+     * <p>
+     * Class: <code>ConcurrentLinkedQueueMailbox</code>
+     * </p>
+     *
+     * <p>
+     * Case: Basic Functionality.
+     * </p>
+     */
+    @Test
+    public void test20190428003635593065 ()
+    {
+        final Mailbox<String> mailbox = Cascade.ConcurrentLinkedQueueMailbox.create();
+        assertNull(mailbox.poll());
+        assertTrue(mailbox.offer("A"));
+        assertTrue(mailbox.offer("B"));
+        assertTrue(mailbox.offer("C"));
+        assertEquals("A", mailbox.poll());
+        assertEquals("B", mailbox.poll());
+        assertEquals("C", mailbox.poll());
+        assertNull(mailbox.poll());
+    }
+
+    /**
+     * Test: 20190428003635593065
+     *
+     * <p>
+     * Class: <code>LinkedBlockingQueueMailbox</code>
+     * </p>
+     *
+     * <p>
+     * Case: Basic Functionality.
+     * </p>
+     */
+    @Test
+    public void test20190428003808056212 ()
+    {
+        final Mailbox<String> mailbox1 = LinkedBlockingQueueMailbox.create();
+        assertNull(mailbox1.poll());
+        assertTrue(mailbox1.offer("A"));
+        assertTrue(mailbox1.offer("B"));
+        assertTrue(mailbox1.offer("C"));
+        assertEquals("A", mailbox1.poll());
+        assertEquals("B", mailbox1.poll());
+        assertEquals("C", mailbox1.poll());
+        assertNull(mailbox1.poll());
+
+        final Mailbox<String> mailbox2 = LinkedBlockingQueueMailbox.create(3);
+        assertNull(mailbox2.poll());
+        assertTrue(mailbox2.offer("A"));
+        assertTrue(mailbox2.offer("B"));
+        assertTrue(mailbox2.offer("C"));
+        assertFalse(mailbox2.offer("D"));
+        assertFalse(mailbox2.offer("E"));
+        assertEquals("A", mailbox2.poll());
+        assertEquals("B", mailbox2.poll());
+        assertEquals("C", mailbox2.poll());
+        assertNull(mailbox2.poll());
+    }
+
+    /**
+     * Test: 20190428003635593065
+     *
+     * <p>
+     * Class: <code>ArrayBlockingQueueMailbox</code>
+     * </p>
+     *
+     * <p>
+     * Case: Basic Functionality.
+     * </p>
+     */
+    @Test
+    public void test20190428003808056283 ()
+    {
+        final Mailbox<String> mailbox = ArrayBlockingQueueMailbox.create(3);
+        assertNull(mailbox.poll());
+        assertTrue(mailbox.offer("A"));
+        assertTrue(mailbox.offer("B"));
+        assertTrue(mailbox.offer("C"));
+        assertFalse(mailbox.offer("D"));
+        assertFalse(mailbox.offer("E"));
+        assertEquals("A", mailbox.poll());
+        assertEquals("B", mailbox.poll());
+        assertEquals("C", mailbox.poll());
+        assertNull(mailbox.poll());
+    }
+
+    /**
+     * Test: 20190428003635593065
+     *
+     * <p>
+     * Class: <code>ArrayDequeMailbox</code>
+     * </p>
+     *
+     * <p>
+     * Case: Basic Functionality.
+     * </p>
+     */
+    @Test
+    public void test20190428003808056307 ()
+    {
+        final Mailbox<String> mailbox = ArrayDequeMailbox.create(0, 3);
+        assertNull(mailbox.poll());
+        assertTrue(mailbox.offer("A"));
+        assertTrue(mailbox.offer("B"));
+        assertTrue(mailbox.offer("C"));
+        assertFalse(mailbox.offer("D"));
+        assertFalse(mailbox.offer("E"));
+        assertEquals("A", mailbox.poll());
+        assertEquals("B", mailbox.poll());
+        assertEquals("C", mailbox.poll());
+        assertNull(mailbox.poll());
+    }
+
+    /**
+     * Test: 20190428003635593065
+     *
+     * <p>
+     * Class: <code>CircularArrayDequeMailbox</code>
+     * </p>
+     *
+     * <p>
+     * Case: Basic Functionality.
+     * </p>
+     */
+    @Test
+    public void test20190428003808056329 ()
+    {
+        final Mailbox<String> mailbox = Cascade.CircularArrayDequeMailbox.create(0, 3);
+        assertNull(mailbox.poll());
+        assertTrue(mailbox.offer("A"));
+        assertTrue(mailbox.offer("B"));
+        assertTrue(mailbox.offer("C"));
+        assertTrue(mailbox.offer("D"));
+        assertTrue(mailbox.offer("E"));
+        assertEquals("C", mailbox.poll());
+        assertEquals("D", mailbox.poll());
+        assertEquals("E", mailbox.poll());
+        assertNull(mailbox.poll());
+    }
+
+    /**
+     * Test: 20190428003635593065
+     *
+     * <p>
+     * Class: <code>PriorityBlockingQueueMailbox</code>
+     * </p>
+     *
+     * <p>
+     * Case: Basic Functionality.
+     * </p>
+     */
+    @Test
+    public void test20190428003808056347 ()
+    {
+        final Mailbox<String> mailbox = PriorityBlockingQueueMailbox.create(1, String.CASE_INSENSITIVE_ORDER);
+        assertNull(mailbox.poll());
+        assertTrue(mailbox.offer("A"));
+        assertTrue(mailbox.offer("X"));
+        assertTrue(mailbox.offer("B"));
+        assertTrue(mailbox.offer("Y"));
+        assertTrue(mailbox.offer("C"));
+        assertTrue(mailbox.offer("Z"));
+        assertTrue(mailbox.offer("D"));
+        assertTrue(mailbox.offer("X"));
+        assertTrue(mailbox.offer("E"));
+        assertEquals("A", mailbox.poll());
+        assertEquals("B", mailbox.poll());
+        assertEquals("C", mailbox.poll());
+        assertEquals("D", mailbox.poll());
+        assertEquals("E", mailbox.poll());
+        assertEquals("X", mailbox.poll());
+        assertEquals("X", mailbox.poll());
+        assertEquals("Y", mailbox.poll());
+        assertEquals("Z", mailbox.poll());
+        assertNull(mailbox.poll());
+    }
+
+    /**
      * Test: 20180826010008846278
      *
      * <p>
@@ -152,10 +332,10 @@ public final class CascadeTest
         final FunctionScript<Integer, Integer> exprScript = (Integer x) -> (x % 3 == 0) ? null : x;
         final ConsumerScript<Integer> sinkScript = (Integer x) -> results1.add(x);
         final ConsumerScript<Integer> bugScript = (Integer x) -> results2.add(x);
-        final Actor<Integer, Integer> source = stage.newActor().withScript(sourceScript).create();
-        final Actor<Integer, Integer> expr = stage.newActor().withScript(exprScript).create();
-        final Actor<Integer, Integer> sink = stage.newActor().withScript(sinkScript).create();
-        final Actor<Integer, Integer> bug = stage.newActor().withScript(bugScript).create();
+        final Actor<Integer, Integer> source = stage.newActor().withFunctionScript(sourceScript).create();
+        final Actor<Integer, Integer> expr = stage.newActor().withFunctionScript(exprScript).create();
+        final Actor<Integer, Integer> sink = stage.newActor().withConsumerScript(sinkScript).create();
+        final Actor<Integer, Integer> bug = stage.newActor().withConsumerScript(bugScript).create();
         source.output().connect(expr.input());
         expr.output().connect(sink.input());
         sink.output().connect(bug.input());
@@ -163,7 +343,7 @@ public final class CascadeTest
         /**
          * Send ten messages through the network of actors.
          */
-        IntStream.rangeClosed(1, 10).forEach(i -> source.accept(i));
+        IntStream.rangeClosed(1, 10).forEach(i -> source.context().sendTo(i));
 
         /**
          * Apply power, so the actors act.
@@ -185,7 +365,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Case: Defaults.
+     * Case: By default, the actor will use a ConcurrentLinkedQueue to store inputs.
      * </p>
      *
      * @throws java.lang.Throwable
@@ -196,15 +376,51 @@ public final class CascadeTest
     {
         final Actor<Object, Object> actor = stage.newActor().create();
 
-        /**
-         * By default, the actor will use a ConcurrentLinkedQueue to store inputs.
-         */
-        assertTrue(getField(actor, "mailbox", Queue.class) instanceof ConcurrentLinkedQueue);
+        assertEquals(Cascade.ConcurrentLinkedQueueMailbox.class, getField(actor, "mailbox", Mailbox.class).getClass());
+    }
+
+    /**
+     * Test: 20190427204049214123
+     *
+     * <p>
+     * Class: <code>Builder</code>
+     * </p>
+     *
+     * <p>
+     * Case: By default, the actor will use a script that does not forward messages.
+     * </p>
+     */
+    @Test
+    public void test20190427204049214123 ()
+    {
+        final Queue<Object> queue = new LinkedBlockingQueue<>();
 
         /**
-         * By default, the actor will use a script that always returns null.
+         * This is the actor under test.
          */
-        assertNull(getField(actor, "script", FunctionScript.class).execute(100));
+        final Actor<Object, Object> actor1 = stage.newActor().create();
+
+        /**
+         * If this actor does not receive any outputs from the previous actor,
+         * then the script did not forward any messages.
+         */
+        final Actor<Object, Object> actor2 = stage.newActor().withConsumerScript(x -> queue.add(x)).create();
+        actor1.output().connect(actor2.input());
+
+        /**
+         * Run Test.
+         */
+        actor2.input().offer("A");
+        stage.crank();
+        actor1.input().offer("B");
+        stage.crank();
+        actor2.input().offer("C");
+        stage.crank();
+
+        assertEquals(2, queue.size());
+        assertTrue(queue.contains("A"));
+        assertFalse(queue.contains("B"));
+        assertTrue(queue.contains("C"));
     }
 
     /**
@@ -245,7 +461,7 @@ public final class CascadeTest
          */
         final Actor<Integer, Integer> actor = stage
                 .newActor()
-                .withScript((Integer x) -> x / 0) // div by zero
+                .withFunctionScript((Integer x) -> x / 0) // div by zero
                 .withErrorHandler(ex -> errors2.add(ex))
                 .create();
 
@@ -301,7 +517,7 @@ public final class CascadeTest
          */
         final Actor<Integer, Integer> actor = stage
                 .newActor()
-                .withScript((Integer x) -> (x / x) * x) // potential div by zero
+                .withFunctionScript((Integer x) -> (x / x) * x) // potential div by zero
                 .withErrorHandler(ex -> System.out.println(1 / 0)) // another div by zero
                 .create();
 
@@ -310,7 +526,7 @@ public final class CascadeTest
          * unless the previous actor experienced an exception.
          */
         final List<Integer> results = new LinkedList<>();
-        final Actor<Integer, ?> sink = stage.newActor().withScript((Integer x) -> results.add(x)).create();
+        final Actor<Integer, ?> sink = stage.newActor().withFunctionScript((Integer x) -> results.add(x)).create();
         actor.output().connect(sink.input());
 
         /**
@@ -366,7 +582,7 @@ public final class CascadeTest
          */
         final Actor<Integer, Integer> actor = stage
                 .newActor()
-                .withScript((Integer x) -> x / 0) // div by zero
+                .withFunctionScript((Integer x) -> x / 0) // div by zero
                 .create();
 
         /**
@@ -415,7 +631,7 @@ public final class CascadeTest
          */
         final Actor<Integer, Integer> actor = stage
                 .newActor()
-                .withScript((Integer x) -> (x / x) * x) // potential div by zero
+                .withFunctionScript((Integer x) -> (x / x) * x) // potential div by zero
                 .create();
 
         /**
@@ -423,7 +639,7 @@ public final class CascadeTest
          * unless the previous actor experienced an exception.
          */
         final List<Integer> results = new LinkedList<>();
-        final Actor<Integer, ?> sink = stage.newActor().withScript((Integer x) -> results.add(x)).create();
+        final Actor<Integer, ?> sink = stage.newActor().withFunctionScript((Integer x) -> results.add(x)).create();
         actor.output().connect(sink.input());
 
         /**
@@ -441,66 +657,69 @@ public final class CascadeTest
     }
 
     /**
-     * Test: 20180908014307646248
+     * Test: 20180826010008846278
      *
      * <p>
      * Class: <code>Builder</code>
      * </p>
      *
      * <p>
-     * Method: <code>withInflowQueue(Queue)</code>
+     * Method: <code>withCircularArrayMailbox(int)</code>
      * </p>
      *
      * <p>
-     * Case: Non-Thread-Safe Array-Deque.
+     * Case: The mailbox serves as a ring-buffer.
      * </p>
+     *
+     * @throws java.lang.Exception
      */
-    @Test (expected = IllegalArgumentException.class)
-    public void test20180908014307646248 ()
+    @Test
+    public void test20190427214843891381 ()
+            throws Exception
     {
-        stage.newActor().withInflowQueue(new ArrayDeque<>());
-    }
+        final List<String> log = new ArrayList<>();
 
-    /**
-     * Test: 20180908014307646316
-     *
-     * <p>
-     * Class: <code>Builder</code>
-     * </p>
-     *
-     * <p>
-     * Method: <code>withInflowQueue(Queue)</code>
-     * </p>
-     *
-     * <p>
-     * Case: Non-Thread-Safe Linked-List.
-     * </p>
-     */
-    @Test (expected = IllegalArgumentException.class)
-    public void test20180908014307646316 ()
-    {
-        stage.newActor().withInflowQueue(new LinkedList<>());
-    }
+        final Mailbox<String> mailbox = Cascade.CircularArrayDequeMailbox.create(0, 3);
+        final Queue<String> mailQueue = getField(mailbox, "queue", Queue.class);
 
-    /**
-     * Test: 20180908014307646340
-     *
-     * <p>
-     * Class: <code>Builder</code>
-     * </p>
-     *
-     * <p>
-     * Method: <code>withInflowQueue(Queue)</code>
-     * </p>
-     *
-     * <p>
-     * Case: Non-Thread-Safe Priority-Queue.
-     * </p>
-     */
-    @Test (expected = IllegalArgumentException.class)
-    public void test20180908014307646340 ()
-    {
-        stage.newActor().withInflowQueue(new PriorityQueue<>());
+        final Actor<String, Boolean> actor = stage
+                .newActor()
+                .withFunctionScript((String x) -> log.add(x))
+                .withMailbox(mailbox)
+                .create();
+
+        assertSame(mailbox, getField(actor, "mailbox", Mailbox.class));
+
+        assertTrue(mailQueue.isEmpty());
+
+        assertTrue(actor.input().offer("A"));
+        assertTrue(actor.input().offer("B"));
+        assertTrue(actor.input().offer("C"));
+        assertTrue(actor.input().offer("D"));
+        assertTrue(actor.input().offer("E"));
+
+        assertEquals(3, mailQueue.size());
+        assertTrue(mailQueue.contains("C"));
+        assertTrue(mailQueue.contains("D"));
+        assertTrue(mailQueue.contains("E"));
+        assertEquals(0, log.size());
+
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+
+        assertTrue(mailQueue.isEmpty());
+        assertEquals(3, log.size());
+        assertEquals("C", log.get(0));
+        assertEquals("D", log.get(1));
+        assertEquals("E", log.get(2));
     }
 
     /**
@@ -511,25 +730,57 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withInflowQueue(Queue)</code>
+     * Method: <code>withArrayDequeMailbox(int)</code>
+     * </p>
+     *
+     * <p>
+     * Case: Capacity Overflow.
      * </p>
      *
      * @throws java.lang.Exception
      */
     @Test
-    public void test20180826232927857343 ()
+    public void test20190427211309547456 ()
             throws Exception
     {
-        final Queue<String> queue = new SynchronousQueue<>();
+        final List<String> log = new ArrayList<>();
 
-        final Actor<String, String> actor = stage
+        final Mailbox<String> mailbox = ArrayDequeMailbox.create(0, 3);
+        final Queue<String> mailQueue = getField(mailbox, "queue", Queue.class);
+
+        final Actor<String, Boolean> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
-                .withInflowQueue(queue)
+                .withFunctionScript((String x) -> log.add(x))
+                .withMailbox(mailbox)
                 .create();
 
-        // Identity Equality
-        assertTrue(queue == getField(actor, "mailbox", Queue.class));
+        assertSame(mailbox, getField(actor, "mailbox", Mailbox.class));
+
+        assertTrue(mailQueue.isEmpty());
+
+        assertTrue(actor.input().offer("A"));
+        assertTrue(actor.input().offer("B"));
+        assertTrue(actor.input().offer("C"));
+        assertFalse(actor.input().offer("D"));
+        assertFalse(actor.input().offer("E"));
+
+        assertEquals(3, mailQueue.size());
+        assertTrue(mailQueue.contains("A"));
+        assertTrue(mailQueue.contains("B"));
+        assertTrue(mailQueue.contains("C"));
+        assertEquals(0, log.size());
+
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+
+        assertEquals(0, mailQueue.size());
+        assertEquals(3, log.size());
+        assertEquals("A", log.get(0));
+        assertEquals("B", log.get(1));
+        assertEquals("C", log.get(2));
     }
 
     /**
@@ -540,111 +791,117 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withConcurrentInflowQueue()</code>
+     * Method: <code>withLinkedBlockingQueueMailbox(int)</code>
+     * </p>
+     *
+     * <p>
+     * Case: Capacity Overflow.
      * </p>
      *
      * @throws java.lang.Exception
      */
     @Test
-    public void test20180826232927857371 ()
+    public void test20190427211116986712 ()
             throws Exception
     {
-        final Actor<String, String> actor = stage
+        final List<String> log = new ArrayList<>();
+
+        final Mailbox<String> mailbox = LinkedBlockingQueueMailbox.create(3);
+        final Queue<String> mailQueue = getField(mailbox, "queue", Queue.class);
+
+        final Actor<String, Boolean> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
-                .withConcurrentInflowQueue()
+                .withFunctionScript((String x) -> log.add(x))
+                .withMailbox(mailbox)
                 .create();
 
-        final ConcurrentLinkedQueue<String> queue = getField(actor, "mailbox", ConcurrentLinkedQueue.class);
+        assertSame(mailbox, getField(actor, "mailbox", Mailbox.class));
+
+        assertTrue(mailQueue.isEmpty());
+
+        assertTrue(actor.input().offer("A"));
+        assertTrue(actor.input().offer("B"));
+        assertTrue(actor.input().offer("C"));
+        assertFalse(actor.input().offer("D"));
+        assertFalse(actor.input().offer("E"));
+
+        assertEquals(3, mailQueue.size());
+        assertTrue(mailQueue.contains("A"));
+        assertTrue(mailQueue.contains("B"));
+        assertTrue(mailQueue.contains("C"));
+        assertEquals(0, log.size());
+
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+
+        assertEquals(0, mailQueue.size());
+        assertEquals(3, log.size());
+        assertEquals("A", log.get(0));
+        assertEquals("B", log.get(1));
+        assertEquals("C", log.get(2));
+    }
+
+    /**
+     * Test: 20180826010008846278
+     *
+     * <p>
+     * Class: <code>Builder</code>
+     * </p>
+     *
+     * <p>
+     * Method: <code>withArrayBlockingQueueMailbox(int)</code>
+     * </p>
+     *
+     * <p>
+     * Case: Capacity Overflow.
+     * </p>
+     *
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void test20190427210552304276 ()
+            throws Exception
+    {
+        final List<String> log = new ArrayList<>();
+
+        final Mailbox<String> mailbox = ArrayBlockingQueueMailbox.create(3);
+        final Queue<String> queue = getField(mailbox, "queue", Queue.class);
+
+        final Actor<String, Boolean> actor = stage
+                .newActor()
+                .withFunctionScript((String x) -> log.add(x))
+                .withMailbox(mailbox)
+                .create();
+
+        assertSame(mailbox, getField(actor, "mailbox", Mailbox.class));
+
+        assertTrue(queue.isEmpty());
+        assertTrue(actor.input().offer("A"));
+        assertTrue(actor.input().offer("B"));
+        assertTrue(actor.input().offer("C"));
+        assertFalse(actor.input().offer("D"));
+        assertFalse(actor.input().offer("E"));
+
+        assertEquals(3, queue.size());
+        assertTrue(queue.contains("A"));
+        assertTrue(queue.contains("B"));
+        assertTrue(queue.contains("C"));
+        assertEquals(0, log.size());
+
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+        stage.crank();
+
         assertEquals(0, queue.size());
-    }
-
-    /**
-     * Test: 20180826010008846278
-     *
-     * <p>
-     * Class: <code>Builder</code>
-     * </p>
-     *
-     * <p>
-     * Method: <code>withLinkedInflowQueue()</code>
-     * </p>
-     *
-     * @throws java.lang.Exception
-     */
-    @Test
-    public void test20180826232927857400 ()
-            throws Exception
-    {
-        final Actor<String, String> actor = stage
-                .newActor()
-                .withScript((String x) -> x)
-                .withLinkedInflowQueue()
-                .create();
-
-        final LinkedBlockingQueue<String> queue = getField(actor, "mailbox", LinkedBlockingQueue.class);
-        assertEquals(0, queue.size());
-        assertEquals(Integer.MAX_VALUE, queue.remainingCapacity());
-    }
-
-    /**
-     * Test: 20180826010008846278
-     *
-     * <p>
-     * Class: <code>Builder</code>
-     * </p>
-     *
-     * <p>
-     * Method: <code>withLinkedInflowQueue(int)</code>
-     * </p>
-     *
-     * @throws java.lang.Exception
-     */
-    @Test
-    public void test20180826234257533692 ()
-            throws Exception
-    {
-        final int capacity = 109;
-
-        final Actor<String, String> actor = stage
-                .newActor()
-                .withScript((String x) -> x)
-                .withLinkedInflowQueue(capacity)
-                .create();
-
-        final LinkedBlockingQueue<String> queue = getField(actor, "mailbox", LinkedBlockingQueue.class);
-        assertEquals(0, queue.size());
-        assertEquals(capacity, queue.remainingCapacity());
-    }
-
-    /**
-     * Test: 20180826010008846278
-     *
-     * <p>
-     * Class: <code>Builder</code>
-     * </p>
-     *
-     * <p>
-     * Method: <code>withArrayInflowQueue(int)</code>
-     * </p>
-     *
-     * @throws java.lang.Exception
-     */
-    @Test
-    public void test20180826234257533759 ()
-            throws Exception
-    {
-        final int capacity = 109;
-
-        final Actor<String, String> actor = stage
-                .newActor()
-                .withScript((String x) -> x)
-                .withArrayInflowQueue(capacity)
-                .create();
-
-        final ArrayBlockingQueue<String> queue = getField(actor, "mailbox", ArrayBlockingQueue.class);
-        assertEquals(0, queue.size());
-        assertEquals(capacity, queue.remainingCapacity());
+        assertEquals(3, log.size());
+        assertEquals("A", log.get(0));
+        assertEquals("B", log.get(1));
+        assertEquals("C", log.get(2));
     }
 
     /**
@@ -663,7 +920,7 @@ public final class CascadeTest
     {
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         assertEquals(actor, actor.input().actor());
@@ -685,17 +942,17 @@ public final class CascadeTest
     {
         final Actor<String, String> actor1 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor2 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor3 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -733,17 +990,17 @@ public final class CascadeTest
     {
         final Actor<String, String> actor1 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor2 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor3 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -790,23 +1047,27 @@ public final class CascadeTest
     {
         final List<String> log = new ArrayList<>();
 
+        final Mailbox<String> mailbox = ArrayBlockingQueueMailbox.create(3);
+        final Queue<String> mailQueue = getField(mailbox, "queue", Queue.class);
+
         final Actor<String, Boolean> actor = stage
                 .newActor()
-                .withScript((String x) -> log.add(x))
+                .withFunctionScript((String x) -> log.add(x))
+                .withMailbox(mailbox)
                 .create();
 
-        final Queue<String> mailbox = getField(actor, "mailbox", Queue.class);
+        assertSame(mailbox, getField(actor, "mailbox", Mailbox.class));
 
-        assertTrue(mailbox.isEmpty());
+        assertTrue(mailQueue.isEmpty());
 
         assertEquals(actor.input(), actor.input().send("A"));
         assertEquals(actor.input(), actor.input().send("B"));
         assertEquals(actor.input(), actor.input().send("C"));
 
-        assertEquals(3, mailbox.size());
-        assertTrue(mailbox.contains("A"));
-        assertTrue(mailbox.contains("B"));
-        assertTrue(mailbox.contains("C"));
+        assertEquals(3, mailQueue.size());
+        assertTrue(mailQueue.contains("A"));
+        assertTrue(mailQueue.contains("B"));
+        assertTrue(mailQueue.contains("C"));
         assertEquals(0, log.size());
 
         stage.crank();
@@ -817,6 +1078,58 @@ public final class CascadeTest
         assertTrue(log.contains("A"));
         assertTrue(log.contains("B"));
         assertTrue(log.contains("C"));
+    }
+
+    /**
+     * Test: 20190428010710826349
+     *
+     * <p>
+     * Class: <code>Output</code>
+     * </p>
+     *
+     * <p>
+     * Case: Connection and Disconnection.
+     * </p>
+     */
+    @Test
+    public void test20190428010710826349 ()
+    {
+        final Actor<Object, Object> actor1 = stage.newActor().create();
+        final Actor<Object, Object> actor2 = stage.newActor().create();
+
+        /**
+         * Not connected.
+         */
+        assertFalse(actor1.output().isConnected(actor2.input()));
+        assertFalse(actor2.input().isConnected(actor1.output()));
+
+        /**
+         * Connect.
+         */
+        actor1.output().connect(actor2.input());
+        assertTrue(actor1.output().isConnected(actor2.input()));
+        assertTrue(actor2.input().isConnected(actor1.output()));
+
+        /**
+         * Connect (ignored).
+         */
+        actor1.output().connect(actor2.input());
+        assertTrue(actor1.output().isConnected(actor2.input()));
+        assertTrue(actor2.input().isConnected(actor1.output()));
+
+        /**
+         * Disconnect.
+         */
+        actor1.output().disconnect(actor2.input());
+        assertFalse(actor1.output().isConnected(actor2.input()));
+        assertFalse(actor2.input().isConnected(actor1.output()));
+
+        /**
+         * Disconnect (ignored).
+         */
+        actor1.output().disconnect(actor2.input());
+        assertFalse(actor1.output().isConnected(actor2.input()));
+        assertFalse(actor2.input().isConnected(actor1.output()));
     }
 
     /**
@@ -838,33 +1151,35 @@ public final class CascadeTest
     {
         final List<String> log = new ArrayList<>();
 
+        final Mailbox<String> mailbox = LinkedBlockingQueueMailbox.create(3);
+        final Queue<String> mailQueue = getField(mailbox, "queue", Queue.class);
+
         final Actor<String, Boolean> actor = stage
                 .newActor()
-                .withLinkedInflowQueue(3)
-                .withScript((String x) -> log.add(x))
+                .withFunctionScript((String x) -> log.add(x))
+                .withMailbox(mailbox)
                 .create();
 
-        final Queue<String> mailbox = getField(actor, "mailbox", Queue.class);
+        assertSame(mailbox, getField(actor, "mailbox", Mailbox.class));
 
-        assertTrue(mailbox.isEmpty());
-
+        assertTrue(mailQueue.isEmpty());
         assertTrue(actor.input().offer("A"));
         assertTrue(actor.input().offer("B"));
         assertTrue(actor.input().offer("C"));
         assertFalse(actor.input().offer("D"));
         assertFalse(actor.input().offer("E"));
 
-        assertEquals(3, mailbox.size());
-        assertTrue(mailbox.contains("A"));
-        assertTrue(mailbox.contains("B"));
-        assertTrue(mailbox.contains("C"));
+        assertEquals(3, mailQueue.size());
+        assertTrue(mailQueue.contains("A"));
+        assertTrue(mailQueue.contains("B"));
+        assertTrue(mailQueue.contains("C"));
         assertEquals(0, log.size());
 
         stage.crank();
         stage.crank();
         stage.crank();
 
-        assertEquals(0, mailbox.size());
+        assertEquals(0, mailQueue.size());
         assertEquals(3, log.size());
         assertTrue(log.contains("A"));
         assertTrue(log.contains("B"));
@@ -885,25 +1200,25 @@ public final class CascadeTest
 
         final Actor<String, String> actor1 = stage
                 .newActor()
-                .withScript((String x) -> String.format("(X %s)", x))
+                .withFunctionScript((String x) -> String.format("(X %s)", x))
                 .create();
 
         final Actor<String, String> actor2 = stage
                 .newActor()
-                .withScript((String y) -> String.format("(Y %s)", y))
+                .withFunctionScript((String y) -> String.format("(Y %s)", y))
                 .create();
 
         final Actor<String, Boolean> actor3 = stage
                 .newActor()
-                .withScript((String z) -> log.add(String.format("(Z %s)", z)))
+                .withFunctionScript((String z) -> log.add(String.format("(Z %s)", z)))
                 .create();
 
         actor1.output().connect(actor2.input());
         actor2.output().connect(actor3.input());
 
-        actor1.accept("A");
-        actor1.accept("B");
-        actor1.accept("C");
+        actor1.input().send("A");
+        actor1.input().send("B");
+        actor1.input().send("C");
 
         for (int i = 0; i < 100; i++)
         {
@@ -932,7 +1247,7 @@ public final class CascadeTest
     {
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         assertEquals(actor, actor.output().actor());
@@ -954,17 +1269,17 @@ public final class CascadeTest
     {
         final Actor<String, String> actor1 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor2 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor3 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -1006,17 +1321,17 @@ public final class CascadeTest
     {
         final Actor<String, String> actor1 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor2 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor3 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -1064,17 +1379,17 @@ public final class CascadeTest
     {
         final Actor<String, String> actor1 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor2 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         final Actor<String, String> actor3 = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -1112,7 +1427,7 @@ public final class CascadeTest
     {
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -1138,7 +1453,7 @@ public final class CascadeTest
     {
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -1164,7 +1479,7 @@ public final class CascadeTest
     {
         final Actor<String, String> actor = stage
                 .newActor()
-                .withScript((String x) -> x)
+                .withFunctionScript((String x) -> x)
                 .create();
 
         /**
@@ -1196,7 +1511,7 @@ public final class CascadeTest
         /**
          * Create an actor.
          */
-        final Actor<Integer, Integer> actor = stage.newActor().withScript((Integer x) -> x).create();
+        final Actor<Integer, Integer> actor = stage.newActor().withFunctionScript((Integer x) -> x).create();
 
         /**
          * Send ten messages through the actor.
@@ -1205,7 +1520,7 @@ public final class CascadeTest
          * The counter is stored in the "meta" slot contained in the actor object.
          * The usage of the "meta" slot is what we are trying to test here.
          */
-        IntStream.rangeClosed(1, 10).forEach(i -> actor.accept(i));
+        IntStream.rangeClosed(1, 10).forEach(i -> actor.input().send(i));
         IntStream.rangeClosed(1, 10).forEach(i -> stage.crank());
 
         /**
@@ -1279,31 +1594,10 @@ public final class CascadeTest
             throws InterruptedException
     {
         final ExecutorService service = Executors.newFixedThreadPool(4);
-        final Stage stageToTest = Cascade.newExecutorStage(service);
+        final Stage stageToTest = Cascade.newStage(service);
         assertFalse(service.isShutdown());
         testStage(stageToTest);
         assertTrue(service.isShutdown());
-    }
-
-    /**
-     * Test: 20180908003928729787
-     *
-     * <p>
-     * Method: <code>newFixedPoolStage(int)</code>
-     * </p>
-     *
-     * <p>
-     * Case: Throughput.
-     * </p>
-     *
-     * @throws java.lang.InterruptedException
-     */
-    @Test
-    public void test20180908003928729787 ()
-            throws InterruptedException
-    {
-        final Stage stageToTest = Cascade.newFixedPoolStage(4);
-        testStage(stageToTest);
     }
 
     /**
@@ -1372,11 +1666,11 @@ public final class CascadeTest
          * The term-actor decrements the latch that prevents the unit-test
          * thread from exiting this method before the test is complete.
          */
-        final Actor<Integer, Integer> source = stageToTest.newActor().withScript((Integer x) -> x).create();
-        final Actor<Integer, Integer> square = stageToTest.newActor().withScript((Integer x) -> 10301 + (x * x)).create();
-        final Actor<Integer, Integer> cube = stageToTest.newActor().withScript((Integer x) -> 12421 + (x * x * x)).create();
-        final Actor<Integer, Boolean> sink = stageToTest.newActor().withScript((Integer x) -> results.add(x)).create();
-        final Actor<Boolean, Boolean> term = stageToTest.newActor().withScript((Boolean x) -> permits.countDown()).create();
+        final Actor<Integer, Integer> source = stageToTest.newActor().withFunctionScript((Integer x) -> x).create();
+        final Actor<Integer, Integer> square = stageToTest.newActor().withFunctionScript((Integer x) -> 10301 + (x * x)).create();
+        final Actor<Integer, Integer> cube = stageToTest.newActor().withFunctionScript((Integer x) -> 12421 + (x * x * x)).create();
+        final Actor<Integer, Boolean> sink = stageToTest.newActor().withFunctionScript((Integer x) -> results.add(x)).create();
+        final Actor<Boolean, Boolean> term = stageToTest.newActor().withConsumerScript((Boolean x) -> permits.countDown()).create();
         source.output().connect(square.input());
         source.output().connect(cube.input());
         square.output().connect(sink.input());
