@@ -1262,7 +1262,7 @@ public interface Cascade
             @Override
             protected void onSubmit (final AbstractStage.ActorTask task)
             {
-                service.submit(task);
+                service.execute(task);
             }
 
             @Override
