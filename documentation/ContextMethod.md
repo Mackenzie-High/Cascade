@@ -52,7 +52,7 @@ public final class Example
 }
 ```
 
-**Example Output***
+**Output:**
 
 ```
 sqrt = 4.123105625617661
