@@ -1,9 +1,9 @@
-## Consumer Method
+# Consumer Method
 
-**Code**
+**Code:**
 
 ```java
-package com.mackenziehigh.dev;
+package examples;
 
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.Cascade.Stage;
@@ -20,28 +20,34 @@ public final class Example
     private void demo ()
     {
         // Create a single-threaded stage.
-        final Stage stage = Cascade.newStage(1);
+        final Stage stage = Cascade.newStage();
 
-        // Create the actors.
-        final Actor<String, String> actor = stage
+        // Create the actor.
+        final Actor<String, String> root = stage
                 .newActor()
-                .withConsumerScript(this::actor)
+                .withConsumerScript(this::script)
                 .create();
 
-        actor.input().send("Hello");
-        actor.input().send("Goodbye");
+        // Send a message to the actor.
+        root.input().send("Mercury");
+        root.input().send("Venus");
+        root.input().send("Earth");
+        root.input().send("Mars");
     }
 
-    private void actor (final String message)
+    private void script (final String input)
+            throws Throwable
     {
-        System.out.println("Say " + message);
+        System.out.println("Hello " + input);
     }
 }
 ```
 
-**Example Output**
+**Output:**
 
 ```
-Say Hello
-Say Goodbye
+Hello Mercury
+Hello Venus
+Hello Earth
+Hello Mars
 ```
