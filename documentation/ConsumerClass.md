@@ -1,4 +1,4 @@
-# Example - Class-based Context Script
+# Example - Class based Context Script
 
 **Code:**
 
