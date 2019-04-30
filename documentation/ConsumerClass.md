@@ -51,7 +51,7 @@ public final class Example
 }
 ```
 
-**Example Output***
+**Output:**
 
 ```
 Hello Mercury
