@@ -1,6 +1,6 @@
 # Example - Method based Function Script
 
-**Code**
+**Code:**
 
 ```java
 package examples;
@@ -50,7 +50,7 @@ public final class Example
 }
 ```
 
-**Example Output***
+**Output:**
 
 ```
 sqrt = 4.123105625617661
