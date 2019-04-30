@@ -42,7 +42,7 @@ public final class Example
         actor.input().send(17);
     }
 
-    public Double script (final Integer input)
+    private Double script (final Integer input)
             throws Throwable
     {
         return Math.sqrt(input);
