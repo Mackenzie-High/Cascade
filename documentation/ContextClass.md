@@ -1,15 +1,13 @@
-## Context Class
+# Example - Class based Context Script
 
-**Code**
+**Code:**
 
 ```java
-package com.mackenziehigh.dev;
+package examples;
 
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.Cascade.Stage;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor;
-import com.mackenziehigh.cascade.Cascade.Stage.Actor.Context;
-import java.math.BigInteger;
 
 public final class Example
 {
@@ -22,60 +20,48 @@ public final class Example
     private void demo ()
     {
         // Create a single-threaded stage.
-        final Stage stage = Cascade.newStage(1);
+        final Stage stage = Cascade.newStage();
 
-        // Create the actors.
-        final Actor<Integer, Integer> actor = stage
+        // Create the actor that is being demonstrated.
+        final Actor<Integer, Double> actor = stage
                 .newActor()
-                .withContextScript(new PrimeFinder())
+                .withContextScript(new CustomScript())
                 .create();
 
-        final Actor<Integer, Integer> printer = stage
+        // Create an actor that merely prints the messages
+        // that the previous actor produced.
+        final Actor<Double, Double> printer = stage
                 .newActor()
-                .withConsumerScript((Integer x) -> System.out.println(x))
+                .withConsumerScript((Double msg) -> System.out.println("sqrt = " + msg))
                 .create();
 
-        // Connect the network: actor -> printer.
+        // Connect the actors to form a pipeline.
         actor.output().connect(printer.input());
 
-        // Send messages through the network.
-        actor.input().send(10);
-        actor.input().send(20);
+        // Send a message through the pipeline.
+        actor.input().send(17);
     }
 
-    private static final class PrimeFinder
-            implements Actor.ContextScript<Integer, Integer>
+    /**
+     * An instance of this script defines how the actor will behave.
+     */
+    private static final class CustomScript
+            implements Actor.ContextScript<Integer, Double>
     {
-
         @Override
-        public void execute (final Context<Integer, Integer> context,
+        public void execute (final Actor.Context<Integer, Double> context,
                              final Integer input)
+                throws Throwable
         {
-            for (int i = 0; i < input; i++)
-            {
-                if (BigInteger.valueOf(i).isProbablePrime(100))
-                {
-                    context.sendFrom(i);
-                }
-            }
+            final double root = Math.sqrt(input);
+            context.sendFrom(root); // To Next Actor
         }
     }
 }
 ```
 
-**Example Output***
+**Output:**
 
 ```
-2
-3
-5
-7
-2
-3
-5
-7
-11
-13
-17
-19
+sqrt = 4.123105625617661
 ```
