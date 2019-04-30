@@ -20,7 +20,6 @@ Actors can be connected to one another by connecting their input/output connecto
 * [Single Actor](documentation/SingleActor.md)
 * [Network of Actors - Pipeline](documentation/Pipeline.md)  
 * [Network of Actors - Tree](documentation/Tree.md)
-* [Stateful Actors - Fibonacci](documentation/ScatterGather.md)
 
 **Consumer Script based Actors:**
 * [Actor defined using a Class](documentation/ConsumerClass.md)
