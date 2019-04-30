@@ -1,9 +1,9 @@
-## Function Method 
+# Example - Method based Function Script
 
 **Code**
 
 ```java
-package com.mackenziehigh.dev;
+package examples;
 
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.Cascade.Stage;
@@ -20,31 +20,32 @@ public final class Example
     private void demo ()
     {
         // Create a single-threaded stage.
-        final Stage stage = Cascade.newStage(1);
+        final Stage stage = Cascade.newStage();
 
-        // Create the actors.
-        final Actor<Integer, Integer> actor = stage
+        // Create the actor that is being demonstrated.
+        final Actor<Integer, Double> actor = stage
                 .newActor()
-                .withFunctionScript(this::actor)
+                .withFunctionScript(this::script)
                 .create();
 
-        final Actor<Integer, Integer> printer = stage
+        // Create an actor that merely prints the messages
+        // that the previous actor produced.
+        final Actor<Double, Double> printer = stage
                 .newActor()
-                .withConsumerScript((Integer x) -> System.out.println(x))
+                .withConsumerScript((Double msg) -> System.out.println("sqrt = " + msg))
                 .create();
 
-        // Connect the network: actor -> printer
+        // Connect the actors to form a pipeline.
         actor.output().connect(printer.input());
 
-        // Send messages through the network.
-        actor.input().send(2);
-        actor.input().send(3);
-        actor.input().send(5);
+        // Send a message through the pipeline.
+        actor.input().send(17);
     }
 
-    private Integer actor (final Integer message)
+    public Double script (final Integer input)
+            throws Throwable
     {
-        return 2 * message;
+        return Math.sqrt(input);
     }
 }
 ```
@@ -52,7 +53,5 @@ public final class Example
 **Example Output***
 
 ```
-4
-6
-10
+sqrt = 4.123105625617661
 ```
