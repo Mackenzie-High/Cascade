@@ -1,9 +1,9 @@
-## Context Lambda
+# Example - Method based Context Script
 
-**Code**
+**Code:**
 
 ```java
-package com.mackenziehigh.dev;
+package examples;
 
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.Cascade.Stage;
@@ -20,31 +20,34 @@ public final class Example
     private void demo ()
     {
         // Create a single-threaded stage.
-        final Stage stage = Cascade.newStage(1);
+        final Stage stage = Cascade.newStage();
 
-        // Create the actors.
-        final Actor<Integer, String> actor = stage
+        // Create the actor that is being demonstrated.
+        final Actor<Integer, Double> actor = stage
                 .newActor()
-                .withContextScript(this::actor)
+                .withContextScript(this::script)
                 .create();
 
-        final Actor<String, String> printer = stage
+        // Create an actor that merely prints the messages
+        // that the previous actor produced.
+        final Actor<Double, Double> printer = stage
                 .newActor()
-                .withConsumerScript((String x) -> System.out.println(x))
+                .withConsumerScript((Double msg) -> System.out.println("sqrt = " + msg))
                 .create();
 
-        // Connect the network: actor -> printer
+        // Connect the actors to form a pipeline.
         actor.output().connect(printer.input());
 
-        // Send messages through the network.
-        actor.input().send(2);
+        // Send a message through the pipeline.
+        actor.input().send(17);
     }
 
-    private void actor (final Actor.Context<Integer, String> context,
-                        final Integer message)
+    private void script (final Actor.Context<Integer, Double> context,
+                         final Integer input)
+            throws Throwable
     {
-        context.sendFrom(String.format("square(%d) = %d", message, message * message));
-        context.sendFrom(String.format("cube(%d) = %d", message, message * message * message));
+        final double root = Math.sqrt(input);
+        context.sendFrom(root); // To Next Actor
     }
 }
 ```
@@ -52,6 +55,5 @@ public final class Example
 **Example Output***
 
 ```
-square(2) = 4
-cube(2) = 8
+sqrt = 4.123105625617661
 ```
