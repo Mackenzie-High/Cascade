@@ -41,12 +41,6 @@ public final class Example
         // Send a message through the pipeline.
         actor.input().send(17);
     }
-
-    public Double script (final Integer input)
-            throws Throwable
-    {
-        return Math.sqrt(input);
-    }
 }
 ```
 
