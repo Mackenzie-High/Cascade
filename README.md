@@ -24,17 +24,17 @@ Actors can be connected to one another by connecting their input/output connecto
 **Consumer Script based Actors:**
 * [Actor defined using a Class](documentation/ConsumerClass.md)
 * [Actor defined using a Method Reference](documentation/ConsumerMethod.md)
-* [Actor defined using a Lambda Expression](documentation/ConsumerLamda.md)
+* [Actor defined using a Lambda Expression](documentation/ConsumerLambda.md)
 
 **Function Script based Actors:**
 * [Actor defined using a Class](documentation/FunctionClass.md)
 * [Actor defined using a Method Reference](documentation/FunctionMethod.md)
-* [Actor defined using a Lambda Expression](documentation/FunctionLamda.md)
+* [Actor defined using a Lambda Expression](documentation/FunctionLambda.md)
 
 **Context Script based Actors:**
 * [Actor defined using a Class](documentation/ContextClass.md)
 * [Actor defined using a Method Reference](documentation/ContextMethod.md)
-* [Actor defined using a Lambda Expression](documentation/ContextLamda.md)
+* [Actor defined using a Lambda Expression](documentation/ContextLambda.md)
 
 **Advanced Topics:**
 * [Custom Stage](documentation/CustomStage.md)
