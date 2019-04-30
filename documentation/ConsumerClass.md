@@ -1,4 +1,4 @@
-# Example Consumer Class 
+# Example - Actor defined using Class-based Context Script
 
 **Code:**
 
@@ -23,16 +23,16 @@ public final class Example
         final Stage stage = Cascade.newStage();
 
         // Create the actor.
-        final Actor<String, String> root = stage
+        final Actor<String, String> actor = stage
                 .newActor()
                 .withConsumerScript(new CustomScript())
                 .create();
 
         // Send a message to the actor.
-        root.input().send("Mercury");
-        root.input().send("Venus");
-        root.input().send("Earth");
-        root.input().send("Mars");
+        actor.input().send("Mercury");
+        actor.input().send("Venus");
+        actor.input().send("Earth");
+        actor.input().send("Mars");
     }
 
     /**
