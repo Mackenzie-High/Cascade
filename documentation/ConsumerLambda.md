@@ -1,4 +1,4 @@
-Example - Lambda based Consumer Script
+# Example - Lambda based Consumer Script
 
 **Code:**
 
