@@ -1,4 +1,4 @@
-# Example - Pipeline
+# Example - Network of Actors - Pipeline
 
 **Code:**
 
