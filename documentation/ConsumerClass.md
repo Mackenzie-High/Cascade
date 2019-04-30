@@ -1,9 +1,9 @@
-## Example Consumer Class 
+# Example Consumer Class 
 
-**Code**
+**Code:**
 
 ```java
-package com.mackenziehigh.dev;
+package examples;
 
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.Cascade.Stage;
@@ -20,31 +20,32 @@ public final class Example
     private void demo ()
     {
         // Create a single-threaded stage.
-        final Stage stage = Cascade.newStage(1);
+        final Stage stage = Cascade.newStage();
 
-        // Create the actors.
-        final Actor<Integer, Integer> actor = stage
+        // Create the actor.
+        final Actor<String, String> root = stage
                 .newActor()
                 .withConsumerScript(new CustomScript())
                 .create();
 
-        // Send messages through the network.
-        actor.input().send(2);
-        actor.input().send(3);
-        actor.input().send(5);
-        actor.input().send(7);
+        // Send a message to the actor.
+        root.input().send("Mercury");
+        root.input().send("Venus");
+        root.input().send("Earth");
+        root.input().send("Mars");
     }
 
+    /**
+     * An instance of this script defines how the actor will behave.
+     */
     private static final class CustomScript
-            implements Actor.ConsumerScript<Integer>
+            implements Actor.ConsumerScript<String>
     {
-        long sum = 0;
-
         @Override
-        public void execute (final Integer input)
+        public void execute (final String input)
+                throws Throwable
         {
-            sum += input;
-            System.out.println("sum = " + sum);
+            System.out.println("Hello " + input);
         }
     }
 }
@@ -53,8 +54,8 @@ public final class Example
 **Example Output***
 
 ```
-sum = 2
-sum = 5
-sum = 10
-sum = 17
+Hello Mercury
+Hello Venus
+Hello Earth
+Hello Mars
 ```
