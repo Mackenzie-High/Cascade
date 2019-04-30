@@ -1,9 +1,9 @@
-## Function Class
+# Example - Class based Function Script
 
-**Code**
+**Code:**
 
 ```java
-package com.mackenziehigh.dev;
+package examples;
 
 import com.mackenziehigh.cascade.Cascade;
 import com.mackenziehigh.cascade.Cascade.Stage;
@@ -20,74 +20,46 @@ public final class Example
     private void demo ()
     {
         // Create a single-threaded stage.
-        final Stage stage = Cascade.newStage(1);
+        final Stage stage = Cascade.newStage();
 
-        // Create the actors.
-        final Actor<String, String> actor = stage
+        // Create the actor that is being demonstrated.
+        final Actor<Integer, Double> actor = stage
                 .newActor()
-                .withFunctionScript(new FibonacciScript())
+                .withFunctionScript(new CustomScript())
                 .create();
 
-        final Actor<String, String> printer = stage
+        // Create an actor that merely prints the messages
+        // that the previous actor produced.
+        final Actor<Double, Double> printer = stage
                 .newActor()
-                .withConsumerScript((String x) -> System.out.println(x))
+                .withConsumerScript((Double msg) -> System.out.println("sqrt = " + msg))
                 .create();
 
-        // Connect the network: actor -> printer.
+        // Connect the actors to form a pipeline.
         actor.output().connect(printer.input());
 
-        // Send messages through the network.
-        actor.input().send("A");
-        actor.input().send("B");
-        actor.input().send("C");
-        actor.input().send("E");
-        actor.input().send("F");
-        actor.input().send("G");
-        actor.input().send("H");
+        // Send a message through the pipeline.
+        actor.input().send(17);
     }
 
-    private static final class FibonacciScript
-            implements Actor.FunctionScript<String, String>
+    /**
+     * An instance of this script defines how the actor will behave.
+     */
+    private static final class CustomScript
+            implements Actor.FunctionScript<Integer, Double>
     {
-        int position = 0;
-
-        int minus1 = 1;
-
-        int minus2 = 1;
-
         @Override
-        public String execute (final String input)
+        public Double execute (final Integer input)
+                throws Throwable
         {
-            ++position;
-
-            if (position == 1)
-            {
-                return input + " = 1";
-            }
-            else if (position == 2)
-            {
-                return input + " = 1";
-            }
-            else
-            {
-                final int sum = minus1 + minus2;
-                minus2 = minus1;
-                minus1 = sum;
-                return input + " = " + sum;
-            }
+            return Math.sqrt(input);
         }
     }
 }
 ```
 
-**Example Output***
+**Output:**
 
 ```
-A = 1
-B = 1
-C = 2
-E = 3
-F = 5
-G = 8
-H = 13
+sqrt = 4.123105625617661
 ```
