@@ -969,13 +969,9 @@ public interface Cascade
                  */
                 final ErrorHandler<I, O> safeConsumer = (context, cause) ->
                 {
-                    try
+                    if (errorHandler != null)
                     {
                         errorHandler.execute(context, cause);
-                    }
-                    catch (Throwable ignored)
-                    {
-                        // Pass.
                     }
 
                     try
