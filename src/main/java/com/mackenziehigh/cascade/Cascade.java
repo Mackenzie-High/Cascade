@@ -19,6 +19,7 @@ import com.mackenziehigh.cascade.Cascade.AbstractStage.ActorTask;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.Builder;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.Context;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.ContextScript;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.ErrorHandler;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.Mailbox;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -27,18 +28,14 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 
 /**
  * Micro Actor Framework.
@@ -139,7 +136,7 @@ public interface Cascade
                  * @param script defines the error-handling behavior of the actor.
                  * @return a modified copy of this builder.
                  */
-                public Builder<I, O> withErrorHandler (Consumer<Throwable> script);
+                public Builder<I, O> withErrorHandler (ErrorHandler<I, O> script);
 
                 /**
                  * Cause the actor to use the given mailbox to store incoming messages.
@@ -428,6 +425,20 @@ public interface Cascade
             }
 
             /**
+             * Actor Behavior.
+             *
+             * @param <I> is the type of objects that the actor will consume.
+             * @param <O> is the type of objects that the actor will produce.
+             */
+            @FunctionalInterface
+            public interface ErrorHandler<I, O>
+            {
+                public void execute (Context<I, O> context,
+                                     Throwable input)
+                        throws Throwable;
+            }
+
+            /**
              * Get the <code>Stage</code> that contains this actor.
              *
              * @return the enclosing stage.
@@ -455,15 +466,6 @@ public interface Cascade
              */
             public Output<O> output ();
         }
-
-        /**
-         * Add a default error-handler that will receive unhandled exceptions,
-         * if no other more specific error-handler is available.
-         *
-         * @param handler will be used to handle unhandled exceptions.
-         * @return this.
-         */
-        public Stage addErrorHandler (Consumer<Throwable> handler);
 
         /**
          * Create a builder that can be used to add a new actor to this stage.
@@ -825,8 +827,6 @@ public interface Cascade
 
         private final AtomicBoolean stageClosed = new AtomicBoolean(false);
 
-        private final Set<Consumer<Throwable>> stageErrorHandlers = new CopyOnWriteArraySet<>();
-
         /**
          * This method will be invoked whenever an actor needs executed.
          *
@@ -856,36 +856,17 @@ public interface Cascade
         @Override
         public final <I, O> Stage.Actor.Builder<I, O> newActor ()
         {
-            final Stage.Actor.Builder<I, O> builder = new ActorBuilder<>()
+            final ErrorHandler<I, O> errorHandler = (ctx, ex) ->
+            {
+                // Pass.
+            };
+
+            final Stage.Actor.Builder<I, O> builder = new ActorBuilder<I, O>()
                     .withMailbox(ConcurrentLinkedQueueMailbox.create())
-                    .withErrorHandler(ex -> stageErrorHandlers.forEach(x -> x.accept(ex)))
+                    .withErrorHandler(errorHandler)
                     .withFunctionScript(msg -> null);
 
             return builder;
-        }
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public final Stage addErrorHandler (final Consumer<Throwable> handler)
-        {
-            Objects.requireNonNull(handler, "handler");
-
-            final Consumer<Throwable> safeConsumer = ex ->
-            {
-                try
-                {
-                    handler.accept(ex);
-                }
-                catch (Throwable ignored)
-                {
-                    // Pass.
-                }
-            };
-
-            stageErrorHandlers.add(safeConsumer);
-            return this;
         }
 
         /**
@@ -950,7 +931,7 @@ public interface Cascade
 
             private final Stage.Actor.ContextScript<I, O> script;
 
-            private final Consumer<Throwable> errorHandler;
+            private final ErrorHandler<I, O> errorHandler;
 
             private ActorBuilder ()
             {
@@ -961,7 +942,7 @@ public interface Cascade
 
             private ActorBuilder (final Mailbox<I> mailbox,
                                   final Stage.Actor.ContextScript<I, O> script,
-                                  final Consumer<Throwable> errorHandler)
+                                  final ErrorHandler<I, O> errorHandler)
             {
                 this.mailbox = mailbox;
                 this.script = script;
@@ -976,15 +957,30 @@ public interface Cascade
             }
 
             @Override
-            public Stage.Actor.Builder<I, O> withErrorHandler (final Consumer<Throwable> handler)
+            public Stage.Actor.Builder<I, O> withErrorHandler (final ErrorHandler<I, O> handler)
             {
                 Objects.requireNonNull(handler, "handler");
 
-                final Consumer<Throwable> safeConsumer = ex ->
+                /**
+                 * Combine the given handler and any previously defined handlers.
+                 * Execute each of the handlers in sequence, even if one fails.
+                 * If any handler throws an exception, simply ignore it.
+                 * In general, an error-handler should not cause an error itself.
+                 */
+                final ErrorHandler<I, O> safeConsumer = (context, cause) ->
                 {
                     try
                     {
-                        handler.accept(ex);
+                        errorHandler.execute(context, cause);
+                    }
+                    catch (Throwable ignored)
+                    {
+                        // Pass.
+                    }
+
+                    try
+                    {
+                        handler.execute(context, cause);
                     }
                     catch (Throwable ignored)
                     {
@@ -1013,13 +1009,13 @@ public interface Cascade
         private final class InternalActor<I, O>
                 implements Cascade.Stage.Actor<I, O>
         {
-            private final Stage.Actor<I, O> ACTOR = this;
+            private final InternalActor<I, O> ACTOR = this;
 
             private final Mailbox<I> mailbox;
 
             private final ContextScript<I, O> script;
 
-            private final Consumer<Throwable> errorHandler;
+            private final ErrorHandler<I, O> errorHandler;
 
             private final InternalInput input = new InternalInput();
 
@@ -1077,9 +1073,9 @@ public interface Cascade
                 {
                     processMessage();
                 }
-                catch (Throwable ex1)
+                catch (Throwable ex)
                 {
-                    errorHandler.accept(ex1);
+                    handle(ex);
                 }
                 finally
                 {
@@ -1108,6 +1104,18 @@ public interface Cascade
                 if (pendingCranks.incrementAndGet() == 1)
                 {
                     onSubmit(state);
+                }
+            }
+
+            private void handle (final Throwable cause)
+            {
+                try
+                {
+                    errorHandler.execute(context, cause);
+                }
+                catch (Throwable ignored)
+                {
+                    // Pass, because errors from error-handlers cannot be reasonably handled.
                 }
             }
 
@@ -1220,7 +1228,7 @@ public interface Cascade
 
         private static <T> List<T> newImmutableList (final Collection<T> collection)
         {
-            return Collections.unmodifiableList(new CopyOnWriteArrayList<>(collection));
+            return List.copyOf(collection);
         }
     }
 

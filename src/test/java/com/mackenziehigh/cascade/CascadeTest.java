@@ -24,6 +24,8 @@ import com.mackenziehigh.cascade.Cascade.PriorityBlockingQueueMailbox;
 import com.mackenziehigh.cascade.Cascade.Stage;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.ConsumerScript;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.Context;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.ErrorHandler;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.FunctionScript;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.Mailbox;
 import java.lang.reflect.Field;
@@ -45,6 +47,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import static org.junit.Assert.*;
 import org.junit.Test;
@@ -431,7 +434,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withErrorHandler(Consumer)</code>
+     * Method: <code>withErrorHandler(ErrorHandler)</code>
      * </p>
      *
      * <p>
@@ -444,17 +447,15 @@ public final class CascadeTest
     public void test20180826232927857314 ()
             throws InterruptedException
     {
-        /**
-         * This queue will contain the exceptions propagated to the stage.
-         * This queue should remain empty.
-         */
-        final BlockingQueue<Throwable> errors1 = new LinkedBlockingQueue<>();
-        stage.addErrorHandler(ex -> errors1.add(ex));
+        final AtomicReference<Context<Integer, Integer>> atomic = new AtomicReference<>();
 
-        /**
-         * This queue will contain the exceptions caught by the actor itself.
-         */
-        final BlockingQueue<Throwable> errors2 = new LinkedBlockingQueue<>();
+        final BlockingQueue<Throwable> errors = new LinkedBlockingQueue<>();
+
+        final ErrorHandler<Integer, Integer> errorHandler = (context, cause) ->
+        {
+            atomic.set(context);
+            errors.add(cause);
+        };
 
         /**
          * This actor will always cause an exception due to a div by zero.
@@ -462,7 +463,7 @@ public final class CascadeTest
         final Actor<Integer, Integer> actor = stage
                 .newActor()
                 .withFunctionScript((Integer x) -> x / 0) // div by zero
-                .withErrorHandler(ex -> errors2.add(ex))
+                .withErrorHandler(errorHandler)
                 .create();
 
         /**
@@ -474,13 +475,14 @@ public final class CascadeTest
         /**
          * The actor caught the exception.
          */
-        final Throwable error = errors2.poll(5, TimeUnit.SECONDS);
+        final Throwable error = errors.poll(5, TimeUnit.SECONDS);
         assertTrue(error instanceof ArithmeticException);
 
         /**
-         * The exception was *not* propagated to the stage.
+         * Verify that the error-handler was given the actor context as an argument.
          */
-        assertTrue(errors1.isEmpty());
+        assertNotNull(actor.context());
+        assertEquals(actor.context(), atomic.get());
     }
 
     /**
@@ -504,85 +506,50 @@ public final class CascadeTest
     public void test20180908031439953144 ()
             throws InterruptedException
     {
-        /**
-         * This queue will contain the exceptions propagated to the stage.
-         * This queue should remain empty.
-         */
-        final List<Throwable> errors = new LinkedList<>();
-        stage.addErrorHandler(ex -> errors.add(ex));
+        final BlockingQueue<String> errors = new LinkedBlockingQueue<>();
 
-        /**
-         * This actor can cause an exception due to a div by zero.
-         * If that happens, then the error-handler will also cause such an exception.
-         */
-        final Actor<Integer, Integer> actor = stage
-                .newActor()
-                .withFunctionScript((Integer x) -> (x / x) * x) // potential div by zero
-                .withErrorHandler(ex -> System.out.println(1 / 0)) // another div by zero
-                .create();
+        final ConsumerScript<Integer> script = msg ->
+        {
+            throw new Throwable("T0");
+        };
 
-        /**
-         * This actor will receive messages from the previous actor,
-         * unless the previous actor experienced an exception.
-         */
-        final List<Integer> results = new LinkedList<>();
-        final Actor<Integer, ?> sink = stage.newActor().withFunctionScript((Integer x) -> results.add(x)).create();
-        actor.output().connect(sink.input());
+        final ErrorHandler<Integer, Integer> errorHandler1 = (context, cause) ->
+        {
+            assertNotNull(context);
+            errors.add("H1" + cause.getMessage()); // H1T0
+            throw new Throwable("T1");
+        };
 
-        /**
-         * Cause an exception.
-         */
-        actor.input().send(1011);
-        actor.input().send(0);
-        actor.input().send(1012);
-        IntStream.rangeClosed(1, 100).forEach(x -> stage.crank());
+        final ErrorHandler<Integer, Integer> errorHandler2 = (context, cause) ->
+        {
+            assertNotNull(context);
+            errors.add("H2" + cause.getMessage()); // H2T0
+            throw new Throwable("T2");
+        };
 
-        /**
-         * The exception was *not* propagated to the stage.
-         */
-        assertTrue(errors.isEmpty());
+        final ErrorHandler<Integer, Integer> errorHandler3 = (context, cause) ->
+        {
+            assertNotNull(context);
+            errors.add("H3" + cause.getMessage()); // H3T0
+            throw new Throwable("T3");
+        };
 
-        /**
-         * The non-exception-causing messages should have been processed.
-         */
-        assertEquals(Arrays.asList(1011, 1012), results);
-    }
-
-    /**
-     * Test: 20180908012913300766
-     *
-     * <p>
-     * Class: <code>Stage</code>
-     * </p>
-     *
-     * <p>
-     * Method: <code>addErrorHandler</code>
-     * </p>
-     *
-     * @throws java.lang.InterruptedException
-     */
-    @Test
-    public void test20180908012913300766 ()
-            throws InterruptedException
-    {
-        /**
-         * This queue will contain the exceptions propagated to the stage by the first handler.
-         */
-        final BlockingQueue<Throwable> errors1 = new LinkedBlockingQueue<>();
-        stage.addErrorHandler(ex -> errors1.add(ex));
-
-        /**
-         * This queue will contain the exceptions propagated to the stage by the second handler.
-         */
-        final BlockingQueue<Throwable> errors2 = new LinkedBlockingQueue<>();
-        stage.addErrorHandler(ex -> errors2.add(ex));
+        final ErrorHandler<Integer, Integer> errorHandler4 = (context, cause) ->
+        {
+            assertNotNull(context);
+            errors.add("H4" + cause.getMessage()); // H4T0
+        };
 
         /**
          * This actor will always cause an exception due to a div by zero.
          */
         final Actor<Integer, Integer> actor = stage
                 .newActor()
-                .withFunctionScript((Integer x) -> x / 0) // div by zero
+                .withConsumerScript(script)
+                .withErrorHandler(errorHandler1)
+                .withErrorHandler(errorHandler2)
+                .withErrorHandler(errorHandler3)
+                .withErrorHandler(errorHandler4)
                 .create();
 
         /**
@@ -592,68 +559,14 @@ public final class CascadeTest
         stage.crank();
 
         /**
-         * The stage caught the exception.
+         * The handlers all receive the original exception as input.
+         * The exceptions thrown by handlers are simply ignored.
          */
-        final Throwable error1 = errors1.poll(5, TimeUnit.SECONDS);
-        final Throwable error2 = errors2.poll(5, TimeUnit.SECONDS);
-        assertTrue(error1 instanceof ArithmeticException);
-        assertTrue(error2 instanceof ArithmeticException);
-        assertEquals(error1, error2);
-        assertTrue(errors1.isEmpty());
-        assertTrue(errors2.isEmpty());
-    }
-
-    /**
-     * Test: 20180908033001320035
-     *
-     * <p>
-     * Class: <code>Stage</code>
-     * </p>
-     *
-     * <p>
-     * Method: <code>addErrorHandler</code>
-     * </p>
-     *
-     * <p>
-     * Case: Basic Functionality.
-     * </p>
-     */
-    @Test
-    public void test20180908033001320035 ()
-    {
-        /**
-         * The stage error-handler will always cause an exception.
-         */
-        stage.addErrorHandler(ex -> System.out.println(1 / 0));
-
-        /**
-         * This actor can cause an exception due to a div by zero.
-         */
-        final Actor<Integer, Integer> actor = stage
-                .newActor()
-                .withFunctionScript((Integer x) -> (x / x) * x) // potential div by zero
-                .create();
-
-        /**
-         * This actor will receive messages from the previous actor,
-         * unless the previous actor experienced an exception.
-         */
-        final List<Integer> results = new LinkedList<>();
-        final Actor<Integer, ?> sink = stage.newActor().withFunctionScript((Integer x) -> results.add(x)).create();
-        actor.output().connect(sink.input());
-
-        /**
-         * Cause an exception.
-         */
-        actor.input().send(1011);
-        actor.input().send(0);
-        actor.input().send(1012);
-        IntStream.rangeClosed(1, 100).forEach(x -> stage.crank());
-
-        /**
-         * The non-exception-causing messages should have been processed.
-         */
-        assertEquals(Arrays.asList(1011, 1012), results);
+        assertEquals("H1T0", errors.poll(5, TimeUnit.SECONDS));
+        assertEquals("H2T0", errors.poll(5, TimeUnit.SECONDS));
+        assertEquals("H3T0", errors.poll(5, TimeUnit.SECONDS));
+        assertEquals("H4T0", errors.poll(5, TimeUnit.SECONDS));
+        assertTrue(errors.isEmpty());
     }
 
     /**
