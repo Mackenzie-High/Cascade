@@ -16,7 +16,6 @@
 package com.mackenziehigh.cascade;
 
 import com.mackenziehigh.cascade.Cascade.AbstractStage;
-import com.mackenziehigh.cascade.Cascade.AbstractStage.ActorTask;
 import com.mackenziehigh.cascade.Cascade.ArrayBlockingQueueMailbox;
 import com.mackenziehigh.cascade.Cascade.ArrayDequeMailbox;
 import com.mackenziehigh.cascade.Cascade.LinkedBlockingQueueMailbox;
@@ -64,24 +63,24 @@ public final class CascadeTest
 
         public final List<Entry<String, Object>> whatHappened = new LinkedList<>();
 
-        private final Queue<ActorTask> tasks = new LinkedBlockingQueue<>();
+        private final Queue<DefaultActor<?, ?>> tasks = new LinkedBlockingQueue<>();
 
         @Override
-        protected void onSubmit (final ActorTask state)
+        protected void onSubmit (final DefaultActor<?, ?> actor)
         {
-            if (state.meta() == null)
+            if (actor.meta() == null)
             {
                 final AtomicInteger counter = new AtomicInteger(1);
-                state.meta(counter);
-                executionCounters.put(state.actor(), counter);
+                actor.meta(counter);
+                executionCounters.put(actor, counter);
             }
             else
             {
-                ((AtomicInteger) state.meta()).incrementAndGet();
+                ((AtomicInteger) actor.meta()).incrementAndGet();
             }
 
-            whatHappened.add(new AbstractMap.SimpleImmutableEntry<>("SUBMIT", state));
-            tasks.add(state);
+            whatHappened.add(new AbstractMap.SimpleImmutableEntry<>("SUBMIT", actor));
+            tasks.add(actor);
         }
 
         @Override
@@ -90,9 +89,9 @@ public final class CascadeTest
             whatHappened.add(new AbstractMap.SimpleImmutableEntry<>("CLOSE", null));
         }
 
-        public ActorTask crank ()
+        public DefaultActor<?, ?> crank ()
         {
-            final ActorTask task = tasks.poll();
+            final DefaultActor<?, ?> task = tasks.poll();
 
             if (task != null)
             {

@@ -15,7 +15,6 @@
  */
 package com.mackenziehigh.cascade;
 
-import com.mackenziehigh.cascade.Cascade.AbstractStage.ActorTask;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.Builder;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.Context;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.ContextScript;
@@ -841,9 +840,9 @@ public interface Cascade
          * by some implementations in order to schedule actors.
          * </p>
          *
-         * @param state provides the methods needed to execute an actor.
+         * @param actor needs to be <code>run()</code> at some point in the future.
          */
-        protected abstract void onSubmit (ActorTask state);
+        protected abstract void onSubmit (DefaultActor<?, ?> actor);
 
         /**
          * This method will be invoked when this stage closes.
@@ -878,49 +877,6 @@ public interface Cascade
             if (stageClosed.compareAndSet(false, true))
             {
                 onStageClose();
-            }
-        }
-
-        /**
-         * An instance of this class facilitates executing an actor.
-         *
-         * <p>
-         * A (meta) object is stored herein, which is intended
-         * for use by implementing sub-classes, so that they
-         * can store actor specific information.
-         * </p>
-         */
-        protected final class ActorTask
-                implements Runnable
-        {
-            private final InternalActor<?, ?> actor;
-
-            private volatile Object meta;
-
-            private ActorTask (final InternalActor<?, ?> actor)
-            {
-                this.actor = actor;
-            }
-
-            public Stage.Actor<?, ?> actor ()
-            {
-                return actor;
-            }
-
-            public Object meta ()
-            {
-                return meta;
-            }
-
-            public void meta (final Object value)
-            {
-                meta = value;
-            }
-
-            @Override
-            public void run ()
-            {
-                actor.run();
             }
         }
 
@@ -997,15 +953,28 @@ public interface Cascade
             @Override
             public Stage.Actor<I, O> create ()
             {
-                final InternalActor<I, O> actor = new InternalActor<>(this);
+                final DefaultActor<I, O> actor = new DefaultActor<>(this);
                 return actor;
             }
         }
 
-        private final class InternalActor<I, O>
-                implements Cascade.Stage.Actor<I, O>
+        /**
+         * Default Actor Implementation.
+         *
+         * <p>
+         * A (meta) object is stored herein, which is intended
+         * for use by implementing sub-classes, so that they
+         * can store actor specific information.
+         * </p>
+         *
+         * @param <I> is the type of the messages incoming to the actor.
+         * @param <O> is the type of the messages outgoing from the actor.
+         */
+        public final class DefaultActor<I, O>
+                implements Cascade.Stage.Actor<I, O>,
+                           Runnable
         {
-            private final InternalActor<I, O> ACTOR = this;
+            private final DefaultActor<I, O> ACTOR = this;
 
             private final Mailbox<I> mailbox;
 
@@ -1017,11 +986,11 @@ public interface Cascade
 
             private final InternalOutput output = new InternalOutput();
 
-            private final ActorTask state = new ActorTask(this);
-
             private final AtomicLong pendingCranks = new AtomicLong();
 
             private final AtomicBoolean inProgress = new AtomicBoolean(false);
+
+            private volatile Object meta = null;
 
             private final Context<I, O> context = new Context<I, O>()
             {
@@ -1051,14 +1020,15 @@ public interface Cascade
                 }
             };
 
-            private InternalActor (final ActorBuilder<I, O> builder)
+            private DefaultActor (final ActorBuilder<I, O> builder)
             {
                 this.errorHandler = builder.errorHandler;
                 this.mailbox = builder.mailbox;
                 this.script = builder.script;
             }
 
-            private void run ()
+            @Override
+            public void run ()
             {
                 if (inProgress.compareAndSet(false, true) == false)
                 {
@@ -1079,7 +1049,7 @@ public interface Cascade
 
                     if (pendingCranks.decrementAndGet() != 0)
                     {
-                        onSubmit(state);
+                        onSubmit(ACTOR);
                     }
                 }
             }
@@ -1099,7 +1069,7 @@ public interface Cascade
             {
                 if (pendingCranks.incrementAndGet() == 1)
                 {
-                    onSubmit(state);
+                    onSubmit(ACTOR);
                 }
             }
 
@@ -1137,6 +1107,16 @@ public interface Cascade
             public Stage.Actor.Output<O> output ()
             {
                 return output;
+            }
+
+            public Object meta ()
+            {
+                return meta;
+            }
+
+            public void meta (final Object value)
+            {
+                meta = value;
             }
 
             private final class InternalInput
@@ -1264,9 +1244,9 @@ public interface Cascade
         return new AbstractStage()
         {
             @Override
-            protected void onSubmit (final AbstractStage.ActorTask task)
+            protected void onSubmit (final DefaultActor<?, ?> actor)
             {
-                service.execute(task);
+                actor.run();
             }
 
             @Override
