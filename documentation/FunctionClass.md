@@ -49,7 +49,7 @@ public final class Example
             implements Actor.FunctionScript<Integer, Double>
     {
         @Override
-        public Double execute (final Integer input)
+        public Double onInput (final Integer input)
                 throws Throwable
         {
             return Math.sqrt(input);
