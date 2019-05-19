@@ -84,7 +84,7 @@ public final class CascadeTest
         }
 
         @Override
-        protected void onStageClose ()
+        protected void onClose ()
         {
             whatHappened.add(new AbstractMap.SimpleImmutableEntry<>("CLOSE", null));
         }
@@ -433,7 +433,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withErrorHandler(ErrorHandler)</code>
+     * Method: <code>withErrorHandler()</code>
      * </p>
      *
      * <p>
@@ -492,7 +492,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withErrorHandler(Consumer)</code>
+     * Method: <code>withErrorHandler()</code>
      * </p>
      *
      * <p>
@@ -572,11 +572,7 @@ public final class CascadeTest
      * Test: 20180826010008846278
      *
      * <p>
-     * Class: <code>Builder</code>
-     * </p>
-     *
-     * <p>
-     * Method: <code>withCircularArrayMailbox(int)</code>
+     * Class: <code>CircularArrayDequeMailbox</code>
      * </p>
      *
      * <p>
@@ -638,11 +634,7 @@ public final class CascadeTest
      * Test: 20180826010008846278
      *
      * <p>
-     * Class: <code>Builder</code>
-     * </p>
-     *
-     * <p>
-     * Method: <code>withArrayDequeMailbox(int)</code>
+     * Class: <code>CircularArrayDequeMailbox</code>
      * </p>
      *
      * <p>
@@ -699,11 +691,7 @@ public final class CascadeTest
      * Test: 20180826010008846278
      *
      * <p>
-     * Class: <code>Builder</code>
-     * </p>
-     *
-     * <p>
-     * Method: <code>withLinkedBlockingQueueMailbox(int)</code>
+     * Class: <code>LinkedBlockingQueueMailbox</code>
      * </p>
      *
      * <p>
@@ -760,11 +748,7 @@ public final class CascadeTest
      * Test: 20180826010008846278
      *
      * <p>
-     * Class: <code>Builder</code>
-     * </p>
-     *
-     * <p>
-     * Method: <code>withArrayBlockingQueueMailbox(int)</code>
+     * Class: <code>ArrayBlockingQueueMailbox</code>
      * </p>
      *
      * <p>
@@ -1410,7 +1394,7 @@ public final class CascadeTest
      * Test: 20180908023934276934
      *
      * <p>
-     * Class: <code>ActorTast</code>
+     * Class: <code>DefaultActor</code>
      * </p>
      *
      * <p>
@@ -1612,5 +1596,45 @@ public final class CascadeTest
          * Shutdown any threads that are inside the stage.
          */
         stageToTest.close();
+    }
+
+    /**
+     * Test: 20190518225309075324
+     *
+     * <p>
+     * Class: <code>AbstractStage</code>
+     * </p>
+     *
+     * <p>
+     * Case: Exception in <code>onSubmit()</code>.
+     * </p>
+     */
+    @Test
+    public void test20190518225309075324 ()
+    {
+        final AtomicInteger closeCount = new AtomicInteger();
+
+        final AbstractStage customStage = new AbstractStage()
+        {
+            @Override
+            protected void onSubmit (final DefaultActor<?, ?> actor)
+            {
+                throw new RuntimeException();
+            }
+
+            @Override
+            protected void onClose ()
+            {
+                closeCount.incrementAndGet();
+            }
+        };
+
+        final var actor = customStage.newActor().withFunctionScript((String x) -> x).create();
+
+        assertEquals(0, closeCount.get());
+        actor.input().send("X");
+        assertEquals(1, closeCount.get());
+        actor.input().send("X");
+        assertEquals(1, closeCount.get());
     }
 }

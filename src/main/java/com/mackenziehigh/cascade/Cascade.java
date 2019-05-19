@@ -41,57 +41,51 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public interface Cascade
 {
-
-    /**
-     * A creator of <code>Actor</code> objects.
-     */
-    @FunctionalInterface
-    public interface ActorFactory
-    {
-        /**
-         * Create a builder that can build new <code>Actor</code> object(s).
-         *
-         * <p>
-         * This method returns a builder, rather than an actor itself,
-         * so that further configuration of the actor can be performed,
-         * if the calling code so desires.
-         * </p>
-         *
-         * @param <I> is the type of objects the actor(s) will consume.
-         * @param <O> is the type of objects the actor(s) will produce.
-         * @return a new builder of actors.
-         */
-        public <I, O> Stage.Actor.Builder<I, O> newActor ();
-    }
-
     /**
      * A group of <code>Actor</code>s with a common power supply.
      */
     public interface Stage
-            extends ActorFactory
     {
 
         /**
          * Actor.
          *
-         * @param <I> is the type of objects the actor will consume.
-         * @param <O> is the type of objects the actor will produce.
+         * @param <I> is the type of messages the actor will consume.
+         * @param <O> is the type of messages the actor will produce.
          */
         public interface Actor<I, O>
         {
             /**
              * Actor Builder.
              *
-             * @param <I> is the type of objects the actor will consume.
-             * @param <O> is the type of objects the actor will produce.
+             * @param <I> is the type of messages the actor will consume.
+             * @param <O> is the type of messages the actor will produce.
              */
             public interface Builder<I, O>
             {
                 /**
                  * Define the normal behavior of the actor.
                  *
-                 * @param <X> is the type of objects the actor will consume.
-                 * @param <Y> is the type of objects the actor will produce.
+                 * <p>
+                 * If a script was already defined, then the given
+                 * script will replace the previously defined one.
+                 * </p>
+                 *
+                 * <p>
+                 * If the only instance of the script is held by a single actor,
+                 * then the script will only ever handle one exception at a time.
+                 * Thus, the code contained in the script is intrinsically thread-safe.
+                 * </p>
+                 *
+                 * <p>
+                 * <b>Warning:</b> If two actors share the same script object,
+                 * then that script may be executed concurrently by the independent
+                 * actors in order to process messages received independently by each.
+                 * Thus, in that case, the script is <b>not</b> intrinsically thread-safe.
+                 * </p>
+                 *
+                 * @param <X> is the type of messages the actor will consume.
+                 * @param <Y> is the type of messages the actor will produce.
                  * @param script defines the message-handling behavior of the actor.
                  * @return a modified copy of this builder.
                  */
@@ -100,8 +94,26 @@ public interface Cascade
                 /**
                  * Define the normal behavior of the actor.
                  *
-                 * @param <X> is the type of objects the actor will consume.
-                 * @param <Y> is the type of objects the actor will produce.
+                 * <p>
+                 * If a script was already defined, then the given
+                 * script will replace the previously defined one.
+                 * </p>
+                 *
+                 * <p>
+                 * If the only instance of the script is held by a single actor,
+                 * then the script will only ever handle one exception at a time.
+                 * Thus, the code contained in the script is intrinsically thread-safe.
+                 * </p>
+                 *
+                 * <p>
+                 * <b>Warning:</b> If two actors share the same script object,
+                 * then that script may be executed concurrently by the independent
+                 * actors in order to process messages received independently by each.
+                 * Thus, in that case, the script is <b>not</b> intrinsically thread-safe.
+                 * </p>
+                 *
+                 * @param <X> is the type of messages the actor will consume.
+                 * @param <Y> is the type of messages the actor will produce.
                  * @param script defines the message-handling behavior of the actor.
                  * @return a modified copy of this builder.
                  */
@@ -109,14 +121,32 @@ public interface Cascade
                 {
                     return withContextScript((ctx, input) ->
                     {
-                        ctx.sendFrom(script.execute(input));
+                        ctx.sendFrom(script.onInput(input));
                     });
                 }
 
                 /**
                  * Define the normal behavior of the actor.
                  *
-                 * @param <X> is the type of objects the actor will consume.
+                 * <p>
+                 * If a script was already defined, then the given
+                 * script will replace the previously defined one.
+                 * </p>
+                 *
+                 * <p>
+                 * If the only instance of the script is held by a single actor,
+                 * then the script will only ever handle one exception at a time.
+                 * Thus, the code contained in the script is intrinsically thread-safe.
+                 * </p>
+                 *
+                 * <p>
+                 * <b>Warning:</b> If two actors share the same script object,
+                 * then that script may be executed concurrently by the independent
+                 * actors in order to process messages received independently by each.
+                 * Thus, in that case, the script is <b>not</b> intrinsically thread-safe.
+                 * </p>
+                 *
+                 * @param <X> is the type of messages the actor will consume.
                  * @param script defines the message-handling behavior of the actor.
                  * @return a modified copy of this builder.
                  */
@@ -124,13 +154,35 @@ public interface Cascade
                 {
                     return withFunctionScript(x ->
                     {
-                        script.execute(x);
+                        script.onInput(x);
                         return null;
                     });
                 }
 
                 /**
                  * Define how the actor responds to unhandled exceptions.
+                 *
+                 * <p>
+                 * If an error-handler was already defined, then that error-handler
+                 * and the given error-handler will be composed to form a new (third)
+                 * error-handler that executes both error-handlers in sequence.
+                 * In effect, this method appends the given error-handler onto
+                 * the list of error-handlers that the actor will use.
+                 * When an unhandled exception occurs, all of the handlers will execute.
+                 * </p>
+                 *
+                 * <p>
+                 * If the only instance of the error-handler is held by a single actor,
+                 * then the error-handler will only ever handle one exception at a time.
+                 * Thus, the code contained in the error-handler is intrinsically thread-safe.
+                 * </p>
+                 *
+                 * <p>
+                 * <b>Warning:</b> If two actors share the same error-handler object,
+                 * then that error-handler may be executed concurrently by
+                 * the independent actors in order to handle distinct exceptions.
+                 * Thus, in that case, the error-handler is <b>not</b> intrinsically thread-safe.
+                 * </p>
                  *
                  * @param script defines the error-handling behavior of the actor.
                  * @return a modified copy of this builder.
@@ -158,9 +210,9 @@ public interface Cascade
             }
 
             /**
-             * A queue-like data-structure that stores incoming messages.
+             * A queue-like (FIFO) data-structure that stores incoming messages.
              *
-             * @param <I> is the type of objects that the actor will consume.
+             * @param <I> is the type of messages that the actor will consume.
              */
             public interface Mailbox<I>
             {
@@ -168,7 +220,7 @@ public interface Cascade
                  * Add a message to the mailbox.
                  *
                  * @param message will be added to the mailbox, if possible.
-                 * @return true, if the message was in-fact added to the mailbox.
+                 * @return true, only if the message was in-fact added to the mailbox.
                  */
                 public boolean offer (I message);
 
@@ -196,7 +248,7 @@ public interface Cascade
             /**
              * Input to an Actor.
              *
-             * @param <T> is the type of objects that the actor will consume.
+             * @param <T> is the type of messages that the actor will consume.
              */
             public interface Input<T>
             {
@@ -213,6 +265,11 @@ public interface Cascade
                  *
                  * <p>
                  * This method is a no-op, if the connection already exists.
+                 * </p>
+                 *
+                 * <p>
+                 * Implementations should <b>not</b> override the default
+                 * behavior of this method as defined in this interface.
                  * </p>
                  *
                  * @param output will send messages to this input.
@@ -232,6 +289,11 @@ public interface Cascade
                  * This method is a no-op, if the connection does not exist.
                  * </p>
                  *
+                 * <p>
+                 * Implementations should <b>not</b> override the default
+                 * behavior of this method as defined in this interface.
+                 * </p>
+                 *
                  * @param output will no longer be connected.
                  * @return this.
                  */
@@ -243,17 +305,45 @@ public interface Cascade
                 }
 
                 /**
+                 * Determine whether this input is connected to the given output.
+                 *
+                 * <p>
+                 * Implementations should <b>not</b> override the default
+                 * behavior of this method as defined in this interface.
+                 * </p>
+                 *
+                 * @param output may be connected to this input.
+                 * @return true, if this input is currently connected to the output.
+                 */
+                public default boolean isConnected (final Output<?> output)
+                {
+                    return output.isConnected(this);
+                }
+
+                /**
                  * Send a message to the actor via this input, silently dropping the message,
-                 * if this input is does not have sufficient capacity to enqueue the message.
+                 * if this input does not have sufficient capacity to enqueue the message.
+                 *
+                 * <p>
+                 * Equivalent: <code>return actor().context().offerTo(message);</code>
+                 * </p>
                  *
                  * @param message will be processed by the actor, eventually,
                  * if the message is not dropped due to capacity restrictions.
-                 * @return true, if the message was enqueued.
+                 * @return true, if the message was successfully added to the underlying mailbox.
+                 * @throws NullPointerException if the <code>message</code> is null.
                  */
-                public boolean offer (T message);
+                public default boolean offer (T message)
+                {
+                    return actor().context().offerTo(message);
+                }
 
                 /**
                  * Send a message to the actor via this input.
+                 *
+                 * <p>
+                 * Equivalent: <code>offer(message); return this;</code>
+                 * </p>
                  *
                  * @param message will be processed by the actor, eventually,
                  * if the message was not dropped due to capacity restrictions.
@@ -264,24 +354,12 @@ public interface Cascade
                     offer(message);
                     return this;
                 }
-
-                /**
-                 * Determine whether this input is connected to the given output.
-                 *
-                 * @param output may be connected to this input.
-                 * @return true, if this input is currently connected to the output.
-                 */
-                public default boolean isConnected (final Output<?> output)
-                {
-                    return output.isConnected(this);
-                }
-
             }
 
             /**
              * Output to an Actor.
              *
-             * @param <T> is the type of objects that the actor will produce.
+             * @param <T> is the type of messages that the actor will produce.
              */
             public interface Output<T>
             {
@@ -299,6 +377,12 @@ public interface Cascade
                  * This method is a no-op, if the connection already exists.
                  * </p>
                  *
+                 * <p>
+                 * When implementing this method, care must be taken to ensure
+                 * that concurrent connections and/or disconnection do not
+                 * lead to incorrect states, such as duplicate connections.
+                 * </p>
+                 *
                  * @param input will be sent messages from this output.
                  * @return this.
                  */
@@ -309,6 +393,12 @@ public interface Cascade
                  *
                  * <p>
                  * This method is a no-op, if the connection does not exist.
+                 * </p>
+                 *
+                 * <p>
+                 * When implementing this method, care must be taken to ensure
+                 * that concurrent connections and/or disconnection do not
+                 * lead to incorrect states, such as duplicate connections.
                  * </p>
                  *
                  * @param input will no longer be connected.
@@ -328,8 +418,8 @@ public interface Cascade
             /**
              * Script Execution Context.
              *
-             * @param <I> is the type of objects that the enclosing actor consumes.
-             * @param <O> is the type of objects that the enclosing actor produces.
+             * @param <I> is the type of messages that the enclosing actor consumes.
+             * @param <O> is the type of messages that the enclosing actor produces.
              */
             public interface Context<I, O>
             {
@@ -343,26 +433,23 @@ public interface Cascade
                 /**
                  * Offer a message <b>to</b> the enclosing actor.
                  *
-                 * @param message is the message to send.
-                 * @return true, if the message was enqueued.
+                 * @param message is the message to send to the actor.
+                 * @return true, if the message was successfully added to the underlying mailbox.
                  */
-                public default boolean offerTo (final I message)
-                {
-                    return actor().input().offer(message);
-                }
+                public boolean offerTo (I message);
 
                 /**
                  * Offer a message <b>from</b> the enclosing actor.
                  *
-                 * @param message is the message to send.
-                 * @return true, if the message was enqueued in every connected output.
+                 * @param message is the message to send from the actor.
+                 * @return true, if the message was sent to every connected output.
                  */
-                public boolean offerFrom (final O message);
+                public boolean offerFrom (O message);
 
                 /**
                  * Send a message <b>to</b> the enclosing actor.
                  *
-                 * @param message is the message to send.
+                 * @param message is the message to send to the actor.
                  * @return this.
                  */
                 public default Context<I, O> sendTo (final I message)
@@ -374,7 +461,7 @@ public interface Cascade
                 /**
                  * Send a message <b>from</b> the enclosing actor.
                  *
-                 * @param message is the message to send.
+                 * @param message is the message to send from the actor.
                  * @return this.
                  */
                 public default Context<I, O> sendFrom (final O message)
@@ -387,13 +474,22 @@ public interface Cascade
             /**
              * Actor Behavior.
              *
-             * @param <I> is the type of objects that the actor will consume.
-             * @param <O> is the type of objects that the actor will produce.
+             * @param <I> is the type of messages that the actor will consume.
+             * @param <O> is the type of messages that the actor will produce.
              */
             @FunctionalInterface
             public interface ContextScript<I, O>
             {
-                public void execute (Context<I, O> context,
+
+                /**
+                 * This method will be invoked by the enclosing actor
+                 * in order to process all incoming messages.
+                 *
+                 * @param context can be used to send messages from the actor, etc.
+                 * @param input is being processed by the actor using this script.
+                 * @throws Throwable or a sub-class thereof, at the discretion of the implementation.
+                 */
+                public void onInput (Context<I, O> context,
                                      I input)
                         throws Throwable;
             }
@@ -401,39 +497,67 @@ public interface Cascade
             /**
              * Actor Behavior.
              *
-             * @param <I> is the type of objects that the actor will consume.
-             * @param <O> is the type of objects that the actor will produce.
+             * @param <I> is the type of messages that the actor will consume.
+             * @param <O> is the type of messages that the actor will produce.
              */
             @FunctionalInterface
             public interface FunctionScript<I, O>
             {
-                public O execute (I input)
+                /**
+                 * This method will be invoked by the enclosing actor
+                 * in order to process all incoming messages.
+                 *
+                 * @param input is being processed by the actor using this script.
+                 * @return the output message to send from the actor, or null,
+                 * if the actor shall not produce an output for the given input.
+                 * @throws Throwable or a sub-class thereof, at the discretion of the implementation.
+                 */
+                public O onInput (I input)
                         throws Throwable;
             }
 
             /**
              * Actor Behavior.
              *
-             * @param <I> is the type of objects that the actor will consume.
+             * @param <I> is the type of messages that the actor will consume.
              */
             @FunctionalInterface
             public interface ConsumerScript<I>
             {
-                public void execute (I input)
+                /**
+                 * This method will be invoked by the enclosing actor
+                 * in order to process all incoming messages.
+                 *
+                 * @param input is being processed by the actor using this script.
+                 * @throws Throwable or a sub-class thereof, at the discretion of the implementation.
+                 */
+                public void onInput (I input)
                         throws Throwable;
             }
 
             /**
              * Actor Behavior.
              *
-             * @param <I> is the type of objects that the actor will consume.
-             * @param <O> is the type of objects that the actor will produce.
+             * @param <I> is the type of messages that the actor will consume.
+             * @param <O> is the type of messages that the actor will produce.
              */
             @FunctionalInterface
             public interface ErrorHandler<I, O>
             {
-                public void execute (Context<I, O> context,
-                                     Throwable input)
+                /**
+                 * This method will be invoked by the enclosing actor in order to
+                 * handle any unhandled exceptions that are thrown by the script.
+                 *
+                 * <p>
+                 * Any exceptions thrown by this method will be silently discarded.
+                 * </p>
+                 *
+                 * @param context can be used to send messages from the actor, etc.
+                 * @param cause was thrown by the script and unhandled elsewhere.
+                 * @throws Throwable if something goes unexpectedly wrong.
+                 */
+                public void onError (Context<I, O> context,
+                                     Throwable cause)
                         throws Throwable;
             }
 
@@ -449,7 +573,7 @@ public interface Cascade
              *
              * @return the context used when executing scripts.
              */
-            public Context context ();
+            public Context<I, O> context ();
 
             /**
              * Get the <code>Input</code> that supplies messages to this actor.
@@ -469,15 +593,24 @@ public interface Cascade
         /**
          * Create a builder that can be used to add a new actor to this stage.
          *
-         * @param <I> is the type of objects that the actor will consume.
-         * @param <O> is the type of objects that the actor will produce.
+         * <p>
+         * This method returns a builder, rather than an actor itself,
+         * so that further configuration of the actor can be performed,
+         * if the calling code so desires.
+         * </p>
+         *
+         * @param <I> is the type of messages that the actor will consume.
+         * @param <O> is the type of messages that the actor will produce.
          * @return the new builder.
          */
-        @Override
         public <I, O> Actor.Builder<I, O> newActor ();
 
         /**
          * Asynchronously shutdown this stage, as soon as reasonably possible.
+         *
+         * <p>
+         * Subsequent invocations of this method are idempotent.
+         * </p>
          */
         public void close ();
     }
@@ -840,6 +973,11 @@ public interface Cascade
          * by some implementations in order to schedule actors.
          * </p>
          *
+         * <p>
+         * Implementations of this method should never throw exceptions.
+         * If an exception or error is thrown, then the stage will be closed.
+         * </p>
+         *
          * @param actor needs to be <code>run()</code> at some point in the future.
          */
         protected abstract void onSubmit (DefaultActor<?, ?> actor);
@@ -847,20 +985,20 @@ public interface Cascade
         /**
          * This method will be invoked when this stage closes.
          */
-        protected abstract void onStageClose ();
+        protected abstract void onClose ();
 
         /**
          * {@inheritDoc}
          */
         @Override
-        public final <I, O> Stage.Actor.Builder<I, O> newActor ()
+        public final <I, O> Actor.Builder<I, O> newActor ()
         {
             final ErrorHandler<I, O> errorHandler = (ctx, ex) ->
             {
                 // Pass.
             };
 
-            final Stage.Actor.Builder<I, O> builder = new ActorBuilder<I, O>()
+            final Actor.Builder<I, O> builder = new ActorBuilder<I, O>()
                     .withMailbox(ConcurrentLinkedQueueMailbox.create())
                     .withErrorHandler(errorHandler)
                     .withFunctionScript(msg -> null);
@@ -876,16 +1014,41 @@ public interface Cascade
         {
             if (stageClosed.compareAndSet(false, true))
             {
-                onStageClose();
+                onClose();
             }
         }
 
+        /**
+         * This method protects against exceptions thrown in the overridden <code>onSubmit()</code> method.
+         * If an exception is thrown in that method, then the stage must be shutdown,
+         * since we would be unable to ensure that all pending tasks get executed.
+         *
+         * @param actor needs scheduled for execution.
+         */
+        private void safelySubmit (final DefaultActor<?, ?> actor)
+        {
+            try
+            {
+                onSubmit(actor);
+            }
+            catch (Throwable ex)
+            {
+                close();
+            }
+        }
+
+        /**
+         * Default Implementation of the <code>Actor.Builder</code> interface.
+         *
+         * @param <I> is the type of messages that the actor will consume.
+         * @param <O> is the type of messages that the actor will produce.
+         */
         private final class ActorBuilder<I, O>
                 implements Cascade.Stage.Actor.Builder<I, O>
         {
             private final Mailbox<I> mailbox;
 
-            private final Stage.Actor.ContextScript<I, O> script;
+            private final Actor.ContextScript<I, O> script;
 
             private final ErrorHandler<I, O> errorHandler;
 
@@ -906,14 +1069,14 @@ public interface Cascade
             }
 
             @Override
-            public <X, Y> Stage.Actor.Builder<X, Y> withContextScript (final Stage.Actor.ContextScript<X, Y> script)
+            public <X, Y> Actor.Builder<X, Y> withContextScript (final Stage.Actor.ContextScript<X, Y> script)
             {
                 Objects.requireNonNull(script, "script");
                 return new ActorBuilder(mailbox, script, errorHandler);
             }
 
             @Override
-            public Stage.Actor.Builder<I, O> withErrorHandler (final ErrorHandler<I, O> handler)
+            public Actor.Builder<I, O> withErrorHandler (final ErrorHandler<I, O> handler)
             {
                 Objects.requireNonNull(handler, "handler");
 
@@ -927,12 +1090,12 @@ public interface Cascade
                 {
                     if (errorHandler != null)
                     {
-                        errorHandler.execute(context, cause);
+                        errorHandler.onError(context, cause);
                     }
 
                     try
                     {
-                        handler.execute(context, cause);
+                        handler.onError(context, cause);
                     }
                     catch (Throwable ignored)
                     {
@@ -944,14 +1107,14 @@ public interface Cascade
             }
 
             @Override
-            public Stage.Actor.Builder<I, O> withMailbox (final Mailbox<I> mailbox)
+            public Actor.Builder<I, O> withMailbox (final Mailbox<I> mailbox)
             {
                 Objects.requireNonNull(mailbox, "mailbox");
                 return new ActorBuilder(mailbox, script, errorHandler);
             }
 
             @Override
-            public Stage.Actor<I, O> create ()
+            public Actor<I, O> create ()
             {
                 final DefaultActor<I, O> actor = new DefaultActor<>(this);
                 return actor;
@@ -974,51 +1137,63 @@ public interface Cascade
                 implements Cascade.Stage.Actor<I, O>,
                            Runnable
         {
+            /**
+             * This reference just makes 'this' more explicit in
+             * order to avoid confusion caused by nested classes.
+             */
             private final DefaultActor<I, O> ACTOR = this;
 
+            /**
+             * This mailbox stores the backlog of messages that
+             * need to be processed by this actor one at a time.
+             */
             private final Mailbox<I> mailbox;
 
+            /**
+             * This script will be used to process those messages.
+             */
             private final ContextScript<I, O> script;
 
+            /**
+             * If that script throws an unhandled exception,
+             * then this error-handler will be invoked in
+             * order to handle the exception.
+             */
             private final ErrorHandler<I, O> errorHandler;
 
+            /**
+             * This object provides the ability to send messages to
+             * and from this actor and will be passed-in to the script.
+             */
+            private final InternalContext context = new InternalContext();
+
+            /**
+             * This object provides the input-connector API and wraps the mailbox.
+             */
             private final InternalInput input = new InternalInput();
 
+            /**
+             * This object provides the output-connector API.
+             */
             private final InternalOutput output = new InternalOutput();
 
+            /**
+             * This is the number of messages that are in the mailbox.
+             */
             private final AtomicLong pendingCranks = new AtomicLong();
 
+            /**
+             * This flag is simply used as a sanity check to detect bugs,
+             * if the run() method is executed concurrently; therefore,
+             * this may be removed at some point in the future.
+             */
             private final AtomicBoolean inProgress = new AtomicBoolean(false);
 
+            /**
+             * This field can be used by custom stage implementations
+             * to store implementation-specific information.
+             */
             private volatile Object meta = null;
-
-            private final Context<I, O> context = new Context<I, O>()
-            {
-                @Override
-                public Actor<I, O> actor ()
-                {
-                    return ACTOR;
-                }
-
-                @Override
-                public boolean offerFrom (final O message)
-                {
-                    boolean sentToAll = true;
-
-                    if (message != null)
-                    {
-                        final List<Stage.Actor.Input<O>> outputs = output.connectionList;
-                        final int length = outputs.size();
-
-                        for (int i = 0; i < length; i++)
-                        {
-                            sentToAll &= outputs.get(i).offer(message);
-                        }
-                    }
-
-                    return sentToAll;
-                }
-            };
 
             private DefaultActor (final ActorBuilder<I, O> builder)
             {
@@ -1041,16 +1216,12 @@ public interface Cascade
                 }
                 catch (Throwable ex)
                 {
-                    handle(ex);
+                    handleException(ex);
                 }
                 finally
                 {
                     inProgress.set(false);
-
-                    if (pendingCranks.decrementAndGet() != 0)
-                    {
-                        onSubmit(ACTOR);
-                    }
+                    resubmit();
                 }
             }
 
@@ -1061,23 +1232,15 @@ public interface Cascade
 
                 if (msgIn != null)
                 {
-                    script.execute(context, msgIn);
+                    script.onInput(context, msgIn);
                 }
             }
 
-            private void submit ()
-            {
-                if (pendingCranks.incrementAndGet() == 1)
-                {
-                    onSubmit(ACTOR);
-                }
-            }
-
-            private void handle (final Throwable cause)
+            private void handleException (final Throwable cause)
             {
                 try
                 {
-                    errorHandler.execute(context, cause);
+                    errorHandler.onError(context, cause);
                 }
                 catch (Throwable ignored)
                 {
@@ -1085,26 +1248,42 @@ public interface Cascade
                 }
             }
 
+            private void initialSubmit ()
+            {
+                if (pendingCranks.incrementAndGet() == 1)
+                {
+                    safelySubmit(ACTOR);
+                }
+            }
+
+            private void resubmit ()
+            {
+                if (pendingCranks.decrementAndGet() != 0)
+                {
+                    safelySubmit(ACTOR);
+                }
+            }
+
             @Override
-            public Cascade.Stage stage ()
+            public Stage stage ()
             {
                 return STAGE;
             }
 
             @Override
-            public Stage.Actor.Context<I, O> context ()
+            public Context<I, O> context ()
             {
                 return context;
             }
 
             @Override
-            public Stage.Actor.Input<I> input ()
+            public Input<I> input ()
             {
                 return input;
             }
 
             @Override
-            public Stage.Actor.Output<O> output ()
+            public Output<O> output ()
             {
                 return output;
             }
@@ -1119,23 +1298,42 @@ public interface Cascade
                 meta = value;
             }
 
-            private final class InternalInput
-                    implements Cascade.Stage.Actor.Input<I>
+            private final class InternalContext
+                    implements Context<I, O>
             {
                 @Override
-                public Stage.Actor<I, ?> actor ()
+                public Actor<I, O> actor ()
                 {
                     return ACTOR;
                 }
 
                 @Override
-                public boolean offer (final I message)
+                public boolean offerFrom (final O message)
+                {
+                    boolean sentToAll = true;
+
+                    if (message != null)
+                    {
+                        final List<Input<O>> outputs = output.connectionList;
+                        final int length = outputs.size();
+
+                        for (int i = 0; i < length; i++)
+                        {
+                            sentToAll &= outputs.get(i).offer(message);
+                        }
+                    }
+
+                    return sentToAll;
+                }
+
+                @Override
+                public boolean offerTo (I message)
                 {
                     Objects.requireNonNull(message, "message");
 
                     if (mailbox.offer(message))
                     {
-                        submit();
+                        initialSubmit();
                         return true;
                     }
                     else
@@ -1143,23 +1341,46 @@ public interface Cascade
                         return false;
                     }
                 }
+            };
+
+            /**
+             * Default Implementation of <code>Actor.Input</code>.
+             */
+            private final class InternalInput
+                    implements Actor.Input<I>
+            {
+                @Override
+                public Actor<I, ?> actor ()
+                {
+                    return ACTOR;
+                }
             }
 
+            /**
+             * Default Implementation of <code>Actor.Output</code>.
+             */
             private final class InternalOutput
-                    implements Cascade.Stage.Actor.Output<O>
+                    implements Actor.Output<O>
             {
+                /**
+                 * This lock is used to prevent concurrent connections and disconnections;
+                 * however, this lock is not in the critical-path of message processing.
+                 */
                 private final Object outputLock = new Object();
 
-                private volatile List<Stage.Actor.Input<O>> connectionList = newImmutableList(Collections.EMPTY_LIST);
+                /**
+                 * This is an immutable list containing the inputs that this output is connected to.
+                 */
+                private volatile List<Input<O>> connectionList = newImmutableList(Collections.EMPTY_LIST);
 
                 @Override
-                public Stage.Actor<?, O> actor ()
+                public Actor<?, O> actor ()
                 {
                     return ACTOR;
                 }
 
                 @Override
-                public Stage.Actor.Output<O> connect (final Stage.Actor.Input<O> input)
+                public Output<O> connect (final Stage.Actor.Input<O> input)
                 {
                     Objects.requireNonNull(input, "input");
 
@@ -1167,7 +1388,7 @@ public interface Cascade
                     {
                         if (isConnected(input) == false)
                         {
-                            final List<Stage.Actor.Input<O>> modified = new ArrayList<>(connectionList);
+                            final List<Input<O>> modified = new ArrayList<>(connectionList);
                             modified.add(input);
                             connectionList = newImmutableList(modified);
                         }
@@ -1177,7 +1398,7 @@ public interface Cascade
                 }
 
                 @Override
-                public Stage.Actor.Output<O> disconnect (final Stage.Actor.Input<O> input)
+                public Output<O> disconnect (final Stage.Actor.Input<O> input)
                 {
                     Objects.requireNonNull(input, "input");
 
@@ -1185,7 +1406,7 @@ public interface Cascade
                     {
                         if (isConnected(input))
                         {
-                            final List<Stage.Actor.Input<O>> modified = new ArrayList<>(connectionList);
+                            final List<Input<O>> modified = new ArrayList<>(connectionList);
                             modified.remove(input);
                             connectionList = newImmutableList(modified);
                         }
@@ -1250,7 +1471,7 @@ public interface Cascade
             }
 
             @Override
-            protected void onStageClose ()
+            protected void onClose ()
             {
                 service.shutdown();
             }
