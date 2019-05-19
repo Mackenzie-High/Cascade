@@ -42,7 +42,7 @@ public final class Example
             implements Actor.ConsumerScript<String>
     {
         @Override
-        public void execute (final String input)
+        public void onInput (final String input)
                 throws Throwable
         {
             System.out.println("Hello " + input);
