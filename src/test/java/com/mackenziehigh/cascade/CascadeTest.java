@@ -66,7 +66,7 @@ public final class CascadeTest
         private final Queue<DefaultActor<?, ?>> tasks = new LinkedBlockingQueue<>();
 
         @Override
-        protected void onSubmit (final DefaultActor<?, ?> actor)
+        protected void onReady (final DefaultActor<?, ?> actor)
         {
             if (actor.meta() == null)
             {
@@ -450,7 +450,7 @@ public final class CascadeTest
 
         final BlockingQueue<Throwable> errors = new LinkedBlockingQueue<>();
 
-        final ErrorHandler<Integer, Integer> errorHandler = (context, cause) ->
+        final ErrorHandler<Integer, Integer> errorHandler = (context, message, cause) ->
         {
             atomic.set(context);
             errors.add(cause);
@@ -512,28 +512,28 @@ public final class CascadeTest
             throw new Throwable("T0");
         };
 
-        final ErrorHandler<Integer, Integer> errorHandler1 = (context, cause) ->
+        final ErrorHandler<Integer, Integer> errorHandler1 = (context, message, cause) ->
         {
             assertNotNull(context);
             errors.add("H1" + cause.getMessage()); // H1T0
             throw new Throwable("T1");
         };
 
-        final ErrorHandler<Integer, Integer> errorHandler2 = (context, cause) ->
+        final ErrorHandler<Integer, Integer> errorHandler2 = (context, message, cause) ->
         {
             assertNotNull(context);
             errors.add("H2" + cause.getMessage()); // H2T0
             throw new Throwable("T2");
         };
 
-        final ErrorHandler<Integer, Integer> errorHandler3 = (context, cause) ->
+        final ErrorHandler<Integer, Integer> errorHandler3 = (context, message, cause) ->
         {
             assertNotNull(context);
             errors.add("H3" + cause.getMessage()); // H3T0
             throw new Throwable("T3");
         };
 
-        final ErrorHandler<Integer, Integer> errorHandler4 = (context, cause) ->
+        final ErrorHandler<Integer, Integer> errorHandler4 = (context, message, cause) ->
         {
             assertNotNull(context);
             errors.add("H4" + cause.getMessage()); // H4T0
@@ -1617,7 +1617,7 @@ public final class CascadeTest
         final AbstractStage customStage = new AbstractStage()
         {
             @Override
-            protected void onSubmit (final DefaultActor<?, ?> actor)
+            protected void onReady (final DefaultActor<?, ?> actor)
             {
                 throw new RuntimeException();
             }

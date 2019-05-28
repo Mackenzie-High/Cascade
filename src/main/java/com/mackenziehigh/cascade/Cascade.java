@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -552,11 +553,18 @@ public interface Cascade
                  * Any exceptions thrown by this method will be silently discarded.
                  * </p>
                  *
+                 * <p>
+                 * The <code>message</code> is not available, in particular,
+                 * if the exception occurred due to a <code>Mailbox.poll()</code>.
+                 * </p>
+                 *
                  * @param context can be used to send messages from the actor, etc.
+                 * @param message was being processed when the exception occurred, if available.
                  * @param cause was thrown by the script and unhandled elsewhere.
                  * @throws Throwable if something goes unexpectedly wrong.
                  */
                 public void onError (Context<I, O> context,
+                                     I message,
                                      Throwable cause)
                         throws Throwable;
             }
@@ -952,7 +960,7 @@ public interface Cascade
     /**
      * Partial Implementation of <code>Stage</code>.
      */
-    public abstract class AbstractStage
+    public static abstract class AbstractStage
             implements Cascade.Stage
     {
         private final Stage STAGE = this;
@@ -980,7 +988,7 @@ public interface Cascade
          *
          * @param actor needs to be <code>run()</code> at some point in the future.
          */
-        protected abstract void onSubmit (DefaultActor<?, ?> actor);
+        protected abstract void onReady (DefaultActor<?, ?> actor);
 
         /**
          * This method will be invoked when this stage closes.
@@ -993,12 +1001,12 @@ public interface Cascade
         @Override
         public final <I, O> Actor.Builder<I, O> newActor ()
         {
-            final ErrorHandler<I, O> errorHandler = (ctx, ex) ->
+            final ErrorHandler<I, O> errorHandler = (ctx, msg, ex) ->
             {
                 // Pass.
             };
 
-            final Actor.Builder<I, O> builder = new ActorBuilder<I, O>()
+            final Actor.Builder<I, O> builder = new DefaultActorBuilder<I, O>()
                     .withMailbox(ConcurrentLinkedQueueMailbox.create())
                     .withErrorHandler(errorHandler)
                     .withFunctionScript(msg -> null);
@@ -1025,11 +1033,11 @@ public interface Cascade
          *
          * @param actor needs scheduled for execution.
          */
-        private void safelySubmit (final DefaultActor<?, ?> actor)
+        private void safelySchedule (final DefaultActor<?, ?> actor)
         {
             try
             {
-                onSubmit(actor);
+                onReady(actor);
             }
             catch (Throwable ex)
             {
@@ -1043,7 +1051,7 @@ public interface Cascade
          * @param <I> is the type of messages that the actor will consume.
          * @param <O> is the type of messages that the actor will produce.
          */
-        private final class ActorBuilder<I, O>
+        private final class DefaultActorBuilder<I, O>
                 implements Cascade.Stage.Actor.Builder<I, O>
         {
             private final Mailbox<I> mailbox;
@@ -1052,16 +1060,16 @@ public interface Cascade
 
             private final ErrorHandler<I, O> errorHandler;
 
-            private ActorBuilder ()
+            private DefaultActorBuilder ()
             {
                 this.errorHandler = null;
                 this.script = null;
                 this.mailbox = null;
             }
 
-            private ActorBuilder (final Mailbox<I> mailbox,
-                                  final Stage.Actor.ContextScript<I, O> script,
-                                  final ErrorHandler<I, O> errorHandler)
+            private DefaultActorBuilder (final Mailbox<I> mailbox,
+                                         final Stage.Actor.ContextScript<I, O> script,
+                                         final ErrorHandler<I, O> errorHandler)
             {
                 this.mailbox = mailbox;
                 this.script = script;
@@ -1072,7 +1080,7 @@ public interface Cascade
             public <X, Y> Actor.Builder<X, Y> withContextScript (final Stage.Actor.ContextScript<X, Y> script)
             {
                 Objects.requireNonNull(script, "script");
-                return new ActorBuilder(mailbox, script, errorHandler);
+                return new DefaultActorBuilder(mailbox, script, errorHandler);
             }
 
             @Override
@@ -1086,16 +1094,16 @@ public interface Cascade
                  * If any handler throws an exception, simply ignore it.
                  * In general, an error-handler should not cause an error itself.
                  */
-                final ErrorHandler<I, O> safeConsumer = (context, cause) ->
+                final ErrorHandler<I, O> safeConsumer = (context, message, cause) ->
                 {
                     if (errorHandler != null)
                     {
-                        errorHandler.onError(context, cause);
+                        errorHandler.onError(context, message, cause);
                     }
 
                     try
                     {
-                        handler.onError(context, cause);
+                        handler.onError(context, message, cause);
                     }
                     catch (Throwable ignored)
                     {
@@ -1103,14 +1111,14 @@ public interface Cascade
                     }
                 };
 
-                return new ActorBuilder(mailbox, script, safeConsumer);
+                return new DefaultActorBuilder(mailbox, script, safeConsumer);
             }
 
             @Override
             public Actor.Builder<I, O> withMailbox (final Mailbox<I> mailbox)
             {
                 Objects.requireNonNull(mailbox, "mailbox");
-                return new ActorBuilder(mailbox, script, errorHandler);
+                return new DefaultActorBuilder(mailbox, script, errorHandler);
             }
 
             @Override
@@ -1165,17 +1173,17 @@ public interface Cascade
              * This object provides the ability to send messages to
              * and from this actor and will be passed-in to the script.
              */
-            private final InternalContext context = new InternalContext();
+            private final DefaultContext context = new DefaultContext();
 
             /**
              * This object provides the input-connector API and wraps the mailbox.
              */
-            private final InternalInput input = new InternalInput();
+            private final DefaultInput input = new DefaultInput();
 
             /**
              * This object provides the output-connector API.
              */
-            private final InternalOutput output = new InternalOutput();
+            private final DefaultOutput output = new DefaultOutput();
 
             /**
              * This is the number of messages that are in the mailbox.
@@ -1195,7 +1203,7 @@ public interface Cascade
              */
             private volatile Object meta = null;
 
-            private DefaultActor (final ActorBuilder<I, O> builder)
+            private DefaultActor (final DefaultActorBuilder<I, O> builder)
             {
                 this.errorHandler = builder.errorHandler;
                 this.mailbox = builder.mailbox;
@@ -1207,25 +1215,45 @@ public interface Cascade
             {
                 if (inProgress.compareAndSet(false, true) == false)
                 {
-                    throw new IllegalStateException("concurrent run()");
+                    /**
+                     * This should never actually happen,
+                     * unless this class is fundamentally broken.
+                     * This check is merely intended to detect such errors,
+                     * if they were to exist, while the framework is new.
+                     */
+                    System.err.println("Cascade Bug: concurrent run()");
                 }
+
+                I message = null;
 
                 try
                 {
-                    processMessage();
+                    /**
+                     * Pull the next message from the mailbox
+                     * and then process it using the script.
+                     */
+                    message = processNextMessage();
                 }
-                catch (Throwable ex)
+                catch (Throwable cause)
                 {
-                    handleException(ex);
+                    /**
+                     * Invoke the error-handler given the message and exception,
+                     * but do not allow the error-handler to throw an exception.
+                     */
+                    handleException(message, cause);
                 }
                 finally
                 {
+                    /**
+                     * Now that the processing of the message is complete,
+                     * go ahead and schedule the next message, if any.
+                     */
                     inProgress.set(false);
-                    resubmit();
+                    scheduleSubsequentMessage();
                 }
             }
 
-            private void processMessage ()
+            private I processNextMessage ()
                     throws Throwable
             {
                 final I msgIn = mailbox.poll();
@@ -1234,13 +1262,16 @@ public interface Cascade
                 {
                     script.onInput(context, msgIn);
                 }
+
+                return msgIn;
             }
 
-            private void handleException (final Throwable cause)
+            private void handleException (final I message,
+                                          final Throwable cause)
             {
                 try
                 {
-                    errorHandler.onError(context, cause);
+                    errorHandler.onError(context, message, cause);
                 }
                 catch (Throwable ignored)
                 {
@@ -1248,19 +1279,19 @@ public interface Cascade
                 }
             }
 
-            private void initialSubmit ()
+            private void scheduleInitialMessage ()
             {
                 if (pendingCranks.incrementAndGet() == 1)
                 {
-                    safelySubmit(ACTOR);
+                    safelySchedule(ACTOR);
                 }
             }
 
-            private void resubmit ()
+            private void scheduleSubsequentMessage ()
             {
                 if (pendingCranks.decrementAndGet() != 0)
                 {
-                    safelySubmit(ACTOR);
+                    safelySchedule(ACTOR);
                 }
             }
 
@@ -1298,7 +1329,7 @@ public interface Cascade
                 meta = value;
             }
 
-            private final class InternalContext
+            private final class DefaultContext
                     implements Context<I, O>
             {
                 @Override
@@ -1333,7 +1364,7 @@ public interface Cascade
 
                     if (mailbox.offer(message))
                     {
-                        initialSubmit();
+                        scheduleInitialMessage();
                         return true;
                     }
                     else
@@ -1346,7 +1377,7 @@ public interface Cascade
             /**
              * Default Implementation of <code>Actor.Input</code>.
              */
-            private final class InternalInput
+            private final class DefaultInput
                     implements Actor.Input<I>
             {
                 @Override
@@ -1359,7 +1390,7 @@ public interface Cascade
             /**
              * Default Implementation of <code>Actor.Output</code>.
              */
-            private final class InternalOutput
+            private final class DefaultOutput
                     implements Actor.Output<O>
             {
                 /**
@@ -1436,8 +1467,7 @@ public interface Cascade
      */
     public static Stage newStage ()
     {
-        final ExecutorService service = Executors.newSingleThreadExecutor();
-        return newStage(service);
+        return newStage(1);
     }
 
     /**
@@ -1448,7 +1478,27 @@ public interface Cascade
      */
     public static Stage newStage (final int threadCount)
     {
-        final ExecutorService service = Executors.newFixedThreadPool(threadCount);
+        return newStage(threadCount, true);
+    }
+
+    /**
+     * Create a new multi-threaded stage.
+     *
+     * @param threadCount is the number of worker threads that the stage will use.
+     * @param daemon is true, if the threads will be daemon threads.
+     * @return the new stage.
+     */
+    public static Stage newStage (final int threadCount,
+                                  final boolean daemon)
+    {
+        final ThreadFactory factory = (Runnable task) ->
+        {
+            final Thread thread = new Thread(task);
+            thread.setDaemon(daemon);
+            return thread;
+        };
+
+        final ExecutorService service = Executors.newFixedThreadPool(threadCount, factory);
         return newStage(service);
     }
 
@@ -1465,9 +1515,9 @@ public interface Cascade
         return new AbstractStage()
         {
             @Override
-            protected void onSubmit (final DefaultActor<?, ?> actor)
+            protected void onReady (final DefaultActor<?, ?> actor)
             {
-                actor.run();
+                service.execute(actor);
             }
 
             @Override
