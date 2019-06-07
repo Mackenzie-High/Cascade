@@ -16,7 +16,7 @@ public final class HeavyStage
         extends Cascade.AbstractStage
 {
     @Override
-    protected void onSubmit (final DefaultActor<?, ?> state)
+    protected void onRunnable (final DefaultActor<?, ?> state)
     {
         // The onSubmit() method is only called when
         // the ActorTask is safe to execute; therefore,
