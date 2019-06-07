@@ -16,15 +16,19 @@
 package com.mackenziehigh.cascade;
 
 import com.mackenziehigh.cascade.Cascade.AbstractStage;
+import com.mackenziehigh.cascade.Cascade.AbstractStage.DefaultActor;
 import com.mackenziehigh.cascade.Cascade.ArrayBlockingQueueMailbox;
 import com.mackenziehigh.cascade.Cascade.ArrayDequeMailbox;
+import com.mackenziehigh.cascade.Cascade.ConcurrentLinkedQueueMailbox;
 import com.mackenziehigh.cascade.Cascade.LinkedBlockingQueueMailbox;
 import com.mackenziehigh.cascade.Cascade.PriorityBlockingQueueMailbox;
 import com.mackenziehigh.cascade.Cascade.Stage;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.ConsumerErrorHandler;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.ConsumerScript;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.Context;
-import com.mackenziehigh.cascade.Cascade.Stage.Actor.ErrorHandler;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.ContextErrorHandler;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.ContextScript;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.FunctionScript;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.Mailbox;
 import java.lang.reflect.Field;
@@ -40,6 +44,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -66,7 +71,7 @@ public final class CascadeTest
         private final Queue<DefaultActor<?, ?>> tasks = new LinkedBlockingQueue<>();
 
         @Override
-        protected void onReady (final DefaultActor<?, ?> actor)
+        protected void onRunnable (final DefaultActor<?, ?> actor)
         {
             if (actor.meta() == null)
             {
@@ -91,11 +96,12 @@ public final class CascadeTest
 
         public DefaultActor<?, ?> crank ()
         {
-            final DefaultActor<?, ?> task = tasks.poll();
+            DefaultActor<?, ?> task = tasks.poll();
 
-            if (task != null)
+            while (task != null)
             {
                 task.run();
+                task = tasks.poll();
             }
 
             return task;
@@ -426,33 +432,60 @@ public final class CascadeTest
     }
 
     /**
-     * Test: 20180826010008846278
+     * Test: 20190606234154824066
      *
      * <p>
      * Class: <code>Builder</code>
      * </p>
      *
      * <p>
-     * Method: <code>withErrorHandler()</code>
+     * Method: Default Error Handler.
      * </p>
      *
      * <p>
      * Case: Basic Functionality.
      * </p>
-     *
-     * @throws java.lang.InterruptedException
      */
     @Test
-    public void test20180826232927857314 ()
-            throws InterruptedException
+    public void test20190606234154824066 ()
     {
-        final AtomicReference<Context<Integer, Integer>> atomic = new AtomicReference<>();
+        /**
+         * This actor will always cause an exception due to a div by zero.
+         */
+        final Actor<Integer, Integer> actor = stage
+                .newActor()
+                .withFunctionScript((Integer x) -> x / 0) // div by zero
+                .create();
 
+        /**
+         * Cause an exception, which will be silently dropped.
+         */
+        actor.input().send(1);
+        stage.crank();
+    }
+
+    /**
+     * Test: 20190606215647910314
+     *
+     * <p>
+     * Class: <code>Builder</code>
+     * </p>
+     *
+     * <p>
+     * Method: <code>withConsumerErrorHandler()</code>
+     * </p>
+     *
+     * <p>
+     * Case: Basic Functionality.
+     * </p>
+     */
+    @Test
+    public void test20190606215647910314 ()
+    {
         final BlockingQueue<Throwable> errors = new LinkedBlockingQueue<>();
 
-        final ErrorHandler<Integer, Integer> errorHandler = (context, message, cause) ->
+        final ConsumerErrorHandler errorHandler = (cause) ->
         {
-            atomic.set(context);
             errors.add(cause);
         };
 
@@ -462,7 +495,7 @@ public final class CascadeTest
         final Actor<Integer, Integer> actor = stage
                 .newActor()
                 .withFunctionScript((Integer x) -> x / 0) // div by zero
-                .withErrorHandler(errorHandler)
+                .withConsumerErrorHandler(errorHandler)
                 .create();
 
         /**
@@ -474,14 +507,77 @@ public final class CascadeTest
         /**
          * The actor caught the exception.
          */
-        final Throwable error = errors.poll(5, TimeUnit.SECONDS);
+        final Throwable error = errors.poll();
         assertTrue(error instanceof ArithmeticException);
 
         /**
          * Verify that the error-handler was given the actor context as an argument.
          */
         assertNotNull(actor.context());
-        assertEquals(actor.context(), atomic.get());
+    }
+
+    /**
+     * Test: 20180826010008846278
+     *
+     * <p>
+     * Class: <code>Builder</code>
+     * </p>
+     *
+     * <p>
+     * Method: <code>withContextErrorHandler()</code>
+     * </p>
+     *
+     * <p>
+     * Case: Basic Functionality.
+     * </p>
+     */
+    @Test
+    public void test20180826232927857314 ()
+    {
+        final AtomicReference<Context<Integer, Integer>> context = new AtomicReference<>();
+
+        final AtomicReference<Integer> message = new AtomicReference<>();
+
+        final BlockingQueue<Throwable> errors = new LinkedBlockingQueue<>();
+
+        final ContextErrorHandler<Integer, Integer> errorHandler = (ctx, msg, cause) ->
+        {
+            context.set(ctx);
+            message.set(msg);
+            errors.add(cause);
+        };
+
+        /**
+         * This actor will always cause an exception due to a div by zero.
+         */
+        final Actor<Integer, Integer> actor = stage
+                .newActor()
+                .withFunctionScript((Integer x) -> x / 0) // div by zero
+                .withContextErrorHandler(errorHandler)
+                .create();
+
+        /**
+         * Cause an exception.
+         */
+        actor.input().send(42);
+        stage.crank();
+
+        /**
+         * The actor caught the exception.
+         */
+        final Throwable error = errors.poll();
+        assertTrue(error instanceof ArithmeticException);
+
+        /**
+         * Verify that the error-handler was given the actor context as an argument.
+         */
+        assertNotNull(actor.context());
+        assertSame(actor.context(), context.get());
+
+        /**
+         * Verify that the error-handler was given the message as an argument.
+         */
+        assertEquals((Object) 42, message.get());
     }
 
     /**
@@ -492,18 +588,15 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Method: <code>withErrorHandler()</code>
+     * Method: <code>withContextErrorHandler()</code>
      * </p>
      *
      * <p>
      * Case: Exception in Error-Handler.
      * </p>
-     *
-     * @throws java.lang.InterruptedException
      */
     @Test
     public void test20180908031439953144 ()
-            throws InterruptedException
     {
         final BlockingQueue<String> errors = new LinkedBlockingQueue<>();
 
@@ -512,28 +605,28 @@ public final class CascadeTest
             throw new Throwable("T0");
         };
 
-        final ErrorHandler<Integer, Integer> errorHandler1 = (context, message, cause) ->
+        final ContextErrorHandler<Integer, Integer> errorHandler1 = (context, message, cause) ->
         {
             assertNotNull(context);
             errors.add("H1" + cause.getMessage()); // H1T0
             throw new Throwable("T1");
         };
 
-        final ErrorHandler<Integer, Integer> errorHandler2 = (context, message, cause) ->
+        final ContextErrorHandler<Integer, Integer> errorHandler2 = (context, message, cause) ->
         {
             assertNotNull(context);
             errors.add("H2" + cause.getMessage()); // H2T0
             throw new Throwable("T2");
         };
 
-        final ErrorHandler<Integer, Integer> errorHandler3 = (context, message, cause) ->
+        final ContextErrorHandler<Integer, Integer> errorHandler3 = (context, message, cause) ->
         {
             assertNotNull(context);
             errors.add("H3" + cause.getMessage()); // H3T0
             throw new Throwable("T3");
         };
 
-        final ErrorHandler<Integer, Integer> errorHandler4 = (context, message, cause) ->
+        final ContextErrorHandler<Integer, Integer> errorHandler4 = (context, message, cause) ->
         {
             assertNotNull(context);
             errors.add("H4" + cause.getMessage()); // H4T0
@@ -545,10 +638,10 @@ public final class CascadeTest
         final Actor<Integer, Integer> actor = stage
                 .newActor()
                 .withConsumerScript(script)
-                .withErrorHandler(errorHandler1)
-                .withErrorHandler(errorHandler2)
-                .withErrorHandler(errorHandler3)
-                .withErrorHandler(errorHandler4)
+                .withContextErrorHandler(errorHandler1)
+                .withContextErrorHandler(errorHandler2)
+                .withContextErrorHandler(errorHandler3)
+                .withContextErrorHandler(errorHandler4)
                 .create();
 
         /**
@@ -561,10 +654,87 @@ public final class CascadeTest
          * The handlers all receive the original exception as input.
          * The exceptions thrown by handlers are simply ignored.
          */
-        assertEquals("H1T0", errors.poll(5, TimeUnit.SECONDS));
-        assertEquals("H2T0", errors.poll(5, TimeUnit.SECONDS));
-        assertEquals("H3T0", errors.poll(5, TimeUnit.SECONDS));
-        assertEquals("H4T0", errors.poll(5, TimeUnit.SECONDS));
+        assertEquals("H1T0", errors.poll());
+        assertEquals("H2T0", errors.poll());
+        assertEquals("H3T0", errors.poll());
+        assertEquals("H4T0", errors.poll());
+        assertTrue(errors.isEmpty());
+    }
+
+    /**
+     * Test: 20190606220439730858
+     *
+     * <p>
+     * Class: <code>Builder</code>
+     * </p>
+     *
+     * <p>
+     * Method: <code>withConsumerErrorHandler()</code>
+     * </p>
+     *
+     * <p>
+     * Case: Exception in Error-Handler.
+     * </p>
+     */
+    @Test
+    public void test20190606220439730858 ()
+    {
+        final BlockingQueue<String> errors = new LinkedBlockingQueue<>();
+
+        final ConsumerScript<Integer> script = msg ->
+        {
+            throw new Throwable("T0");
+        };
+
+        final ConsumerErrorHandler errorHandler1 = (cause) ->
+        {
+            errors.add("H1" + cause.getMessage()); // H1T0
+            throw new Throwable("T1");
+        };
+
+        final ConsumerErrorHandler errorHandler2 = (cause) ->
+        {
+            errors.add("H2" + cause.getMessage()); // H2T0
+            throw new Throwable("T2");
+        };
+
+        final ConsumerErrorHandler errorHandler3 = (cause) ->
+        {
+            errors.add("H3" + cause.getMessage()); // H3T0
+            throw new Throwable("T3");
+        };
+
+        final ConsumerErrorHandler errorHandler4 = (cause) ->
+        {
+            errors.add("H4" + cause.getMessage()); // H4T0
+        };
+
+        /**
+         * This actor will always cause an exception due to a div by zero.
+         */
+        final Actor<Integer, Integer> actor = stage
+                .newActor()
+                .withConsumerScript(script)
+                .withConsumerErrorHandler(errorHandler1)
+                .withConsumerErrorHandler(errorHandler2)
+                .withConsumerErrorHandler(errorHandler3)
+                .withConsumerErrorHandler(errorHandler4)
+                .create();
+
+        /**
+         * Cause an exception.
+         */
+        actor.input().send(1);
+        stage.crank();
+
+        /**
+         * The handlers all receive the original exception as input.
+         * The exceptions thrown by handlers are simply ignored.
+         */
+        assertEquals("H1T0", errors.poll());
+        assertEquals("H2T0", errors.poll());
+        assertEquals("H3T0", errors.poll());
+        assertEquals("H4T0", errors.poll());
         assertTrue(errors.isEmpty());
     }
 
@@ -612,15 +782,6 @@ public final class CascadeTest
         assertTrue(mailQueue.contains("E"));
         assertEquals(0, log.size());
 
-        stage.crank();
-        stage.crank();
-        stage.crank();
-        stage.crank();
-        stage.crank();
-        stage.crank();
-        stage.crank();
-        stage.crank();
-        stage.crank();
         stage.crank();
 
         assertTrue(mailQueue.isEmpty());
@@ -675,10 +836,6 @@ public final class CascadeTest
         assertEquals(0, log.size());
 
         stage.crank();
-        stage.crank();
-        stage.crank();
-        stage.crank();
-        stage.crank();
 
         assertEquals(0, mailQueue.size());
         assertEquals(3, log.size());
@@ -732,10 +889,6 @@ public final class CascadeTest
         assertEquals(0, log.size());
 
         stage.crank();
-        stage.crank();
-        stage.crank();
-        stage.crank();
-        stage.crank();
 
         assertEquals(0, mailQueue.size());
         assertEquals(3, log.size());
@@ -787,10 +940,6 @@ public final class CascadeTest
         assertTrue(queue.contains("C"));
         assertEquals(0, log.size());
 
-        stage.crank();
-        stage.crank();
-        stage.crank();
-        stage.crank();
         stage.crank();
 
         assertEquals(0, queue.size());
@@ -967,8 +1116,6 @@ public final class CascadeTest
         assertEquals(0, log.size());
 
         stage.crank();
-        stage.crank();
-        stage.crank();
 
         assertEquals(3, log.size());
         assertTrue(log.contains("A"));
@@ -1072,8 +1219,6 @@ public final class CascadeTest
         assertEquals(0, log.size());
 
         stage.crank();
-        stage.crank();
-        stage.crank();
 
         assertEquals(0, mailQueue.size());
         assertEquals(3, log.size());
@@ -1116,10 +1261,7 @@ public final class CascadeTest
         actor1.input().send("B");
         actor1.input().send("C");
 
-        for (int i = 0; i < 100; i++)
-        {
-            stage.crank();
-        }
+        stage.crank();
 
         assertEquals(3, log.size());
         assertEquals("(Z (Y (X A)))", log.get(0));
@@ -1357,6 +1499,35 @@ public final class CascadeTest
          */
         assertNotNull(actor.input());
         assertTrue(actor.output() == actor.output());
+    }
+
+    /**
+     * Test: 20190606210829294732
+     *
+     * <p>
+     * Class: <code>Context</code>
+     * </p>
+     *
+     * <p>
+     * Method: <code>actor()</code>
+     * </p>
+     *
+     * <p>
+     * Case: Verify that the method returns the enclosing actor.
+     * </p>
+     */
+    @Test
+    public void test20190606210829294732 ()
+    {
+        final Actor<String, String> actor = stage
+                .newActor()
+                .withFunctionScript((String x) -> x)
+                .create();
+
+        assertNotNull(actor);
+        assertNotNull(actor.context());
+        assertNotNull(actor.context().actor());
+        assertSame(actor, actor.context().actor());
     }
 
     /**
@@ -1606,7 +1777,7 @@ public final class CascadeTest
      * </p>
      *
      * <p>
-     * Case: Exception in <code>onSubmit()</code>.
+     * Case: Exception in <code>onRunnable()</code>.
      * </p>
      */
     @Test
@@ -1617,7 +1788,7 @@ public final class CascadeTest
         final AbstractStage customStage = new AbstractStage()
         {
             @Override
-            protected void onReady (final DefaultActor<?, ?> actor)
+            protected void onRunnable (final DefaultActor<?, ?> actor)
             {
                 throw new RuntimeException();
             }
@@ -1636,5 +1807,572 @@ public final class CascadeTest
         assertEquals(1, closeCount.get());
         actor.input().send("X");
         assertEquals(1, closeCount.get());
+    }
+
+    /**
+     * Test: 20190606211312619428
+     *
+     * <p>
+     * Class: <code>ContextErrorHandler</code>
+     * </p>
+     *
+     * <p>
+     * Method: <code>silent()</code>
+     * </p>
+     *
+     * <p>
+     * Case: Suppress Exceptions.
+     * </p>
+     */
+    @Test
+    public void test20190606211312619428 ()
+    {
+        final ContextErrorHandler<String, String> handler = (context, message, cause) ->
+        {
+            throw new Throwable();
+        };
+
+        try
+        {
+            handler.silent().onError(null, null, null);
+        }
+        catch (Throwable ex)
+        {
+            fail();
+        }
+    }
+
+    /**
+     * Test: 20190606211312619471
+     *
+     * <p>
+     * Class: <code>ConsumerErrorHandler</code>
+     * </p>
+     *
+     * <p>
+     * Method: <code>silent()</code>
+     * </p>
+     *
+     * <p>
+     * Case: Suppress Exceptions.
+     * </p>
+     */
+    @Test
+    public void test20190606211312619471 ()
+    {
+        final ConsumerErrorHandler handler = (cause) ->
+        {
+            throw new Throwable();
+        };
+
+        try
+        {
+            handler.silent().onError(null);
+        }
+        catch (Throwable ex)
+        {
+            fail();
+        }
+    }
+
+    /**
+     * Test: 20190606211312619489
+     *
+     * <p>
+     * Class: <code>ContextErrorHandler</code>
+     * </p>
+     *
+     * <p>
+     * Method: <code>andThen(ContextErrorHandler)</code>
+     * </p>
+     *
+     * <p>
+     * Case: Chaining and Exception Suppression.
+     * </p>
+     */
+    @Test
+    public void test20190606211312619489 ()
+    {
+        final List<String> list = new CopyOnWriteArrayList<>();
+
+        final ContextErrorHandler<String, String> handler1 = (context, message, cause) ->
+        {
+            list.add("A");
+            throw new Throwable();
+        };
+
+        final ContextErrorHandler<String, String> handler2 = (context, message, cause) ->
+        {
+            list.add("B"); // No Error
+        };
+
+        final ContextErrorHandler<String, String> handler3 = (context, message, cause) ->
+        {
+            list.add("C");
+            throw new Throwable();
+        };
+
+        final ContextErrorHandler<String, String> handler = handler1.andThen(handler2).andThen(handler3);
+
+        try
+        {
+            handler.onError(null, null, null);
+        }
+        catch (Throwable ex)
+        {
+            fail();
+        }
+
+        assertEquals(List.of("A", "B", "C"), list);
+    }
+
+    /**
+     * Test: 20190606211312619505
+     *
+     * <p>
+     * Class: <code>ContextErrorHandler</code>
+     * </p>
+     *
+     * <p>
+     * Method: <code>andThen(ConsumerErrorHandler)</code>
+     * </p>
+     *
+     * <p>
+     * Case: Chaining and Exception Suppression.
+     * </p>
+     */
+    @Test
+    public void test20190606211312619505 ()
+    {
+        final List<String> list = new CopyOnWriteArrayList<>();
+
+        final ContextErrorHandler<String, String> handler1 = (context, message, cause) ->
+        {
+            list.add("A");
+            throw new Throwable();
+        };
+
+        final ConsumerErrorHandler handler2 = (cause) ->
+        {
+            list.add("B");
+            throw new Throwable();
+        };
+
+        final ContextErrorHandler<String, String> handler = handler1.andThen(handler2);
+
+        try
+        {
+            handler.onError(null, null, null);
+        }
+        catch (Throwable ex)
+        {
+            fail();
+        }
+
+        assertEquals(List.of("A", "B"), list);
+    }
+
+    /**
+     * Test: 20190606211312619522
+     *
+     * <p>
+     * Class: <code>ConsumerErrorHandler</code>
+     * </p>
+     *
+     * <p>
+     * Method: <code>andThen(ConsumerErrorHandler)</code>
+     * </p>
+     *
+     * <p>
+     * Case: Chaining and Exception Suppression.
+     * </p>
+     */
+    @Test
+    public void test20190606211312619522 ()
+    {
+        final List<String> list = new CopyOnWriteArrayList<>();
+
+        final ConsumerErrorHandler handler1 = (cause) ->
+        {
+            list.add("A");
+            throw new Throwable();
+        };
+
+        final ConsumerErrorHandler handler2 = (cause) ->
+        {
+            list.add("B"); // No Error
+        };
+
+        final ConsumerErrorHandler handler3 = (cause) ->
+        {
+            list.add("C");
+            throw new Throwable();
+        };
+
+        final ConsumerErrorHandler handler = handler1.andThen(handler2).andThen(handler3);
+
+        try
+        {
+            handler.onError(null);
+        }
+        catch (Throwable ex)
+        {
+            fail();
+        }
+
+        assertEquals(List.of("A", "B", "C"), list);
+    }
+
+    /**
+     * Test: 20190606220842719380
+     *
+     * <p>
+     * Class: <code>DefaultActor</code>
+     * </p>
+     *
+     * <p>
+     * Method: <code>run()</code>
+     * </p>
+     *
+     * <p>
+     * Case: An actor never runs concurrently, unless there is a bug in Cascade.
+     * </p>
+     *
+     * @throws java.lang.InterruptedException
+     */
+    @Test
+    public void test20190606220842719380 ()
+            throws InterruptedException
+    {
+        final BlockingQueue<Object> queue1 = new LinkedBlockingQueue<>();
+        final BlockingQueue<Object> queue2 = new LinkedBlockingQueue<>();
+
+        final ConsumerScript<Object> script = (message) ->
+        {
+            queue1.offer("B");
+            queue2.take();
+        };
+
+        final AbstractStage threadedStage = (AbstractStage) Cascade.newStage();
+
+        final DefaultActor actor = (DefaultActor) threadedStage
+                .newActor()
+                .withConsumerScript(script)
+                .create();
+
+        actor.input().send("A");
+        assertEquals("B", queue1.take());
+
+        try
+        {
+            /**
+             * At this point, the actor is blocked waiting on Queue #1 in run().
+             * Now, we are going to invoke run() on this thread too.
+             * Therefore, run() will be executing concurrently, which is forbidden.
+             */
+            actor.run();
+
+            /**
+             * An IllegalStateException should have been thrown,
+             * because run() cannot occur concurrently.
+             */
+            fail();
+        }
+        catch (IllegalStateException ex)
+        {
+            assertEquals("concurrent run()", ex.getMessage());
+        }
+        finally
+        {
+            threadedStage.close();
+        }
+    }
+
+    /**
+     * Test: 20190606231957944389
+     *
+     * <p>
+     * Method: <code>newStage()</code>
+     * </p>
+     *
+     * <p>
+     * Case: The default stage implementation executes actors on worker threads.
+     * </p>
+     *
+     * <p>
+     * Note: A regression introduced a bug where the actors where being
+     * executed on the threads submitting messages. That regression bug
+     * managed to bypass all of the other unit-tests.
+     * Therefore, a dedicated unit-test is warranted.
+     * </p>
+     *
+     * @throws java.lang.InterruptedException
+     */
+    @Test
+    public void test20190606231957944389 ()
+            throws InterruptedException
+    {
+        final BlockingQueue<Thread> queue1 = new LinkedBlockingQueue<>();
+        final BlockingQueue<Object> queue2 = new LinkedBlockingQueue<>();
+
+        final Stage threadedStage = Cascade.newStage(2);
+
+        final ConsumerScript<Object> script = (message) ->
+        {
+            queue1.add(Thread.currentThread());
+            queue2.take();
+        };
+
+        final Actor<Object, Object> actor1 = threadedStage
+                .newActor()
+                .withConsumerScript(script)
+                .create();
+
+        final Actor<Object, Object> actor2 = threadedStage
+                .newActor()
+                .withConsumerScript(script)
+                .create();
+
+        /**
+         * Cause the actors to start blocking.
+         */
+        actor1.input().send("A");
+        actor2.input().send("B");
+
+        /**
+         * Get the threads that the actors were executing on.
+         */
+        final Thread thread1 = queue1.take();
+        final Thread thread2 = queue1.take();
+
+        /**
+         * Cause the actors to stop blocking.
+         */
+        queue2.add("X");
+        queue2.add("Y");
+
+        /**
+         * Neither actor was executing on this non-stage related thread.
+         * The actors were executing on different stage related threads.
+         */
+        assertNotEquals(Thread.currentThread(), thread1);
+        assertNotEquals(Thread.currentThread(), thread2);
+        assertNotEquals(thread1, thread2);
+
+        /**
+         * The stage uses non-daemon threads by default.
+         */
+        assertFalse(thread1.isDaemon());
+        assertFalse(thread2.isDaemon());
+
+        threadedStage.close();
+    }
+
+    /**
+     * Test: 20190606233624505125
+     *
+     * <p>
+     * Method: <code>newStage(count, daemon)</code>
+     * </p>
+     *
+     * <p>
+     * Case: Daemon Threads
+     * </p>
+     *
+     * @throws java.lang.InterruptedException
+     */
+    @Test
+    public void test20190606233624505125 ()
+            throws InterruptedException
+    {
+        final BlockingQueue<Thread> queue1 = new LinkedBlockingQueue<>();
+        final BlockingQueue<Object> queue2 = new LinkedBlockingQueue<>();
+
+        final boolean daemon = true;
+
+        final Stage threadedStage = Cascade.newStage(2, daemon);
+
+        final ConsumerScript<Object> script = (message) ->
+        {
+            queue1.add(Thread.currentThread());
+            queue2.take();
+        };
+
+        final Actor<Object, Object> actor1 = threadedStage
+                .newActor()
+                .withConsumerScript(script)
+                .create();
+
+        final Actor<Object, Object> actor2 = threadedStage
+                .newActor()
+                .withConsumerScript(script)
+                .create();
+
+        /**
+         * Cause the actors to start blocking.
+         */
+        actor1.input().send("A");
+        actor2.input().send("B");
+
+        /**
+         * Get the threads that the actors were executing on.
+         */
+        final Thread thread1 = queue1.take();
+        final Thread thread2 = queue1.take();
+
+        /**
+         * Cause the actors to stop blocking.
+         */
+        queue2.add("X");
+        queue2.add("Y");
+
+        /**
+         * The stage uses non-daemon threads by default.
+         */
+        assertEquals(daemon, thread1.isDaemon());
+        assertEquals(daemon, thread2.isDaemon());
+
+        threadedStage.close();
+    }
+
+    /**
+     * Test: 20190606233624505174
+     *
+     * <p>
+     * Method: <code>newStage(count, daemon)</code>
+     * </p>
+     *
+     * <p>
+     * Case: Non-Daemon Threads
+     * </p>
+     *
+     * @throws java.lang.InterruptedException
+     */
+    @Test
+    public void test20190606233624505174 ()
+            throws InterruptedException
+    {
+        final BlockingQueue<Thread> queue1 = new LinkedBlockingQueue<>();
+        final BlockingQueue<Object> queue2 = new LinkedBlockingQueue<>();
+
+        final boolean daemon = false;
+
+        final Stage threadedStage = Cascade.newStage(2, daemon);
+
+        final ConsumerScript<Object> script = (message) ->
+        {
+            queue1.add(Thread.currentThread());
+            queue2.take();
+        };
+
+        final Actor<Object, Object> actor1 = threadedStage
+                .newActor()
+                .withConsumerScript(script)
+                .create();
+
+        final Actor<Object, Object> actor2 = threadedStage
+                .newActor()
+                .withConsumerScript(script)
+                .create();
+
+        /**
+         * Cause the actors to start blocking.
+         */
+        actor1.input().send("A");
+        actor2.input().send("B");
+
+        /**
+         * Get the threads that the actors were executing on.
+         */
+        final Thread thread1 = queue1.take();
+        final Thread thread2 = queue1.take();
+
+        /**
+         * Cause the actors to stop blocking.
+         */
+        queue2.add("X");
+        queue2.add("Y");
+
+        /**
+         * The stage uses non-daemon threads by default.
+         */
+        assertEquals(daemon, thread1.isDaemon());
+        assertEquals(daemon, thread2.isDaemon());
+
+        threadedStage.close();
+    }
+
+    /**
+     * Test: 20190606234718947631
+     *
+     * <p>
+     * Class: <code>Builder</code>
+     * </p>
+     *
+     * <p>
+     * Case: Verify that the default script does nothing.
+     * </p>
+     *
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void test20190606234718947631 ()
+            throws Exception,
+                   Throwable
+    {
+        final Actor.Builder actor = stage.newActor();
+        final ContextScript script = getField(actor, "script", ContextScript.class);
+
+        final Context context = new Context()
+        {
+            @Override
+            public Actor actor ()
+            {
+                fail();
+                return null;
+            }
+
+            @Override
+            public boolean offerTo (Object message)
+            {
+                fail();
+                return false;
+            }
+
+            @Override
+            public boolean offerFrom (Object message)
+            {
+                fail();
+                return false;
+            }
+        };
+
+        /**
+         * The script will not manipulate the context in any way.
+         */
+        script.onInput(context, "Mons");
+    }
+
+    /**
+     * Test: 20190606235343993069
+     *
+     * <p>
+     * Class: <code>Builder</code>
+     * </p>
+     *
+     * <p>
+     * Case: Verify that the default script does nothing.
+     * </p>
+     *
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void test20190606235343993069 ()
+            throws Exception
+    {
+        final Actor.Builder actor = stage.newActor();
+        final Mailbox mailbox = getField(actor, "mailbox", Mailbox.class);
+        assertNotNull(mailbox);
+        assertTrue(mailbox instanceof ConcurrentLinkedQueueMailbox);
     }
 }

@@ -16,9 +16,10 @@
 package com.mackenziehigh.cascade;
 
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.Builder;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.ConsumerErrorHandler;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.Context;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.ContextErrorHandler;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.ContextScript;
-import com.mackenziehigh.cascade.Cascade.Stage.Actor.ErrorHandler;
 import com.mackenziehigh.cascade.Cascade.Stage.Actor.Mailbox;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -185,10 +186,30 @@ public interface Cascade
                  * Thus, in that case, the error-handler is <b>not</b> intrinsically thread-safe.
                  * </p>
                  *
-                 * @param script defines the error-handling behavior of the actor.
+                 * <p>
+                 * If the error-handler itself throws an exception,
+                 * then that exception will be silently dropped.
+                 * </p>
+                 *
+                 * @param handler defines the error-handling behavior of the actor.
                  * @return a modified copy of this builder.
                  */
-                public Builder<I, O> withErrorHandler (ErrorHandler<I, O> script);
+                public Builder<I, O> withContextErrorHandler (ContextErrorHandler<I, O> handler);
+
+                /**
+                 * Define how the actor responds to unhandled exceptions.
+                 *
+                 * <p>
+                 * Equivalent: <code>withContextErrorHandler((context, message, cause) -> handler.onError(cause))</code>
+                 * </p>
+                 *
+                 * @param handler defines the error-handling behavior of the actor.
+                 * @return a modified copy of this builder.
+                 */
+                public default Builder<I, O> withConsumerErrorHandler (final ConsumerErrorHandler handler)
+                {
+                    return withContextErrorHandler((context, message, cause) -> handler.onError(cause));
+                }
 
                 /**
                  * Cause the actor to use the given mailbox to store incoming messages.
@@ -537,21 +558,17 @@ public interface Cascade
             }
 
             /**
-             * Actor Behavior.
+             * Actor Error Handler.
              *
              * @param <I> is the type of messages that the actor will consume.
              * @param <O> is the type of messages that the actor will produce.
              */
             @FunctionalInterface
-            public interface ErrorHandler<I, O>
+            public interface ContextErrorHandler<I, O>
             {
                 /**
                  * This method will be invoked by the enclosing actor in order to
                  * handle any unhandled exceptions that are thrown by the script.
-                 *
-                 * <p>
-                 * Any exceptions thrown by this method will be silently discarded.
-                 * </p>
                  *
                  * <p>
                  * The <code>message</code> is not available, in particular,
@@ -567,6 +584,128 @@ public interface Cascade
                                      I message,
                                      Throwable cause)
                         throws Throwable;
+
+                /**
+                 * Compose this script within another script, such that any
+                 * exceptions thrown by this script will be silently ignored.
+                 *
+                 * @return the new script that contains this script.
+                 */
+                public default ContextErrorHandler<I, O> silent ()
+                {
+                    return (context, message, cause) ->
+                    {
+                        try
+                        {
+                            onError(context, message, cause);
+                        }
+                        catch (Throwable ex)
+                        {
+                            // Pass.
+                        }
+                    };
+                }
+
+                /**
+                 * Compose this script and the given script into a single script.
+                 *
+                 * <p>
+                 * If either script throws an exception, then the exception will be silently dropped.
+                 * </p>
+                 *
+                 * @param after will come after this script inside of the new script.
+                 * @return the new script.
+                 */
+                public default ContextErrorHandler<I, O> andThen (final ContextErrorHandler<I, O> after)
+                {
+                    final ContextErrorHandler<I, O> first = silent();
+                    final ContextErrorHandler<I, O> second = after.silent();
+                    return (context, message, cause) ->
+                    {
+                        first.onError(context, message, cause);
+                        second.onError(context, message, cause);
+                    };
+                }
+
+                /**
+                 * Compose this script and the given script into a single script.
+                 *
+                 * <p>
+                 * If either script throws an exception, then the exception will be silently dropped.
+                 * </p>
+                 *
+                 * @param after will come after this script inside of the new script.
+                 * @return the new script.
+                 */
+                public default ContextErrorHandler<I, O> andThen (final ConsumerErrorHandler after)
+                {
+                    final ContextErrorHandler<I, O> first = silent();
+                    final ConsumerErrorHandler second = after.silent();
+                    return (context, message, cause) ->
+                    {
+                        first.onError(context, message, cause);
+                        second.onError(cause);
+                    };
+                }
+            }
+
+            /**
+             * Actor Error Handler.
+             */
+            @FunctionalInterface
+            public interface ConsumerErrorHandler
+            {
+                /**
+                 * This method will be invoked by the enclosing actor in order to
+                 * handle any unhandled exceptions that are thrown by the script.
+                 *
+                 * @param cause was thrown by the script and unhandled elsewhere.
+                 * @throws Throwable if something goes unexpectedly wrong.
+                 */
+                public void onError (Throwable cause)
+                        throws Throwable;
+
+                /**
+                 * Compose this script within another script, such that any
+                 * exceptions thrown by this script will be silently ignored.
+                 *
+                 * @return the new script that contains this script.
+                 */
+                public default ConsumerErrorHandler silent ()
+                {
+                    return (cause) ->
+                    {
+                        try
+                        {
+                            onError(cause);
+                        }
+                        catch (Throwable ex)
+                        {
+                            // Pass.
+                        }
+                    };
+                }
+
+                /**
+                 * Compose this script and the given script into a single script.
+                 *
+                 * <p>
+                 * If either script throws an exception, then the exception will be silently dropped.
+                 * </p>
+                 *
+                 * @param after will come after this script inside of the new script.
+                 * @return the new script.
+                 */
+                public default ConsumerErrorHandler andThen (final ConsumerErrorHandler after)
+                {
+                    final ConsumerErrorHandler first = silent();
+                    final ConsumerErrorHandler second = after.silent();
+                    return (cause) ->
+                    {
+                        first.onError(cause);
+                        second.onError(cause);
+                    };
+                }
             }
 
             /**
@@ -988,7 +1127,7 @@ public interface Cascade
          *
          * @param actor needs to be <code>run()</code> at some point in the future.
          */
-        protected abstract void onReady (DefaultActor<?, ?> actor);
+        protected abstract void onRunnable (DefaultActor<?, ?> actor);
 
         /**
          * This method will be invoked when this stage closes.
@@ -1001,17 +1140,7 @@ public interface Cascade
         @Override
         public final <I, O> Actor.Builder<I, O> newActor ()
         {
-            final ErrorHandler<I, O> errorHandler = (ctx, msg, ex) ->
-            {
-                // Pass.
-            };
-
-            final Actor.Builder<I, O> builder = new DefaultActorBuilder<I, O>()
-                    .withMailbox(ConcurrentLinkedQueueMailbox.create())
-                    .withErrorHandler(errorHandler)
-                    .withFunctionScript(msg -> null);
-
-            return builder;
+            return new DefaultActorBuilder<>();
         }
 
         /**
@@ -1037,7 +1166,7 @@ public interface Cascade
         {
             try
             {
-                onReady(actor);
+                onRunnable(actor);
             }
             catch (Throwable ex)
             {
@@ -1056,20 +1185,28 @@ public interface Cascade
         {
             private final Mailbox<I> mailbox;
 
-            private final Actor.ContextScript<I, O> script;
+            private final ContextScript<I, O> script;
 
-            private final ErrorHandler<I, O> errorHandler;
+            private final ContextErrorHandler<I, O> errorHandler;
 
             private DefaultActorBuilder ()
             {
-                this.errorHandler = null;
-                this.script = null;
-                this.mailbox = null;
+                this.mailbox = ConcurrentLinkedQueueMailbox.create();
+
+                this.script = (context, message) ->
+                {
+                    // Pass.
+                };
+
+                this.errorHandler = (context, message, cause) ->
+                {
+                    // Pass.
+                };
             }
 
             private DefaultActorBuilder (final Mailbox<I> mailbox,
-                                         final Stage.Actor.ContextScript<I, O> script,
-                                         final ErrorHandler<I, O> errorHandler)
+                                         final ContextScript<I, O> script,
+                                         final ContextErrorHandler<I, O> errorHandler)
             {
                 this.mailbox = mailbox;
                 this.script = script;
@@ -1084,7 +1221,7 @@ public interface Cascade
             }
 
             @Override
-            public Actor.Builder<I, O> withErrorHandler (final ErrorHandler<I, O> handler)
+            public Actor.Builder<I, O> withContextErrorHandler (final ContextErrorHandler<I, O> handler)
             {
                 Objects.requireNonNull(handler, "handler");
 
@@ -1094,24 +1231,8 @@ public interface Cascade
                  * If any handler throws an exception, simply ignore it.
                  * In general, an error-handler should not cause an error itself.
                  */
-                final ErrorHandler<I, O> safeConsumer = (context, message, cause) ->
-                {
-                    if (errorHandler != null)
-                    {
-                        errorHandler.onError(context, message, cause);
-                    }
-
-                    try
-                    {
-                        handler.onError(context, message, cause);
-                    }
-                    catch (Throwable ignored)
-                    {
-                        // Pass.
-                    }
-                };
-
-                return new DefaultActorBuilder(mailbox, script, safeConsumer);
+                final ContextErrorHandler<I, O> combined = errorHandler.andThen(handler);
+                return new DefaultActorBuilder(mailbox, script, combined);
             }
 
             @Override
@@ -1167,7 +1288,7 @@ public interface Cascade
              * then this error-handler will be invoked in
              * order to handle the exception.
              */
-            private final ErrorHandler<I, O> errorHandler;
+            private final ContextErrorHandler<I, O> errorHandler;
 
             /**
              * This object provides the ability to send messages to
@@ -1216,12 +1337,12 @@ public interface Cascade
                 if (inProgress.compareAndSet(false, true) == false)
                 {
                     /**
-                     * This should never actually happen,
-                     * unless this class is fundamentally broken.
-                     * This check is merely intended to detect such errors,
-                     * if they were to exist, while the framework is new.
+                     * This should never actually happen, period; however, the likely cause is either:
+                     * (1) the AbstractStage implementation called run() twice for one onRunnable() call,
+                     * (2) the scheduling algorithm in this class is fundamentally broken.
+                     * In the case of custom stages, case (1) is the most likely cause.
                      */
-                    System.err.println("Cascade Bug: concurrent run()");
+                    throw new IllegalStateException("concurrent run()");
                 }
 
                 I message = null;
@@ -1229,16 +1350,22 @@ public interface Cascade
                 try
                 {
                     /**
-                     * Pull the next message from the mailbox
-                     * and then process it using the script.
+                     * Pull the next message from the mailbox and
+                     * then process the message using the script.
                      */
-                    message = processNextMessage();
+                    message = mailbox.poll();
+
+                    if (message != null)
+                    {
+                        script.onInput(context, message);
+                    }
                 }
                 catch (Throwable cause)
                 {
                     /**
                      * Invoke the error-handler given the message and exception,
                      * but do not allow the error-handler to throw an exception.
+                     * If the poll() threw the exception, then the message is null.
                      */
                     handleException(message, cause);
                 }
@@ -1251,19 +1378,6 @@ public interface Cascade
                     inProgress.set(false);
                     scheduleSubsequentMessage();
                 }
-            }
-
-            private I processNextMessage ()
-                    throws Throwable
-            {
-                final I msgIn = mailbox.poll();
-
-                if (msgIn != null)
-                {
-                    script.onInput(context, msgIn);
-                }
-
-                return msgIn;
             }
 
             private void handleException (final I message,
@@ -1348,6 +1462,7 @@ public interface Cascade
                         final List<Input<O>> outputs = output.connectionList;
                         final int length = outputs.size();
 
+                        // Using for instead of for-each avoids creating an iterator object.
                         for (int i = 0; i < length; i++)
                         {
                             sentToAll &= outputs.get(i).offer(message);
@@ -1358,7 +1473,7 @@ public interface Cascade
                 }
 
                 @Override
-                public boolean offerTo (I message)
+                public boolean offerTo (final I message)
                 {
                     Objects.requireNonNull(message, "message");
 
@@ -1463,6 +1578,10 @@ public interface Cascade
     /**
      * Create a new single-threaded stage.
      *
+     * <p>
+     * The stage will use a non-daemon thread.
+     * </p>
+     *
      * @return the new stage.
      */
     public static Stage newStage ()
@@ -1473,12 +1592,16 @@ public interface Cascade
     /**
      * Create a new multi-threaded stage.
      *
+     * <p>
+     * The stage will use non-daemon threads.
+     * </p>
+     *
      * @param threadCount is the number of worker threads that the stage will use.
      * @return the new stage.
      */
     public static Stage newStage (final int threadCount)
     {
-        return newStage(threadCount, true);
+        return newStage(threadCount, false);
     }
 
     /**
@@ -1515,8 +1638,13 @@ public interface Cascade
         return new AbstractStage()
         {
             @Override
-            protected void onReady (final DefaultActor<?, ?> actor)
+            protected void onRunnable (final DefaultActor<?, ?> actor)
             {
+                /**
+                 * Schedule the actor to run at some point in the future.
+                 * The actor itself, without blocking, will guarantee that
+                 * it is only being run() by one thread at a time.
+                 */
                 service.execute(actor);
             }
 
