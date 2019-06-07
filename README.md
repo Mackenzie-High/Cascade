@@ -13,7 +13,7 @@ Cascade is an embeddable actor framework contained within a single Java source-f
 ```bash
 git clone 'https://github.com/Mackenzie-High/Cascade.git'
 cd Cascade/
-git checkout REL_CASCADE_2_0_1_BETA
+git checkout REL_CASCADE_2_0_2_BETA
 mvn clean install
 ```
 
