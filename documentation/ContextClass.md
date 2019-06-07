@@ -49,7 +49,7 @@ public final class Example
             implements Actor.ContextScript<Integer, Double>
     {
         @Override
-        public void execute (final Actor.Context<Integer, Double> context,
+        public void onInput (final Actor.Context<Integer, Double> context,
                              final Integer input)
                 throws Throwable
         {
