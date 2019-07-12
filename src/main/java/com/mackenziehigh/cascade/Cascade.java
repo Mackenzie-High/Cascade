@@ -200,7 +200,7 @@ public interface Cascade
                  * Define how the actor responds to unhandled exceptions.
                  *
                  * <p>
-                 * Equivalent: <code>withContextErrorHandler((context, message, cause) -> handler.onError(cause))</code>
+                 * Equivalent: <code>withContextErrorHandler((context, message, cause) -&gt; handler.onError(cause))</code>
                  * </p>
                  *
                  * @param handler defines the error-handling behavior of the actor.
