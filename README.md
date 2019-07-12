@@ -2,11 +2,11 @@
 
 Cascade is an embeddable actor framework contained within a single Java source-file. 
 
-**Latest JavaDoc**: [Available Here](https://www.mackenziehigh.com/content/shadow/Cascade/branches/master/target/site/apidocs/index.html)
+**Latest JavaDoc**: [Available Here](https://www.mackenziehigh.com/shadow/public/Cascade/branches/master/target/site/apidocs/index.html)
 
 **Source Code**: [Available Here](src/main/java/com/mackenziehigh/cascade/Cascade.java)
 
-**Detailed Code Coverage**: [Available Here](https://www.mackenziehigh.com/content/shadow/Cascade/branches/master/target/site/jacoco/index.html)
+**Detailed Code Coverage**: [Available Here](https://www.mackenziehigh.com/shadow/Cascade/branches/master/target/site/jacoco/index.html)
 
 ## Compilation and Installation
 
@@ -19,7 +19,7 @@ mvn clean install
 
 ## Actors
 
-An actor is an object that has: (1) an input connector, (2) an input queue, (3) an output connector, (4) a function that transforms input messages into output messages.
+An actor is an object that has: (1) an input connector, (2) an input queue, (3) an output connector, (4) a function that transforms input messages into output messages. 
 
 Actors can be connected to one another by connecting their input/output connectors to one another. Each actor can be connected to an arbitrary number of inputs and/or outputs. 
 
