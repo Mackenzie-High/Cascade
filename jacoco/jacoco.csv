@@ -1,0 +1,20 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.AbstractStage.DefaultActorBuilder,0,91,0,0,0,21,0,8,0,8
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.AbstractStage,0,37,0,2,0,13,0,6,0,5
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.ArrayDequeMailbox,0,35,0,2,0,9,0,5,0,4
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.Stage.Actor.ContextErrorHandler,0,51,0,0,0,17,0,6,0,6
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.Stage.Actor.Context,0,12,0,0,0,4,0,2,0,2
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.new Cascade.AbstractStage() {...},0,15,0,0,0,5,0,3,0,3
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.AbstractStage.DefaultActor,1,143,0,8,1,39,0,15,0,11
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.LinkedBlockingQueueMailbox,0,30,0,0,0,7,0,5,0,5
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.AbstractStage.DefaultActor.DefaultInput,0,10,0,0,0,2,0,2,0,2
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.AbstractStage.DefaultActor.DefaultOutput,0,88,0,4,0,21,0,7,0,5
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade,0,36,0,0,0,10,0,5,0,5
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.ArrayBlockingQueueMailbox,0,23,0,0,0,6,0,4,0,4
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.ConcurrentLinkedQueueMailbox,0,22,0,0,0,6,0,4,0,4
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.Stage.Actor.Builder,0,31,0,0,0,7,0,6,0,6
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.AbstractStage.DefaultActor.DefaultContext,0,57,0,6,0,14,0,7,0,4
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.CircularArrayDequeMailbox,0,46,0,2,0,12,0,5,0,4
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.Stage.Actor.ConsumerErrorHandler,0,26,0,0,0,11,0,4,0,4
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.Stage.Actor.Input,0,36,0,0,0,10,0,5,0,5
+com.mackenziehigh:cascade,com.mackenziehigh.cascade,Cascade.PriorityBlockingQueueMailbox,0,24,0,0,0,6,0,4,0,4

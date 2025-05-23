@@ -1,0 +1,1659 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Cascade.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.mackenziehigh:cascade</a> &gt; <a href="index.source.html" class="el_package">com.mackenziehigh.cascade</a> &gt; <span class="el_source">Cascade.java</span></div><h1>Cascade.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2017 Mackenzie High
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.mackenziehigh.cascade;
+
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.Builder;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.ConsumerErrorHandler;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.Context;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.ContextErrorHandler;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.ContextScript;
+import com.mackenziehigh.cascade.Cascade.Stage.Actor.Mailbox;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ * Micro Actor Framework.
+ */
+public interface Cascade
+{
+    /**
+     * A group of &lt;code&gt;Actor&lt;/code&gt;s with a common power supply.
+     */
+    public interface Stage
+    {
+
+        /**
+         * Actor.
+         *
+         * @param &lt;I&gt; is the type of messages the actor will consume.
+         * @param &lt;O&gt; is the type of messages the actor will produce.
+         */
+        public interface Actor&lt;I, O&gt;
+        {
+            /**
+             * Actor Builder.
+             *
+             * @param &lt;I&gt; is the type of messages the actor will consume.
+             * @param &lt;O&gt; is the type of messages the actor will produce.
+             */
+            public interface Builder&lt;I, O&gt;
+            {
+                /**
+                 * Define the normal behavior of the actor.
+                 *
+                 * &lt;p&gt;
+                 * If a script was already defined, then the given
+                 * script will replace the previously defined one.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * If the only instance of the script is held by a single actor,
+                 * then the script will only ever handle one exception at a time.
+                 * Thus, the code contained in the script is intrinsically thread-safe.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * &lt;b&gt;Warning:&lt;/b&gt; If two actors share the same script object,
+                 * then that script may be executed concurrently by the independent
+                 * actors in order to process messages received independently by each.
+                 * Thus, in that case, the script is &lt;b&gt;not&lt;/b&gt; intrinsically thread-safe.
+                 * &lt;/p&gt;
+                 *
+                 * @param &lt;X&gt; is the type of messages the actor will consume.
+                 * @param &lt;Y&gt; is the type of messages the actor will produce.
+                 * @param script defines the message-handling behavior of the actor.
+                 * @return a modified copy of this builder.
+                 */
+                public &lt;X, Y&gt; Builder&lt;X, Y&gt; withContextScript (ContextScript&lt;X, Y&gt; script);
+
+                /**
+                 * Define the normal behavior of the actor.
+                 *
+                 * &lt;p&gt;
+                 * If a script was already defined, then the given
+                 * script will replace the previously defined one.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * If the only instance of the script is held by a single actor,
+                 * then the script will only ever handle one exception at a time.
+                 * Thus, the code contained in the script is intrinsically thread-safe.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * &lt;b&gt;Warning:&lt;/b&gt; If two actors share the same script object,
+                 * then that script may be executed concurrently by the independent
+                 * actors in order to process messages received independently by each.
+                 * Thus, in that case, the script is &lt;b&gt;not&lt;/b&gt; intrinsically thread-safe.
+                 * &lt;/p&gt;
+                 *
+                 * @param &lt;X&gt; is the type of messages the actor will consume.
+                 * @param &lt;Y&gt; is the type of messages the actor will produce.
+                 * @param script defines the message-handling behavior of the actor.
+                 * @return a modified copy of this builder.
+                 */
+                public default &lt;X, Y&gt; Builder&lt;X, Y&gt; withFunctionScript (FunctionScript&lt;X, Y&gt; script)
+                {
+<span class="fc" id="L124">                    return withContextScript((ctx, input) -&gt;</span>
+                    {
+<span class="fc" id="L126">                        ctx.sendFrom(script.onInput(input));</span>
+<span class="fc" id="L127">                    });</span>
+                }
+
+                /**
+                 * Define the normal behavior of the actor.
+                 *
+                 * &lt;p&gt;
+                 * If a script was already defined, then the given
+                 * script will replace the previously defined one.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * If the only instance of the script is held by a single actor,
+                 * then the script will only ever handle one exception at a time.
+                 * Thus, the code contained in the script is intrinsically thread-safe.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * &lt;b&gt;Warning:&lt;/b&gt; If two actors share the same script object,
+                 * then that script may be executed concurrently by the independent
+                 * actors in order to process messages received independently by each.
+                 * Thus, in that case, the script is &lt;b&gt;not&lt;/b&gt; intrinsically thread-safe.
+                 * &lt;/p&gt;
+                 *
+                 * @param &lt;X&gt; is the type of messages the actor will consume.
+                 * @param script defines the message-handling behavior of the actor.
+                 * @return a modified copy of this builder.
+                 */
+                public default &lt;X&gt; Builder&lt;X, X&gt; withConsumerScript (ConsumerScript&lt;X&gt; script)
+                {
+<span class="fc" id="L157">                    return withFunctionScript(x -&gt;</span>
+                    {
+<span class="fc" id="L159">                        script.onInput(x);</span>
+<span class="fc" id="L160">                        return null;</span>
+                    });
+                }
+
+                /**
+                 * Define how the actor responds to unhandled exceptions.
+                 *
+                 * &lt;p&gt;
+                 * If an error-handler was already defined, then that error-handler
+                 * and the given error-handler will be composed to form a new (third)
+                 * error-handler that executes both error-handlers in sequence.
+                 * In effect, this method appends the given error-handler onto
+                 * the list of error-handlers that the actor will use.
+                 * When an unhandled exception occurs, all of the handlers will execute.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * If the only instance of the error-handler is held by a single actor,
+                 * then the error-handler will only ever handle one exception at a time.
+                 * Thus, the code contained in the error-handler is intrinsically thread-safe.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * &lt;b&gt;Warning:&lt;/b&gt; If two actors share the same error-handler object,
+                 * then that error-handler may be executed concurrently by
+                 * the independent actors in order to handle distinct exceptions.
+                 * Thus, in that case, the error-handler is &lt;b&gt;not&lt;/b&gt; intrinsically thread-safe.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * If the error-handler itself throws an exception,
+                 * then that exception will be silently dropped.
+                 * &lt;/p&gt;
+                 *
+                 * @param handler defines the error-handling behavior of the actor.
+                 * @return a modified copy of this builder.
+                 */
+                public Builder&lt;I, O&gt; withContextErrorHandler (ContextErrorHandler&lt;I, O&gt; handler);
+
+                /**
+                 * Define how the actor responds to unhandled exceptions.
+                 *
+                 * &lt;p&gt;
+                 * Equivalent: &lt;code&gt;withContextErrorHandler((context, message, cause) -&amp;gt; handler.onError(cause))&lt;/code&gt;
+                 * &lt;/p&gt;
+                 *
+                 * @param handler defines the error-handling behavior of the actor.
+                 * @return a modified copy of this builder.
+                 */
+                public default Builder&lt;I, O&gt; withConsumerErrorHandler (final ConsumerErrorHandler handler)
+                {
+<span class="fc" id="L211">                    return withContextErrorHandler((context, message, cause) -&gt; handler.onError(cause));</span>
+                }
+
+                /**
+                 * Cause the actor to use the given mailbox to store incoming messages.
+                 *
+                 * &lt;p&gt;
+                 * &lt;b&gt;Warning:&lt;/b&gt; The mailbox must ensure thread-safety.
+                 * &lt;/p&gt;
+                 *
+                 * @param queue will store incoming messages as they await processing.
+                 * @return a modified copy of this builder.
+                 */
+                public Builder&lt;I, O&gt; withMailbox (Mailbox&lt;I&gt; queue);
+
+                /**
+                 * Construct the actor and add it to the stage.
+                 *
+                 * @return the newly created actor.
+                 */
+                public Actor&lt;I, O&gt; create ();
+            }
+
+            /**
+             * A queue-like (FIFO) data-structure that stores incoming messages.
+             *
+             * @param &lt;I&gt; is the type of messages that the actor will consume.
+             */
+            public interface Mailbox&lt;I&gt;
+            {
+                /**
+                 * Add a message to the mailbox.
+                 *
+                 * @param message will be added to the mailbox, if possible.
+                 * @return true, only if the message was in-fact added to the mailbox.
+                 */
+                public boolean offer (I message);
+
+                /**
+                 * Remove a message from the mailbox.
+                 *
+                 * &lt;p&gt;
+                 * If any message is in the mailbox, then this method &lt;b&gt;must&lt;/b&gt; return non-null.
+                 * In other words, a mailbox &lt;b&gt;cannot&lt;/b&gt; choose to delay the removal
+                 * of a message by forcing the caller to call this method again at a later time.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * A mailbox can choose to unilaterally drop messages.
+                 * In other words, a message that was successfully &lt;code&gt;offer()&lt;/code&gt;-ed
+                 * to this mailbox may never be returned by &lt;code&gt;poll()&lt;/code&gt;,
+                 * at the sole discretion of the mailbox itself.
+                 * &lt;/p&gt;
+                 *
+                 * @return the message that was removed, or null, if no message was available.
+                 */
+                public I poll ();
+            }
+
+            /**
+             * Input to an Actor.
+             *
+             * @param &lt;T&gt; is the type of messages that the actor will consume.
+             */
+            public interface Input&lt;T&gt;
+            {
+
+                /**
+                 * Get the actor that this input pertains to.
+                 *
+                 * @return the enclosing actor.
+                 */
+                public Actor&lt;T, ?&gt; actor ();
+
+                /**
+                 * Connect this input to the given output of another actor.
+                 *
+                 * &lt;p&gt;
+                 * This method is a no-op, if the connection already exists.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * Implementations should &lt;b&gt;not&lt;/b&gt; override the default
+                 * behavior of this method as defined in this interface.
+                 * &lt;/p&gt;
+                 *
+                 * @param output will send messages to this input.
+                 * @return this.
+                 */
+                public default Input&lt;T&gt; connect (final Output&lt;T&gt; output)
+                {
+<span class="fc" id="L302">                    Objects.requireNonNull(output, &quot;output&quot;);</span>
+<span class="fc" id="L303">                    output.connect(this);</span>
+<span class="fc" id="L304">                    return this;</span>
+                }
+
+                /**
+                 * Disconnect this input from the given output.
+                 *
+                 * &lt;p&gt;
+                 * This method is a no-op, if the connection does not exist.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * Implementations should &lt;b&gt;not&lt;/b&gt; override the default
+                 * behavior of this method as defined in this interface.
+                 * &lt;/p&gt;
+                 *
+                 * @param output will no longer be connected.
+                 * @return this.
+                 */
+                public default Input&lt;T&gt; disconnect (final Output&lt;T&gt; output)
+                {
+<span class="fc" id="L324">                    Objects.requireNonNull(output, &quot;output&quot;);</span>
+<span class="fc" id="L325">                    output.disconnect(this);</span>
+<span class="fc" id="L326">                    return this;</span>
+                }
+
+                /**
+                 * Determine whether this input is connected to the given output.
+                 *
+                 * &lt;p&gt;
+                 * Implementations should &lt;b&gt;not&lt;/b&gt; override the default
+                 * behavior of this method as defined in this interface.
+                 * &lt;/p&gt;
+                 *
+                 * @param output may be connected to this input.
+                 * @return true, if this input is currently connected to the output.
+                 */
+                public default boolean isConnected (final Output&lt;?&gt; output)
+                {
+<span class="fc" id="L342">                    return output.isConnected(this);</span>
+                }
+
+                /**
+                 * Send a message to the actor via this input, silently dropping the message,
+                 * if this input does not have sufficient capacity to enqueue the message.
+                 *
+                 * &lt;p&gt;
+                 * Equivalent: &lt;code&gt;return actor().context().offerTo(message);&lt;/code&gt;
+                 * &lt;/p&gt;
+                 *
+                 * @param message will be processed by the actor, eventually,
+                 * if the message is not dropped due to capacity restrictions.
+                 * @return true, if the message was successfully added to the underlying mailbox.
+                 * @throws NullPointerException if the &lt;code&gt;message&lt;/code&gt; is null.
+                 */
+                public default boolean offer (T message)
+                {
+<span class="fc" id="L360">                    return actor().context().offerTo(message);</span>
+                }
+
+                /**
+                 * Send a message to the actor via this input.
+                 *
+                 * &lt;p&gt;
+                 * Equivalent: &lt;code&gt;offer(message); return this;&lt;/code&gt;
+                 * &lt;/p&gt;
+                 *
+                 * @param message will be processed by the actor, eventually,
+                 * if the message was not dropped due to capacity restrictions.
+                 * @return this.
+                 */
+                public default Input&lt;T&gt; send (final T message)
+                {
+<span class="fc" id="L376">                    offer(message);</span>
+<span class="fc" id="L377">                    return this;</span>
+                }
+            }
+
+            /**
+             * Output to an Actor.
+             *
+             * @param &lt;T&gt; is the type of messages that the actor will produce.
+             */
+            public interface Output&lt;T&gt;
+            {
+                /**
+                 * Get the actor that this input pertains to.
+                 *
+                 * @return the enclosing actor.
+                 */
+                public Actor&lt;?, T&gt; actor ();
+
+                /**
+                 * Connect this output to the given input of another actor.
+                 *
+                 * &lt;p&gt;
+                 * This method is a no-op, if the connection already exists.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * When implementing this method, care must be taken to ensure
+                 * that concurrent connections and/or disconnection do not
+                 * lead to incorrect states, such as duplicate connections.
+                 * &lt;/p&gt;
+                 *
+                 * @param input will be sent messages from this output.
+                 * @return this.
+                 */
+                public Output&lt;T&gt; connect (Input&lt;T&gt; input);
+
+                /**
+                 * Disconnect this output from the given input.
+                 *
+                 * &lt;p&gt;
+                 * This method is a no-op, if the connection does not exist.
+                 * &lt;/p&gt;
+                 *
+                 * &lt;p&gt;
+                 * When implementing this method, care must be taken to ensure
+                 * that concurrent connections and/or disconnection do not
+                 * lead to incorrect states, such as duplicate connections.
+                 * &lt;/p&gt;
+                 *
+                 * @param input will no longer be connected.
+                 * @return this.
+                 */
+                public Output&lt;T&gt; disconnect (Input&lt;T&gt; input);
+
+                /**
+                 * Determine whether this output is connected to the given input.
+                 *
+                 * @param input may be connected to this output.
+                 * @return true, if this output is currently connected to the input.
+                 */
+                public boolean isConnected (final Input&lt;?&gt; input);
+            }
+
+            /**
+             * Script Execution Context.
+             *
+             * @param &lt;I&gt; is the type of messages that the enclosing actor consumes.
+             * @param &lt;O&gt; is the type of messages that the enclosing actor produces.
+             */
+            public interface Context&lt;I, O&gt;
+            {
+                /**
+                 * Get the enclosing actor.
+                 *
+                 * @return the actor that owns this context.
+                 */
+                public Actor&lt;I, O&gt; actor ();
+
+                /**
+                 * Offer a message &lt;b&gt;to&lt;/b&gt; the enclosing actor.
+                 *
+                 * @param message is the message to send to the actor.
+                 * @return true, if the message was successfully added to the underlying mailbox.
+                 */
+                public boolean offerTo (I message);
+
+                /**
+                 * Offer a message &lt;b&gt;from&lt;/b&gt; the enclosing actor.
+                 *
+                 * @param message is the message to send from the actor.
+                 * @return true, if the message was sent to every connected output.
+                 */
+                public boolean offerFrom (O message);
+
+                /**
+                 * Send a message &lt;b&gt;to&lt;/b&gt; the enclosing actor.
+                 *
+                 * @param message is the message to send to the actor.
+                 * @return this.
+                 */
+                public default Context&lt;I, O&gt; sendTo (final I message)
+                {
+<span class="fc" id="L479">                    offerTo(message);</span>
+<span class="fc" id="L480">                    return this;</span>
+                }
+
+                /**
+                 * Send a message &lt;b&gt;from&lt;/b&gt; the enclosing actor.
+                 *
+                 * @param message is the message to send from the actor.
+                 * @return this.
+                 */
+                public default Context&lt;I, O&gt; sendFrom (final O message)
+                {
+<span class="fc" id="L491">                    offerFrom(message);</span>
+<span class="fc" id="L492">                    return this;</span>
+                }
+            }
+
+            /**
+             * Actor Behavior.
+             *
+             * @param &lt;I&gt; is the type of messages that the actor will consume.
+             * @param &lt;O&gt; is the type of messages that the actor will produce.
+             */
+            @FunctionalInterface
+            public interface ContextScript&lt;I, O&gt;
+            {
+
+                /**
+                 * This method will be invoked by the enclosing actor
+                 * in order to process all incoming messages.
+                 *
+                 * @param context can be used to send messages from the actor, etc.
+                 * @param input is being processed by the actor using this script.
+                 * @throws Throwable or a sub-class thereof, at the discretion of the implementation.
+                 */
+                public void onInput (Context&lt;I, O&gt; context,
+                                     I input)
+                        throws Throwable;
+            }
+
+            /**
+             * Actor Behavior.
+             *
+             * @param &lt;I&gt; is the type of messages that the actor will consume.
+             * @param &lt;O&gt; is the type of messages that the actor will produce.
+             */
+            @FunctionalInterface
+            public interface FunctionScript&lt;I, O&gt;
+            {
+                /**
+                 * This method will be invoked by the enclosing actor
+                 * in order to process all incoming messages.
+                 *
+                 * @param input is being processed by the actor using this script.
+                 * @return the output message to send from the actor, or null,
+                 * if the actor shall not produce an output for the given input.
+                 * @throws Throwable or a sub-class thereof, at the discretion of the implementation.
+                 */
+                public O onInput (I input)
+                        throws Throwable;
+            }
+
+            /**
+             * Actor Behavior.
+             *
+             * @param &lt;I&gt; is the type of messages that the actor will consume.
+             */
+            @FunctionalInterface
+            public interface ConsumerScript&lt;I&gt;
+            {
+                /**
+                 * This method will be invoked by the enclosing actor
+                 * in order to process all incoming messages.
+                 *
+                 * @param input is being processed by the actor using this script.
+                 * @throws Throwable or a sub-class thereof, at the discretion of the implementation.
+                 */
+                public void onInput (I input)
+                        throws Throwable;
+            }
+
+            /**
+             * Actor Error Handler.
+             *
+             * @param &lt;I&gt; is the type of messages that the actor will consume.
+             * @param &lt;O&gt; is the type of messages that the actor will produce.
+             */
+            @FunctionalInterface
+            public interface ContextErrorHandler&lt;I, O&gt;
+            {
+                /**
+                 * This method will be invoked by the enclosing actor in order to
+                 * handle any unhandled exceptions that are thrown by the script.
+                 *
+                 * &lt;p&gt;
+                 * The &lt;code&gt;message&lt;/code&gt; is not available, in particular,
+                 * if the exception occurred due to a &lt;code&gt;Mailbox.poll()&lt;/code&gt;.
+                 * &lt;/p&gt;
+                 *
+                 * @param context can be used to send messages from the actor, etc.
+                 * @param message was being processed when the exception occurred, if available.
+                 * @param cause was thrown by the script and unhandled elsewhere.
+                 * @throws Throwable if something goes unexpectedly wrong.
+                 */
+                public void onError (Context&lt;I, O&gt; context,
+                                     I message,
+                                     Throwable cause)
+                        throws Throwable;
+
+                /**
+                 * Compose this script within another script, such that any
+                 * exceptions thrown by this script will be silently ignored.
+                 *
+                 * @return the new script that contains this script.
+                 */
+                public default ContextErrorHandler&lt;I, O&gt; silent ()
+                {
+<span class="fc" id="L596">                    return (context, message, cause) -&gt;</span>
+                    {
+                        try
+                        {
+<span class="fc" id="L600">                            onError(context, message, cause);</span>
+                        }
+<span class="fc" id="L602">                        catch (Throwable ex)</span>
+                        {
+                            // Pass.
+<span class="fc" id="L605">                        }</span>
+<span class="fc" id="L606">                    };</span>
+                }
+
+                /**
+                 * Compose this script and the given script into a single script.
+                 *
+                 * &lt;p&gt;
+                 * If either script throws an exception, then the exception will be silently dropped.
+                 * &lt;/p&gt;
+                 *
+                 * @param after will come after this script inside of the new script.
+                 * @return the new script.
+                 */
+                public default ContextErrorHandler&lt;I, O&gt; andThen (final ContextErrorHandler&lt;I, O&gt; after)
+                {
+<span class="fc" id="L621">                    final ContextErrorHandler&lt;I, O&gt; first = silent();</span>
+<span class="fc" id="L622">                    final ContextErrorHandler&lt;I, O&gt; second = after.silent();</span>
+<span class="fc" id="L623">                    return (context, message, cause) -&gt;</span>
+                    {
+<span class="fc" id="L625">                        first.onError(context, message, cause);</span>
+<span class="fc" id="L626">                        second.onError(context, message, cause);</span>
+<span class="fc" id="L627">                    };</span>
+                }
+
+                /**
+                 * Compose this script and the given script into a single script.
+                 *
+                 * &lt;p&gt;
+                 * If either script throws an exception, then the exception will be silently dropped.
+                 * &lt;/p&gt;
+                 *
+                 * @param after will come after this script inside of the new script.
+                 * @return the new script.
+                 */
+                public default ContextErrorHandler&lt;I, O&gt; andThen (final ConsumerErrorHandler after)
+                {
+<span class="fc" id="L642">                    final ContextErrorHandler&lt;I, O&gt; first = silent();</span>
+<span class="fc" id="L643">                    final ConsumerErrorHandler second = after.silent();</span>
+<span class="fc" id="L644">                    return (context, message, cause) -&gt;</span>
+                    {
+<span class="fc" id="L646">                        first.onError(context, message, cause);</span>
+<span class="fc" id="L647">                        second.onError(cause);</span>
+<span class="fc" id="L648">                    };</span>
+                }
+            }
+
+            /**
+             * Actor Error Handler.
+             */
+            @FunctionalInterface
+            public interface ConsumerErrorHandler
+            {
+                /**
+                 * This method will be invoked by the enclosing actor in order to
+                 * handle any unhandled exceptions that are thrown by the script.
+                 *
+                 * @param cause was thrown by the script and unhandled elsewhere.
+                 * @throws Throwable if something goes unexpectedly wrong.
+                 */
+                public void onError (Throwable cause)
+                        throws Throwable;
+
+                /**
+                 * Compose this script within another script, such that any
+                 * exceptions thrown by this script will be silently ignored.
+                 *
+                 * @return the new script that contains this script.
+                 */
+                public default ConsumerErrorHandler silent ()
+                {
+<span class="fc" id="L676">                    return (cause) -&gt;</span>
+                    {
+                        try
+                        {
+<span class="fc" id="L680">                            onError(cause);</span>
+                        }
+<span class="fc" id="L682">                        catch (Throwable ex)</span>
+                        {
+                            // Pass.
+<span class="fc" id="L685">                        }</span>
+<span class="fc" id="L686">                    };</span>
+                }
+
+                /**
+                 * Compose this script and the given script into a single script.
+                 *
+                 * &lt;p&gt;
+                 * If either script throws an exception, then the exception will be silently dropped.
+                 * &lt;/p&gt;
+                 *
+                 * @param after will come after this script inside of the new script.
+                 * @return the new script.
+                 */
+                public default ConsumerErrorHandler andThen (final ConsumerErrorHandler after)
+                {
+<span class="fc" id="L701">                    final ConsumerErrorHandler first = silent();</span>
+<span class="fc" id="L702">                    final ConsumerErrorHandler second = after.silent();</span>
+<span class="fc" id="L703">                    return (cause) -&gt;</span>
+                    {
+<span class="fc" id="L705">                        first.onError(cause);</span>
+<span class="fc" id="L706">                        second.onError(cause);</span>
+<span class="fc" id="L707">                    };</span>
+                }
+            }
+
+            /**
+             * Get the &lt;code&gt;Stage&lt;/code&gt; that contains this actor.
+             *
+             * @return the enclosing stage.
+             */
+            public Stage stage ();
+
+            /**
+             * Get the &lt;code&gt;Context&lt;/code&gt; that is passed into &lt;code&gt;ContextScript&lt;/code&gt;s.
+             *
+             * @return the context used when executing scripts.
+             */
+            public Context&lt;I, O&gt; context ();
+
+            /**
+             * Get the &lt;code&gt;Input&lt;/code&gt; that supplies messages to this actor.
+             *
+             * @return the input to the actor.
+             */
+            public Input&lt;I&gt; input ();
+
+            /**
+             * Get the &lt;code&gt;Output&lt;/code&gt; that receives messages from this actor.
+             *
+             * @return the output from the actor.
+             */
+            public Output&lt;O&gt; output ();
+        }
+
+        /**
+         * Create a builder that can be used to add a new actor to this stage.
+         *
+         * &lt;p&gt;
+         * This method returns a builder, rather than an actor itself,
+         * so that further configuration of the actor can be performed,
+         * if the calling code so desires.
+         * &lt;/p&gt;
+         *
+         * @param &lt;I&gt; is the type of messages that the actor will consume.
+         * @param &lt;O&gt; is the type of messages that the actor will produce.
+         * @return the new builder.
+         */
+        public &lt;I, O&gt; Actor.Builder&lt;I, O&gt; newActor ();
+
+        /**
+         * Asynchronously shutdown this stage, as soon as reasonably possible.
+         *
+         * &lt;p&gt;
+         * Subsequent invocations of this method are idempotent.
+         * &lt;/p&gt;
+         */
+        public void close ();
+    }
+
+    /**
+     * A &lt;code&gt;Mailbox&lt;/code&gt; implementation based on a &lt;code&gt;ConcurrentLinkedQueue&lt;/code&gt;.
+     *
+     * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+     */
+    public static final class ConcurrentLinkedQueueMailbox&lt;I&gt;
+            implements Mailbox&lt;I&gt;
+    {
+        private final ConcurrentLinkedQueue&lt;I&gt; queue;
+
+        private ConcurrentLinkedQueueMailbox (final ConcurrentLinkedQueue&lt;I&gt; queue)
+<span class="fc" id="L776">        {</span>
+<span class="fc" id="L777">            this.queue = queue;</span>
+<span class="fc" id="L778">        }</span>
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+         * @return the new mailbox.
+         */
+        public static &lt;I&gt; Mailbox&lt;I&gt; create ()
+        {
+<span class="fc" id="L788">            return new ConcurrentLinkedQueueMailbox&lt;&gt;(new ConcurrentLinkedQueue&lt;&gt;());</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public boolean offer (final I message)
+        {
+<span class="fc" id="L797">            return queue.offer(message);</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public I poll ()
+        {
+<span class="fc" id="L806">            return queue.poll();</span>
+        }
+    }
+
+    /**
+     * A &lt;code&gt;Mailbox&lt;/code&gt; implementation based on a &lt;code&gt;LinkedBlockingQueue&lt;/code&gt;.
+     *
+     * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+     */
+    public static final class LinkedBlockingQueueMailbox&lt;I&gt;
+            implements Mailbox&lt;I&gt;
+    {
+        private final LinkedBlockingQueue&lt;I&gt; queue;
+
+        private LinkedBlockingQueueMailbox (final LinkedBlockingQueue&lt;I&gt; queue)
+<span class="fc" id="L821">        {</span>
+<span class="fc" id="L822">            this.queue = queue;</span>
+<span class="fc" id="L823">        }</span>
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+         * @return the new mailbox.
+         */
+        public static &lt;I&gt; Mailbox&lt;I&gt; create ()
+        {
+<span class="fc" id="L833">            return new LinkedBlockingQueueMailbox&lt;&gt;(new LinkedBlockingQueue&lt;&gt;());</span>
+        }
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+         * @param capacity is the maximum number of messages that can be stored simultaneously.
+         * @return the new mailbox.
+         */
+        public static &lt;I&gt; Mailbox&lt;I&gt; create (final int capacity)
+        {
+<span class="fc" id="L845">            return new LinkedBlockingQueueMailbox&lt;&gt;(new LinkedBlockingQueue&lt;&gt;(capacity));</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public boolean offer (final I message)
+        {
+<span class="fc" id="L854">            return queue.offer(message);</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public I poll ()
+        {
+<span class="fc" id="L863">            return queue.poll();</span>
+        }
+    }
+
+    /**
+     * A &lt;code&gt;Mailbox&lt;/code&gt; implementation based on a &lt;code&gt;ArrayBlockingQueue&lt;/code&gt;.
+     *
+     * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+     */
+    public static final class ArrayBlockingQueueMailbox&lt;I&gt;
+            implements Mailbox&lt;I&gt;
+    {
+        private final ArrayBlockingQueue&lt;I&gt; queue;
+
+        private ArrayBlockingQueueMailbox (final ArrayBlockingQueue&lt;I&gt; queue)
+<span class="fc" id="L878">        {</span>
+<span class="fc" id="L879">            this.queue = queue;</span>
+<span class="fc" id="L880">        }</span>
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+         * @param capacity is the maximum number of messages that can be stored simultaneously.
+         * @return the new mailbox.
+         */
+        public static &lt;I&gt; Mailbox&lt;I&gt; create (final int capacity)
+        {
+<span class="fc" id="L891">            return new ArrayBlockingQueueMailbox&lt;&gt;(new ArrayBlockingQueue&lt;&gt;(capacity));</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public boolean offer (final I message)
+        {
+<span class="fc" id="L900">            return queue.offer(message);</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public I poll ()
+        {
+<span class="fc" id="L909">            return queue.poll();</span>
+        }
+    }
+
+    /**
+     * A &lt;code&gt;Mailbox&lt;/code&gt; implementation based on a &lt;code&gt;ArrayDeque&lt;/code&gt;.
+     *
+     * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+     */
+    public static final class ArrayDequeMailbox&lt;I&gt;
+            implements Mailbox&lt;I&gt;
+    {
+        private final ArrayDeque&lt;I&gt; queue;
+
+        private final int capacity;
+
+        private ArrayDequeMailbox (final ArrayDeque&lt;I&gt; queue,
+                                   final int capacity)
+<span class="fc" id="L927">        {</span>
+<span class="fc" id="L928">            this.queue = queue;</span>
+<span class="fc" id="L929">            this.capacity = capacity;</span>
+<span class="fc" id="L930">        }</span>
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+         * @param initial is the initial size of the backing data-structure.
+         * @param capacity is the maximum number of messages that can be stored simultaneously.
+         * @return the new mailbox.
+         */
+        public static &lt;I&gt; Mailbox&lt;I&gt; create (final int initial,
+                                             final int capacity)
+        {
+<span class="fc" id="L943">            return new ArrayDequeMailbox&lt;&gt;(new ArrayDeque&lt;&gt;(initial), capacity);</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * &lt;p&gt;
+         * Notice that this method is synchronized.
+         * &lt;/p&gt;
+         */
+        @Override
+        public synchronized boolean offer (final I message)
+        {
+<span class="fc bfc" id="L956" title="All 2 branches covered.">            if (queue.size() == capacity)</span>
+            {
+<span class="fc" id="L958">                return false;</span>
+            }
+            else
+            {
+<span class="fc" id="L962">                return queue.offer(message);</span>
+            }
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * &lt;p&gt;
+         * Notice that this method is synchronized.
+         * &lt;/p&gt;
+         */
+        @Override
+        public synchronized I poll ()
+        {
+<span class="fc" id="L976">            return queue.poll();</span>
+        }
+    }
+
+    /**
+     * A &lt;code&gt;Mailbox&lt;/code&gt; implementation based on a &lt;code&gt;PriorityBlockingQueue&lt;/code&gt;.
+     *
+     * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+     */
+    public static final class PriorityBlockingQueueMailbox&lt;I&gt;
+            implements Mailbox&lt;I&gt;
+    {
+        private final PriorityBlockingQueue&lt;I&gt; queue;
+
+        private PriorityBlockingQueueMailbox (final PriorityBlockingQueue&lt;I&gt; queue)
+<span class="fc" id="L991">        {</span>
+<span class="fc" id="L992">            this.queue = queue;</span>
+<span class="fc" id="L993">        }</span>
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+         * @param initial is the initial size of the backing data-structure.
+         * @param ordering assigns priorities to messages in the mailbox.
+         * @return the new mailbox.
+         */
+        public static &lt;I&gt; Mailbox&lt;I&gt; create (final int initial,
+                                             final Comparator&lt;I&gt; ordering)
+        {
+<span class="fc" id="L1006">            return new PriorityBlockingQueueMailbox&lt;&gt;(new PriorityBlockingQueue&lt;&gt;(initial, ordering));</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public boolean offer (final I message)
+        {
+<span class="fc" id="L1015">            return queue.offer(message);</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public I poll ()
+        {
+<span class="fc" id="L1024">            return queue.poll();</span>
+        }
+    }
+
+    /**
+     * A &lt;code&gt;Mailbox&lt;/code&gt; implementation based on an &lt;code&gt;ArrayDeque&lt;/code&gt;,
+     * which behaves like a ring-buffer data-structure.
+     *
+     * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+     */
+    public static final class CircularArrayDequeMailbox&lt;I&gt;
+            implements Mailbox&lt;I&gt;
+    {
+        private final ArrayDeque&lt;I&gt; queue;
+
+        private final int capacity;
+
+        private CircularArrayDequeMailbox (final ArrayDeque&lt;I&gt; queue,
+                                           final int capacity)
+<span class="fc" id="L1043">        {</span>
+<span class="fc" id="L1044">            this.queue = queue;</span>
+<span class="fc" id="L1045">            this.capacity = capacity;</span>
+<span class="fc" id="L1046">        }</span>
+
+        /**
+         * Create a new mailbox.
+         *
+         * @param &lt;I&gt; is the type of messages that will be stored in the mailbox.
+         * @param initial is the initial size of the backing data-structure.
+         * @param capacity is the maximum number of messages that can be stored simultaneously.
+         * @return the new mailbox.
+         */
+        public static &lt;I&gt; Mailbox&lt;I&gt; create (final int initial,
+                                             final int capacity)
+        {
+<span class="fc" id="L1059">            return new CircularArrayDequeMailbox&lt;&gt;(new ArrayDeque&lt;&gt;(initial), capacity);</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * &lt;p&gt;
+         * Notice that this method is synchronized.
+         * &lt;/p&gt;
+         */
+        @Override
+        public synchronized boolean offer (final I message)
+        {
+<span class="fc bfc" id="L1072" title="All 2 branches covered.">            if (queue.size() == capacity)</span>
+            {
+<span class="fc" id="L1074">                queue.poll();</span>
+<span class="fc" id="L1075">                queue.offer(message);</span>
+<span class="fc" id="L1076">                return true;</span>
+            }
+            else
+            {
+<span class="fc" id="L1080">                queue.offer(message);</span>
+<span class="fc" id="L1081">                return true;</span>
+            }
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * &lt;p&gt;
+         * Notice that this method is synchronized.
+         * &lt;/p&gt;
+         */
+        @Override
+        public synchronized I poll ()
+        {
+<span class="fc" id="L1095">            return queue.poll();</span>
+        }
+    }
+
+    /**
+     * Partial Implementation of &lt;code&gt;Stage&lt;/code&gt;.
+     */
+<span class="fc" id="L1102">    public static abstract class AbstractStage</span>
+            implements Cascade.Stage
+    {
+<span class="fc" id="L1105">        private final Stage STAGE = this;</span>
+
+<span class="fc" id="L1107">        private final AtomicBoolean stageClosed = new AtomicBoolean(false);</span>
+
+        /**
+         * This method will be invoked whenever an actor needs executed.
+         *
+         * &lt;p&gt;
+         * This method will not be re-invoked, until the actor finishes
+         * being executed, even if the actor determines that it needs
+         * to be executed again. Rather, the actor will invoke this
+         * method again, if needed, at the end of its execution.
+         * This strategy helps ensure that no two threads will
+         * ever power the actor concurrently. Moreover,
+         * this strategy lessons the amount of memory used
+         * by some implementations in order to schedule actors.
+         * &lt;/p&gt;
+         *
+         * &lt;p&gt;
+         * Implementations of this method should never throw exceptions.
+         * If an exception or error is thrown, then the stage will be closed.
+         * &lt;/p&gt;
+         *
+         * @param actor needs to be &lt;code&gt;run()&lt;/code&gt; at some point in the future.
+         */
+        protected abstract void onRunnable (DefaultActor&lt;?, ?&gt; actor);
+
+        /**
+         * This method will be invoked when this stage closes.
+         */
+        protected abstract void onClose ();
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public final &lt;I, O&gt; Actor.Builder&lt;I, O&gt; newActor ()
+        {
+<span class="fc" id="L1143">            return new DefaultActorBuilder&lt;&gt;();</span>
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public final void close ()
+        {
+<span class="fc bfc" id="L1152" title="All 2 branches covered.">            if (stageClosed.compareAndSet(false, true))</span>
+            {
+<span class="fc" id="L1154">                onClose();</span>
+            }
+<span class="fc" id="L1156">        }</span>
+
+        /**
+         * This method protects against exceptions thrown in the overridden &lt;code&gt;onSubmit()&lt;/code&gt; method.
+         * If an exception is thrown in that method, then the stage must be shutdown,
+         * since we would be unable to ensure that all pending tasks get executed.
+         *
+         * @param actor needs scheduled for execution.
+         */
+        private void safelySchedule (final DefaultActor&lt;?, ?&gt; actor)
+        {
+            try
+            {
+<span class="fc" id="L1169">                onRunnable(actor);</span>
+            }
+<span class="fc" id="L1171">            catch (Throwable ex)</span>
+            {
+<span class="fc" id="L1173">                close();</span>
+<span class="fc" id="L1174">            }</span>
+<span class="fc" id="L1175">        }</span>
+
+        /**
+         * Default Implementation of the &lt;code&gt;Actor.Builder&lt;/code&gt; interface.
+         *
+         * @param &lt;I&gt; is the type of messages that the actor will consume.
+         * @param &lt;O&gt; is the type of messages that the actor will produce.
+         */
+        private final class DefaultActorBuilder&lt;I, O&gt;
+                implements Cascade.Stage.Actor.Builder&lt;I, O&gt;
+        {
+            private final Mailbox&lt;I&gt; mailbox;
+
+            private final ContextScript&lt;I, O&gt; script;
+
+            private final ContextErrorHandler&lt;I, O&gt; errorHandler;
+
+            private DefaultActorBuilder ()
+<span class="fc" id="L1193">            {</span>
+<span class="fc" id="L1194">                this.mailbox = ConcurrentLinkedQueueMailbox.create();</span>
+
+<span class="fc" id="L1196">                this.script = (context, message) -&gt;</span>
+                {
+                    // Pass.
+<span class="fc" id="L1199">                };</span>
+
+<span class="fc" id="L1201">                this.errorHandler = (context, message, cause) -&gt;</span>
+                {
+                    // Pass.
+<span class="fc" id="L1204">                };</span>
+<span class="fc" id="L1205">            }</span>
+
+            private DefaultActorBuilder (final Mailbox&lt;I&gt; mailbox,
+                                         final ContextScript&lt;I, O&gt; script,
+                                         final ContextErrorHandler&lt;I, O&gt; errorHandler)
+<span class="fc" id="L1210">            {</span>
+<span class="fc" id="L1211">                this.mailbox = mailbox;</span>
+<span class="fc" id="L1212">                this.script = script;</span>
+<span class="fc" id="L1213">                this.errorHandler = errorHandler;</span>
+<span class="fc" id="L1214">            }</span>
+
+            @Override
+            public &lt;X, Y&gt; Actor.Builder&lt;X, Y&gt; withContextScript (final Stage.Actor.ContextScript&lt;X, Y&gt; script)
+            {
+<span class="fc" id="L1219">                Objects.requireNonNull(script, &quot;script&quot;);</span>
+<span class="fc" id="L1220">                return new DefaultActorBuilder(mailbox, script, errorHandler);</span>
+            }
+
+            @Override
+            public Actor.Builder&lt;I, O&gt; withContextErrorHandler (final ContextErrorHandler&lt;I, O&gt; handler)
+            {
+<span class="fc" id="L1226">                Objects.requireNonNull(handler, &quot;handler&quot;);</span>
+
+                /**
+                 * Combine the given handler and any previously defined handlers.
+                 * Execute each of the handlers in sequence, even if one fails.
+                 * If any handler throws an exception, simply ignore it.
+                 * In general, an error-handler should not cause an error itself.
+                 */
+<span class="fc" id="L1234">                final ContextErrorHandler&lt;I, O&gt; combined = errorHandler.andThen(handler);</span>
+<span class="fc" id="L1235">                return new DefaultActorBuilder(mailbox, script, combined);</span>
+            }
+
+            @Override
+            public Actor.Builder&lt;I, O&gt; withMailbox (final Mailbox&lt;I&gt; mailbox)
+            {
+<span class="fc" id="L1241">                Objects.requireNonNull(mailbox, &quot;mailbox&quot;);</span>
+<span class="fc" id="L1242">                return new DefaultActorBuilder(mailbox, script, errorHandler);</span>
+            }
+
+            @Override
+            public Actor&lt;I, O&gt; create ()
+            {
+<span class="fc" id="L1248">                final DefaultActor&lt;I, O&gt; actor = new DefaultActor&lt;&gt;(this);</span>
+<span class="fc" id="L1249">                return actor;</span>
+            }
+        }
+
+        /**
+         * Default Actor Implementation.
+         *
+         * &lt;p&gt;
+         * A (meta) object is stored herein, which is intended
+         * for use by implementing sub-classes, so that they
+         * can store actor specific information.
+         * &lt;/p&gt;
+         *
+         * @param &lt;I&gt; is the type of the messages incoming to the actor.
+         * @param &lt;O&gt; is the type of the messages outgoing from the actor.
+         */
+        public final class DefaultActor&lt;I, O&gt;
+                implements Cascade.Stage.Actor&lt;I, O&gt;,
+                           Runnable
+        {
+            /**
+             * This reference just makes 'this' more explicit in
+             * order to avoid confusion caused by nested classes.
+             */
+<span class="fc" id="L1273">            private final DefaultActor&lt;I, O&gt; ACTOR = this;</span>
+
+            /**
+             * This mailbox stores the backlog of messages that
+             * need to be processed by this actor one at a time.
+             */
+            private final Mailbox&lt;I&gt; mailbox;
+
+            /**
+             * This script will be used to process those messages.
+             */
+            private final ContextScript&lt;I, O&gt; script;
+
+            /**
+             * If that script throws an unhandled exception,
+             * then this error-handler will be invoked in
+             * order to handle the exception.
+             */
+            private final ContextErrorHandler&lt;I, O&gt; errorHandler;
+
+            /**
+             * This object provides the ability to send messages to
+             * and from this actor and will be passed-in to the script.
+             */
+<span class="fc" id="L1297">            private final DefaultContext context = new DefaultContext();</span>
+
+            /**
+             * This object provides the input-connector API and wraps the mailbox.
+             */
+<span class="fc" id="L1302">            private final DefaultInput input = new DefaultInput();</span>
+
+            /**
+             * This object provides the output-connector API.
+             */
+<span class="fc" id="L1307">            private final DefaultOutput output = new DefaultOutput();</span>
+
+            /**
+             * This is the number of messages that are in the mailbox.
+             */
+<span class="fc" id="L1312">            private final AtomicLong pendingCranks = new AtomicLong();</span>
+
+            /**
+             * This flag is simply used as a sanity check to detect bugs,
+             * if the run() method is executed concurrently; therefore,
+             * this may be removed at some point in the future.
+             */
+<span class="fc" id="L1319">            private final AtomicBoolean inProgress = new AtomicBoolean(false);</span>
+
+            /**
+             * This field can be used by custom stage implementations
+             * to store implementation-specific information.
+             */
+<span class="fc" id="L1325">            private volatile Object meta = null;</span>
+
+            private DefaultActor (final DefaultActorBuilder&lt;I, O&gt; builder)
+<span class="fc" id="L1328">            {</span>
+<span class="fc" id="L1329">                this.errorHandler = builder.errorHandler;</span>
+<span class="fc" id="L1330">                this.mailbox = builder.mailbox;</span>
+<span class="fc" id="L1331">                this.script = builder.script;</span>
+<span class="fc" id="L1332">            }</span>
+
+            @Override
+            public void run ()
+            {
+<span class="fc bfc" id="L1337" title="All 2 branches covered.">                if (inProgress.compareAndSet(false, true) == false)</span>
+                {
+                    /**
+                     * This should never actually happen, period; however, the likely cause is either:
+                     * (1) the AbstractStage implementation called run() twice for one onRunnable() call,
+                     * (2) the scheduling algorithm in this class is fundamentally broken.
+                     * In the case of custom stages, case (1) is the most likely cause.
+                     */
+<span class="fc" id="L1345">                    throw new IllegalStateException(&quot;concurrent run()&quot;);</span>
+                }
+
+<span class="fc" id="L1348">                I message = null;</span>
+
+                try
+                {
+                    /**
+                     * Pull the next message from the mailbox and
+                     * then process the message using the script.
+                     */
+<span class="fc" id="L1356">                    message = mailbox.poll();</span>
+
+<span class="fc bfc" id="L1358" title="All 2 branches covered.">                    if (message != null)</span>
+                    {
+<span class="fc" id="L1360">                        script.onInput(context, message);</span>
+                    }
+                }
+<span class="fc" id="L1363">                catch (Throwable cause)</span>
+                {
+                    /**
+                     * Invoke the error-handler given the message and exception,
+                     * but do not allow the error-handler to throw an exception.
+                     * If the poll() threw the exception, then the message is null.
+                     */
+<span class="fc" id="L1370">                    handleException(message, cause);</span>
+                }
+                finally
+                {
+                    /**
+                     * Now that the processing of the message is complete,
+                     * go ahead and schedule the next message, if any.
+                     */
+<span class="fc" id="L1378">                    inProgress.set(false);</span>
+<span class="fc" id="L1379">                    scheduleSubsequentMessage();</span>
+                }
+<span class="fc" id="L1381">            }</span>
+
+            private void handleException (final I message,
+                                          final Throwable cause)
+            {
+                try
+                {
+<span class="fc" id="L1388">                    errorHandler.onError(context, message, cause);</span>
+                }
+<span class="nc" id="L1390">                catch (Throwable ignored)</span>
+                {
+                    // Pass, because errors from error-handlers cannot be reasonably handled.
+<span class="fc" id="L1393">                }</span>
+<span class="fc" id="L1394">            }</span>
+
+            private void scheduleInitialMessage ()
+            {
+<span class="fc bfc" id="L1398" title="All 2 branches covered.">                if (pendingCranks.incrementAndGet() == 1)</span>
+                {
+<span class="fc" id="L1400">                    safelySchedule(ACTOR);</span>
+                }
+<span class="fc" id="L1402">            }</span>
+
+            private void scheduleSubsequentMessage ()
+            {
+<span class="fc bfc" id="L1406" title="All 2 branches covered.">                if (pendingCranks.decrementAndGet() != 0)</span>
+                {
+<span class="fc" id="L1408">                    safelySchedule(ACTOR);</span>
+                }
+<span class="fc" id="L1410">            }</span>
+
+            @Override
+            public Stage stage ()
+            {
+<span class="fc" id="L1415">                return STAGE;</span>
+            }
+
+            @Override
+            public Context&lt;I, O&gt; context ()
+            {
+<span class="fc" id="L1421">                return context;</span>
+            }
+
+            @Override
+            public Input&lt;I&gt; input ()
+            {
+<span class="fc" id="L1427">                return input;</span>
+            }
+
+            @Override
+            public Output&lt;O&gt; output ()
+            {
+<span class="fc" id="L1433">                return output;</span>
+            }
+
+            public Object meta ()
+            {
+<span class="fc" id="L1438">                return meta;</span>
+            }
+
+            public void meta (final Object value)
+            {
+<span class="fc" id="L1443">                meta = value;</span>
+<span class="fc" id="L1444">            }</span>
+
+<span class="fc" id="L1446">            private final class DefaultContext</span>
+                    implements Context&lt;I, O&gt;
+            {
+                @Override
+                public Actor&lt;I, O&gt; actor ()
+                {
+<span class="fc" id="L1452">                    return ACTOR;</span>
+                }
+
+                @Override
+                public boolean offerFrom (final O message)
+                {
+<span class="fc" id="L1458">                    boolean sentToAll = true;</span>
+
+<span class="fc bfc" id="L1460" title="All 2 branches covered.">                    if (message != null)</span>
+                    {
+<span class="fc" id="L1462">                        final List&lt;Input&lt;O&gt;&gt; outputs = output.connectionList;</span>
+<span class="fc" id="L1463">                        final int length = outputs.size();</span>
+
+                        // Using for instead of for-each avoids creating an iterator object.
+<span class="fc bfc" id="L1466" title="All 2 branches covered.">                        for (int i = 0; i &lt; length; i++)</span>
+                        {
+<span class="fc" id="L1468">                            sentToAll &amp;= outputs.get(i).offer(message);</span>
+                        }
+                    }
+
+<span class="fc" id="L1472">                    return sentToAll;</span>
+                }
+
+                @Override
+                public boolean offerTo (final I message)
+                {
+<span class="fc" id="L1478">                    Objects.requireNonNull(message, &quot;message&quot;);</span>
+
+<span class="fc bfc" id="L1480" title="All 2 branches covered.">                    if (mailbox.offer(message))</span>
+                    {
+<span class="fc" id="L1482">                        scheduleInitialMessage();</span>
+<span class="fc" id="L1483">                        return true;</span>
+                    }
+                    else
+                    {
+<span class="fc" id="L1487">                        return false;</span>
+                    }
+                }
+            };
+
+            /**
+             * Default Implementation of &lt;code&gt;Actor.Input&lt;/code&gt;.
+             */
+<span class="fc" id="L1495">            private final class DefaultInput</span>
+                    implements Actor.Input&lt;I&gt;
+            {
+                @Override
+                public Actor&lt;I, ?&gt; actor ()
+                {
+<span class="fc" id="L1501">                    return ACTOR;</span>
+                }
+            }
+
+            /**
+             * Default Implementation of &lt;code&gt;Actor.Output&lt;/code&gt;.
+             */
+<span class="fc" id="L1508">            private final class DefaultOutput</span>
+                    implements Actor.Output&lt;O&gt;
+            {
+                /**
+                 * This lock is used to prevent concurrent connections and disconnections;
+                 * however, this lock is not in the critical-path of message processing.
+                 */
+<span class="fc" id="L1515">                private final Object outputLock = new Object();</span>
+
+                /**
+                 * This is an immutable list containing the inputs that this output is connected to.
+                 */
+<span class="fc" id="L1520">                private volatile List&lt;Input&lt;O&gt;&gt; connectionList = newImmutableList(Collections.EMPTY_LIST);</span>
+
+                @Override
+                public Actor&lt;?, O&gt; actor ()
+                {
+<span class="fc" id="L1525">                    return ACTOR;</span>
+                }
+
+                @Override
+                public Output&lt;O&gt; connect (final Stage.Actor.Input&lt;O&gt; input)
+                {
+<span class="fc" id="L1531">                    Objects.requireNonNull(input, &quot;input&quot;);</span>
+
+<span class="fc" id="L1533">                    synchronized (outputLock)</span>
+                    {
+<span class="fc bfc" id="L1535" title="All 2 branches covered.">                        if (isConnected(input) == false)</span>
+                        {
+<span class="fc" id="L1537">                            final List&lt;Input&lt;O&gt;&gt; modified = new ArrayList&lt;&gt;(connectionList);</span>
+<span class="fc" id="L1538">                            modified.add(input);</span>
+<span class="fc" id="L1539">                            connectionList = newImmutableList(modified);</span>
+                        }
+<span class="fc" id="L1541">                    }</span>
+
+<span class="fc" id="L1543">                    return this;</span>
+                }
+
+                @Override
+                public Output&lt;O&gt; disconnect (final Stage.Actor.Input&lt;O&gt; input)
+                {
+<span class="fc" id="L1549">                    Objects.requireNonNull(input, &quot;input&quot;);</span>
+
+<span class="fc" id="L1551">                    synchronized (outputLock)</span>
+                    {
+<span class="fc bfc" id="L1553" title="All 2 branches covered.">                        if (isConnected(input))</span>
+                        {
+<span class="fc" id="L1555">                            final List&lt;Input&lt;O&gt;&gt; modified = new ArrayList&lt;&gt;(connectionList);</span>
+<span class="fc" id="L1556">                            modified.remove(input);</span>
+<span class="fc" id="L1557">                            connectionList = newImmutableList(modified);</span>
+                        }
+<span class="fc" id="L1559">                    }</span>
+
+<span class="fc" id="L1561">                    return this;</span>
+                }
+
+                @Override
+                public boolean isConnected (final Input&lt;?&gt; input)
+                {
+<span class="fc" id="L1567">                    return connectionList.contains(input);</span>
+                }
+            }
+        }
+
+        private static &lt;T&gt; List&lt;T&gt; newImmutableList (final Collection&lt;T&gt; collection)
+        {
+<span class="fc" id="L1574">            return List.copyOf(collection);</span>
+        }
+    }
+
+    /**
+     * Create a new single-threaded stage.
+     *
+     * &lt;p&gt;
+     * The stage will use a non-daemon thread.
+     * &lt;/p&gt;
+     *
+     * @return the new stage.
+     */
+    public static Stage newStage ()
+    {
+<span class="fc" id="L1589">        return newStage(1);</span>
+    }
+
+    /**
+     * Create a new multi-threaded stage.
+     *
+     * &lt;p&gt;
+     * The stage will use non-daemon threads.
+     * &lt;/p&gt;
+     *
+     * @param threadCount is the number of worker threads that the stage will use.
+     * @return the new stage.
+     */
+    public static Stage newStage (final int threadCount)
+    {
+<span class="fc" id="L1604">        return newStage(threadCount, false);</span>
+    }
+
+    /**
+     * Create a new multi-threaded stage.
+     *
+     * @param threadCount is the number of worker threads that the stage will use.
+     * @param daemon is true, if the threads will be daemon threads.
+     * @return the new stage.
+     */
+    public static Stage newStage (final int threadCount,
+                                  final boolean daemon)
+    {
+<span class="fc" id="L1617">        final ThreadFactory factory = (Runnable task) -&gt;</span>
+        {
+<span class="fc" id="L1619">            final Thread thread = new Thread(task);</span>
+<span class="fc" id="L1620">            thread.setDaemon(daemon);</span>
+<span class="fc" id="L1621">            return thread;</span>
+        };
+
+<span class="fc" id="L1624">        final ExecutorService service = Executors.newFixedThreadPool(threadCount, factory);</span>
+<span class="fc" id="L1625">        return newStage(service);</span>
+    }
+
+    /**
+     * Create a new stage based on a given &lt;code&gt;ExecutorService&lt;/code&gt;.
+     *
+     * @param service will power the new stage.
+     * @return the new stage.
+     */
+    public static Stage newStage (final ExecutorService service)
+    {
+<span class="fc" id="L1636">        Objects.requireNonNull(service, &quot;service&quot;);</span>
+
+<span class="fc" id="L1638">        return new AbstractStage()</span>
+<span class="fc" id="L1639">        {</span>
+            @Override
+            protected void onRunnable (final DefaultActor&lt;?, ?&gt; actor)
+            {
+                /**
+                 * Schedule the actor to run at some point in the future.
+                 * The actor itself, without blocking, will guarantee that
+                 * it is only being run() by one thread at a time.
+                 */
+<span class="fc" id="L1648">                service.execute(actor);</span>
+<span class="fc" id="L1649">            }</span>
+
+            @Override
+            protected void onClose ()
+            {
+<span class="fc" id="L1654">                service.shutdown();</span>
+<span class="fc" id="L1655">            }</span>
+        };
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
