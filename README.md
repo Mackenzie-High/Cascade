@@ -16,15 +16,6 @@ Cascade is an embeddable actor framework contained within a single Java source-f
 </dependency>
 ```
 
-## Compilation and Installation
-
-```bash
-git clone 'https://github.com/Mackenzie-High/Cascade.git'
-cd Cascade/
-git checkout REL_CASCADE_2_0_2_BETA
-mvn clean install
-```
-
 ## Actors
 
 An actor is an object that has: (1) an input connector, (2) an input queue, (3) an output connector, (4) a function that transforms input messages into output messages. 
