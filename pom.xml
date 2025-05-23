@@ -3,12 +3,59 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.mackenziehigh</groupId>
     <artifactId>cascade</artifactId>
-    <version>2.0.2</version>
+    <version>2.1</version>
     <packaging>jar</packaging>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>A Micro Actor Framework for Java</description>
+    <url>https://github.com/Mackenzie-High/Cascade</url>
+
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    
+    <developers>
+        <developer>
+            <name>Mackenzie High</name>
+            <email>MackenzieHigh2995@gmail.com</email>
+            <organization>Mackenzie High</organization>
+            <organizationUrl>https://www.mackenziehigh.com</organizationUrl>
+        </developer>
+    </developers>
+    
+    <scm>
+        <connection>scm:git:git://github.com/Mackenzie-High/Cascade.git</connection>
+        <developerConnection>scm:git:ssh://github.com:Mackenzie-High/Cascade.git</developerConnection>
+        <url>https://github.com/Mackenzie-High/Cascade/tree/master</url>
+    </scm>
+    
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <maven.compiler.release>8</maven.compiler.release>
+    </properties>
+    
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
     <build>
 
         <plugins>
+            
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.2.0</version>
+            </plugin>
 
             <!-- Code Coverage Plugin -->
             <plugin>
@@ -28,7 +75,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.2</version>
+                <version>0.8.13</version>
                 <executions>
                     <execution>
                         <goals>
@@ -44,58 +91,82 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <!-- This plugin ensures that dependencies get copied into target/lib. -->
-            <plugin>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>copy-dependencies</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- This plugin builds the assembly tar-ball for release.-->
+            
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <configuration>
-                    <finalName>cascade</finalName>
-                    <appendAssemblyId>false</appendAssemblyId>
-                    <descriptors>
-                        <descriptor>src/assembly/assembly.xml</descriptor>
-                    </descriptors>
-                </configuration>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.2.0</version>
                 <executions>
                     <execution>
-                        <phase>package</phase>
+                        <id>attach-sources</id>
                         <goals>
-                            <goal>single</goal>
+                            <goal>jar</goal>
                         </goals>
                     </execution>
                 </executions>
             </plugin>
+            
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <doctitle>${javadoc.title}</doctitle>
+                    <windowTitle>${javadoc.title}</windowTitle>
+                    <encoding>UTF-8</encoding>
+                    <source>${maven.compiler.source}</source>
+                    <title>${javadoc.title}</title>
+                    <additionalJOption>-Xdoclint:all</additionalJOption>
+                    <doclint>none</doclint>
+                </configuration>
+            </plugin>
+            
+            <!-- Maven GPG Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <keyname>218BBC4AE6670A460049253EA5B0B571B29CBE3F</keyname>
+                </configuration>
+            </plugin>
+            
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.7.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>false</autoPublish>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
+    
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+    </distributionManagement>
 
-    <dependencies>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.12</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>12</maven.compiler.source>
-        <maven.compiler.target>12</maven.compiler.target>
-    </properties>
-    <description>A Micro Actor Framework for Java.</description>
 </project>

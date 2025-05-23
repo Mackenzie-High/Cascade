@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Michael Mackenzie High
+ * Copyright 2017 Mackenzie High
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1800,7 +1800,7 @@ public final class CascadeTest
             }
         };
 
-        final var actor = customStage.newActor().withFunctionScript((String x) -> x).create();
+        final Actor<String, String> actor = customStage.newActor().withFunctionScript((String x) -> x).create();
 
         assertEquals(0, closeCount.get());
         actor.input().send("X");
